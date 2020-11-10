@@ -1,0 +1,13 @@
+*.pyc
+.~lock*
+.DS_Store
+.mypy_cache/
+*.egg-info/
+.tox/
+.coverage
+htmlcov/
+coverage.xml
+build/
+dist/
+examples/
+pip-wheel-metadata/
