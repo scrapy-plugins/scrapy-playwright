@@ -28,5 +28,8 @@ setuptools.setup(
         "Topic :: Software Development :: Libraries :: Application Frameworks",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    install_requires=["scrapy>=2.0", "playwright>=0.7.0"],
+    install_requires=[
+        "scrapy>=2.0,!=2.4.0",
+        "playwright>=0.7.0",
+    ],
 )

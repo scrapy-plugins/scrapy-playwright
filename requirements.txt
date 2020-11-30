@@ -1,2 +1,2 @@
 playwright>=0.7.0
-scrapy>=2.0
+scrapy>=2.0,!=2.4.0
