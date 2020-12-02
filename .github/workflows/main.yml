@@ -1,0 +1,55 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  black:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python version
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Black check
+      run: tox -e black
+
+  flake8:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python version
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Flake8 check
+      run: tox -e flake8
+
+  typing:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python version
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Typing check
+      run: tox -e typing

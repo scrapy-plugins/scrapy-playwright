@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quotes to Scrape</title>
+    <link rel="stylesheet" href="static/bootstrap.min.css">
+    <link rel="stylesheet" href="static/main.css">
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="quotes"></div>
+            </div>
+        </div>
+        <div id="loading" style="background-color: #eeeecc"><h5>Loading...</h5></div>
+    </div>
+
+        <script src="static/jquery.js"></script>
+        <script>
+            $(function() {
+                var page = 1, tag = null, hasNextPage = true;
+
+                function appendQuotes(quotes) {
+                    var html = $.map(quotes, function(d){
+                        var tags = $.map(d['tags'], function(t) {
+                            return "<a class='tag'>" + t + "</a>";
+                        }).join(" ");
+                        return "<div class='quote'><span class='text'>" + d['text'] + "</span><span>by <small class='author'>" + d['author']['name'] + "</small></span><div class='tags'>Tags: " + tags + "</div></div>";
+                    });
+                    $('.quotes').append(html);
+                }
+
+                function updatePage(page) {
+                    $('#loading').show('fast');
+                    $.get('data/quotes' + page + '.json').done(function(data) {
+                        appendQuotes(data.quotes);
+                        hasNextPage = data.has_next;
+                        $('#loading').hide('fast');
+                    });
+                }
+
+                updatePage(page);
+
+                $(window).on('scroll', function(){
+                    var scrollTop = $(window).scrollTop();
+                    var heightDiff = $(document).height() - $(window).height();
+                    if (hasNextPage && Math.abs(scrollTop - heightDiff) <= 1){
+                        page += 1;
+                        console.log('scrolling to page: ' + page);
+                        updatePage(page);
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,162 @@
+{
+  "has_next": false,
+  "page": 3,
+  "quotes": [
+    {
+      "author": {
+        "goodreads_link": "/author/show/4026.Pablo_Neruda",
+        "name": "Pablo Neruda",
+        "slug": "Pablo-Neruda"
+      },
+      "tags": [
+        "love",
+        "poetry"
+      ],
+      "text": "\u201cI love you without knowing how, or when, or from where. I love you simply, without problems or pride: I love you in this way because I do not know any other way of loving but this, in which there is no I or you, so intimate that your hand upon my chest is my hand, so intimate that when I fall asleep your eyes close.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/12080.Ralph_Waldo_Emerson",
+        "name": "Ralph Waldo Emerson",
+        "slug": "Ralph-Waldo-Emerson"
+      },
+      "tags": [
+        "happiness"
+      ],
+      "text": "\u201cFor every minute you are angry you lose sixty seconds of happiness.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/838305.Mother_Teresa",
+        "name": "Mother Teresa",
+        "slug": "Mother-Teresa"
+      },
+      "tags": [
+        "attributed-no-source"
+      ],
+      "text": "\u201cIf you judge people, you have no time to love them.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/2014.Garrison_Keillor",
+        "name": "Garrison Keillor",
+        "slug": "Garrison-Keillor"
+      },
+      "tags": [
+        "humor",
+        "religion"
+      ],
+      "text": "\u201cAnyone who thinks sitting in church can make you a Christian must also think that sitting in a garage can make you a car.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/4427.Jim_Henson",
+        "name": "Jim Henson",
+        "slug": "Jim-Henson"
+      },
+      "tags": [
+        "humor"
+      ],
+      "text": "\u201cBeauty is in the eye of the beholder and it may be necessary from time to time to give a stupid or misinformed beholder a black eye.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/61105.Dr_Seuss",
+        "name": "Dr. Seuss",
+        "slug": "Dr-Seuss"
+      },
+      "tags": [
+        "comedy",
+        "life",
+        "yourself"
+      ],
+      "text": "\u201cToday you are You, that is truer than true. There is no one alive who is Youer than You.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/9810.Albert_Einstein",
+        "name": "Albert Einstein",
+        "slug": "Albert-Einstein"
+      },
+      "tags": [
+        "children",
+        "fairy-tales"
+      ],
+      "text": "\u201cIf you want your children to be intelligent, read them fairy tales. If you want them to be more intelligent, read them more fairy tales.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/1077326.J_K_Rowling",
+        "name": "J.K. Rowling",
+        "slug": "J-K-Rowling"
+      },
+      "tags": [],
+      "text": "\u201cIt is impossible to live without failing at something, unless you live so cautiously that you might as well not have lived at all - in which case, you fail by default.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/9810.Albert_Einstein",
+        "name": "Albert Einstein",
+        "slug": "Albert-Einstein"
+      },
+      "tags": [
+        "imagination"
+      ],
+      "text": "\u201cLogic will get you from A to Z; imagination will get you everywhere.\u201d"
+    },
+    {
+      "author": {
+        "goodreads_link": "/author/show/25241.Bob_Marley",
+        "name": "Bob Marley",
+        "slug": "Bob-Marley"
+      },
+      "tags": [
+        "music"
+      ],
+      "text": "\u201cOne good thing about music, when it hits you, you feel no pain.\u201d"
+    }
+  ],
+  "tag": null,
+  "top_ten_tags": [
+    [
+      "love",
+      14
+    ],
+    [
+      "inspirational",
+      13
+    ],
+    [
+      "life",
+      13
+    ],
+    [
+      "humor",
+      12
+    ],
+    [
+      "books",
+      11
+    ],
+    [
+      "reading",
+      7
+    ],
+    [
+      "friendship",
+      5
+    ],
+    [
+      "friends",
+      4
+    ],
+    [
+      "truth",
+      4
+    ],
+    [
+      "simile",
+      3
+    ]
+  ]
+}

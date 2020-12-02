@@ -1,0 +1,111 @@
+/* Custom page CSS */
+body {
+  font-family: sans-serif;
+}
+
+.container .text-muted {
+  margin: 20px 0;
+}
+
+.tags-box {
+  text-align: right;
+}
+
+.tags-box h2 {
+  margin-top: 0px;
+}
+
+.tag-item {
+  display: block;
+  margin: 4px;
+}
+
+.quote {
+  padding: 10px;
+  margin-bottom: 30px;
+  border: 1px solid #333333;
+  border-radius: 5px;
+  box-shadow: 2px 2px 3px #333333;
+}
+
+.quote small.author {
+  font-weight: bold;
+  color: #3677E8;
+}
+
+.quote span.text {
+  display: block;
+  margin-bottom: 5px;
+  font-size: large;
+  font-style: italic;
+}
+
+.quote .tags {
+  margin-top: 10px;
+}
+
+.tag {
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: white;
+  font-size: small;
+  background-color: #7CA3E6;
+}
+
+a.tag:hover {
+  text-decoration: none;
+}
+
+/* Sticky footer styles */
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 6em;
+  background-color: #f5f5f5;
+}
+
+.error {
+  color: red;
+}
+
+.header-box {
+  padding-bottom: 40px;
+}
+
+.header-box p {
+  margin-top: 30px;
+  float: right;
+}
+
+.author-details  {
+  width: 80%;
+}
+
+.author-description {
+  text-align: justify;
+  margin-bottom: 20px;
+}
+
+ul.pager {
+  margin-bottom: 100px;
+}
+
+.copyright {
+  text-align: center;
+}
+
+.sh-red {
+  color: #cc0b0f;
+}
