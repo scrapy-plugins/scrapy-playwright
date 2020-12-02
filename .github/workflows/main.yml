@@ -53,3 +53,24 @@ jobs:
 
     - name: Typing check
       run: tox -e typing
+
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15]
+        python-version: [3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Run tests
+      run: tox -e py
