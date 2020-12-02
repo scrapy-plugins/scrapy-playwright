@@ -72,5 +72,10 @@ jobs:
     - name: Install tox
       run: pip install tox
 
+    - name: Install playwright & browsers
+      run: |
+        pip install playwright
+        python -m playwright install
+
     - name: Run tests
       run: tox -e py
