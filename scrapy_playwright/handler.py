@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from time import time
 from typing import Callable, Optional, Type, TypeVar
 
@@ -22,7 +21,6 @@ from scrapy_playwright.page import PageCoroutine
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
 
 
-logger = logging.getLogger("scrapy-playwright")
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
@@ -41,19 +39,22 @@ def _make_request_handler(
         if request.url == scrapy_request.url:
             overrides = {
                 "method": scrapy_request.method,
-                "headers": {
-                    key.decode("utf-8"): value[0].decode("utf-8")
-                    for key, value in scrapy_request.headers.items()
-                },
+                "headers": request.headers.copy(),
             }
+            overrides["headers"].update(
+                {
+                    key.decode("utf-8").lower(): value[0].decode("utf-8")
+                    for key, value in scrapy_request.headers.items()
+                }
+            )
             if scrapy_request.body:
                 overrides["postData"] = scrapy_request.body.decode(scrapy_request.encoding)
         asyncio.create_task(route.continue_(**overrides))
         # increment stats
-        stats.inc_value("pyppeteer/request_method_count/{}".format(request.method))
-        stats.inc_value("pyppeteer/request_count")
+        stats.inc_value("playwright/request_method_count/{}".format(request.method))
+        stats.inc_value("playwright/request_count")
         if request.isNavigationRequest():
-            stats.inc_value("pyppeteer/request_count/navigation")
+            stats.inc_value("playwright/request_count/navigation")
 
     return request_handler
 
