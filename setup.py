@@ -1,11 +1,18 @@
 import setuptools
 
+from scrapy_playwright import __version__
+
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 
 setuptools.setup(
     name="scrapy-playwright",
-    version="0.0.1",
+    version=__version__,
     license="BSD",
     description="Playwright integration for Scrapy",
+    long_description=long_description,
     long_description_content_type="text/markdown",
     author="Eugenio Lacuesta",
     author_email="eugenio.lacuesta@gmail.com",
