@@ -1,6 +1,7 @@
 import asyncio
 from time import time
 from typing import Callable, Optional, Type, TypeVar
+from urllib.parse import urlparse
 
 import playwright
 from playwright.async_api import Page
@@ -25,6 +26,7 @@ PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownload
 
 
 def _make_request_handler(
+    browser_type: str,
     scrapy_request: Request,
     stats: StatsCollector,
 ) -> Callable:
@@ -35,20 +37,25 @@ def _make_request_handler(
         """
         Override request headers, method and body
         """
-        overrides = {}
         if request.url == scrapy_request.url:
             overrides = {
                 "method": scrapy_request.method,
-                "headers": request.headers.copy(),
-            }
-            overrides["headers"].update(
-                {
+                "headers": {
                     key.decode("utf-8").lower(): value[0].decode("utf-8")
                     for key, value in scrapy_request.headers.items()
-                }
-            )
+                },
+            }
             if scrapy_request.body:
                 overrides["postData"] = scrapy_request.body.decode(scrapy_request.encoding)
+            # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
+            if browser_type == "firefox":
+                overrides["headers"]["host"] = urlparse(request.url).netloc
+        else:
+            overrides = {"headers": request.headers.copy()}
+            # override user agent, for consistency with other requests
+            if scrapy_request.headers.get("user-agent"):
+                user_agent = scrapy_request.headers["user-agent"].decode("utf-8")
+                overrides["headers"]["user-agent"] = user_agent
         asyncio.create_task(route.continue_(**overrides))
         # increment stats
         stats.inc_value("playwright/request_method_count/{}".format(request.method))
@@ -110,7 +117,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if not isinstance(page, Page):
             page = await self._create_page_for_request(request)
         await page.unroute("**")
-        await page.route("**", _make_request_handler(scrapy_request=request, stats=self.stats))
+        await page.route(
+            "**",
+            _make_request_handler(
+                browser_type=self.browser_type, scrapy_request=request, stats=self.stats
+            ),
+        )
 
         try:
             result = await self._download_request_with_page(request, spider, page)
