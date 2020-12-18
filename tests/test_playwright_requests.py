@@ -1,3 +1,4 @@
+import platform
 import subprocess
 from tempfile import NamedTemporaryFile
 
@@ -195,5 +196,7 @@ class TestCaseFirefox(TestCaseDefaultBrowser):
     browser_type = "firefox"
 
 
-class TestCaseWebkit(TestCaseDefaultBrowser):
-    browser_type = "webkit"
+if platform.system() == "Darwin":
+
+    class TestCaseWebkit(TestCaseDefaultBrowser):
+        browser_type = "webkit"
