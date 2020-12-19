@@ -10,7 +10,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Set up Python version
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: 3.8
 
@@ -27,7 +27,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Set up Python version
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: 3.8
 
@@ -44,7 +44,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Set up Python version
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: 3.8
 
@@ -65,7 +65,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -82,3 +82,23 @@ jobs:
 
     - name: Upload coverage report
       run: bash <(curl -s https://codecov.io/bash)
+
+  publish:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python version
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Publish to PyPI
+      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+      run: |
+        pip install --upgrade setuptools wheel twine
+        python setup.py sdist bdist_wheel
+        export TWINE_USERNAME=__token__
+        export TWINE_PASSWORD=${{ secrets.PYPI_TOKEN }}
+        twine upload dist/*
