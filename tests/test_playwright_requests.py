@@ -9,7 +9,7 @@ from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
 
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageCoroutine as PageCoro
 
 from tests.mockserver import PostMockServer, StaticMockServer
 
@@ -82,7 +82,7 @@ class TestCaseDefaultBrowser:
                 url=server.urljoin("/index.html"),
                 meta={
                     "playwright": True,
-                    "playwright_page_coroutines": [PageCoroutine("click", "a.lorem_ipsum")],
+                    "playwright_page_coroutines": [PageCoro("click", "a.lorem_ipsum")],
                 },
             )
             resp = await handler._download_request(req, Spider("foo"))
@@ -111,11 +111,11 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": [
-                        PageCoroutine("waitForSelector", selector="div.quote"),
-                        PageCoroutine("evaluate", expression="window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoroutine("waitForSelector", selector="div.quote:nth-child(11)"),
-                        PageCoroutine("evaluate", expression="window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoroutine("waitForSelector", selector="div.quote:nth-child(21)"),
+                        PageCoro("waitForSelector", selector="div.quote"),
+                        PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                        PageCoro("waitForSelector", selector="div.quote:nth-child(11)"),
+                        PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                        PageCoro("waitForSelector", selector="div.quote:nth-child(21)"),
                     ],
                 },
             )
@@ -144,7 +144,7 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": {
-                        "png": PageCoroutine("screenshot", path=png_file.name, type="png"),
+                        "png": PageCoro("screenshot", path=png_file.name, type="png"),
                     },
                 },
             )
@@ -176,7 +176,7 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": {
-                        "pdf": PageCoroutine("pdf", path=pdf_file.name),
+                        "pdf": PageCoro("pdf", path=pdf_file.name),
                     },
                 },
             )
