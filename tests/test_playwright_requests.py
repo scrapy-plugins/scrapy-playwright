@@ -116,6 +116,7 @@ class TestCaseDefaultBrowser:
                         PageCoroutine("waitForSelector", "div.quote:nth-child(11)"),  # 2nd request
                         PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
                         PageCoroutine("waitForSelector", "div.quote:nth-child(21)"),  # 3rd request
+                        PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
                     ],
                 },
             )
@@ -196,7 +197,6 @@ class TestCaseFirefox(TestCaseDefaultBrowser):
     browser_type = "firefox"
 
 
-if platform.system() == "Darwin":
-
-    class TestCaseWebkit(TestCaseDefaultBrowser):
-        browser_type = "webkit"
+@pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
+class TestCaseWebkit(TestCaseDefaultBrowser):
+    browser_type = "webkit"
