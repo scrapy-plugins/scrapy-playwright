@@ -1,8 +1,8 @@
-# Playwright integration for Scrapy (work in progress!)
+# Playwright integration for Scrapy
 <!-- [![version](https://img.shields.io/pypi/v/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright) -->
 <!-- [![pyversions](https://img.shields.io/pypi/pyversions/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright) -->
 [![actions](https://github.com/elacuesta/scrapy-playwright/workflows/Build/badge.svg)](https://github.com/elacuesta/scrapy-playwright/actions)
-<!-- [![codecov](https://codecov.io/gh/elacuesta/scrapy-playwright/branch/master/graph/badge.svg)](https://codecov.io/gh/elacuesta/scrapy-playwright) -->
+[![codecov](https://codecov.io/gh/elacuesta/scrapy-playwright/branch/master/graph/badge.svg)](https://codecov.io/gh/elacuesta/scrapy-playwright)
 
 
 This project provides a Scrapy Download Handler which performs requests using
