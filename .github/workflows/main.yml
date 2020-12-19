@@ -79,3 +79,6 @@ jobs:
 
     - name: Run tests
       run: tox -e py
+
+    - name: Upload coverage report
+      run: bash <(curl -s https://codecov.io/bash)
