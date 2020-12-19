@@ -111,12 +111,11 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": [
-                        PageCoroutine("waitForSelector", "div.quote"),  # first 10 quotes
-                        PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
-                        PageCoroutine("waitForSelector", "div.quote:nth-child(11)"),  # 2nd request
-                        PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
-                        PageCoroutine("waitForSelector", "div.quote:nth-child(21)"),  # 3rd request
-                        PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
+                        PageCoroutine("waitForSelector", selector="div.quote"),
+                        PageCoroutine("evaluate", expression="window.scrollBy(0, document.body.scrollHeight)"),
+                        PageCoroutine("waitForSelector", selector="div.quote:nth-child(11)"),
+                        PageCoroutine("evaluate", expression="window.scrollBy(0, document.body.scrollHeight)"),
+                        PageCoroutine("waitForSelector", selector="div.quote:nth-child(21)"),
                     ],
                 },
             )

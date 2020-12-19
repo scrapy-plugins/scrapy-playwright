@@ -213,7 +213,7 @@ class ScrollSpider(scrapy.Spider):
                 playwright_include_page=True,
                 playwright_page_coroutines=[
                     PageCoroutine("waitForSelector", "div.quote"),
-                    PageCoroutine("evaluate", "window.scrollBy(0, 2000)"),
+                    PageCoroutine("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
                     PageCoroutine("waitForSelector", "div.quote:nth-child(11)"),  # 10 per page
                 ],
             ),
