@@ -186,7 +186,7 @@ class ClickAndSavePdfSpider(scrapy.Spider):
             meta=dict(
                 playwright=True,
                 playwright_page_coroutines={
-                    "click": NavigationPageCoroutine("click", selector="a"),
+                    "click": PageCoroutine("click", selector="a"),
                     "pdf": PageCoroutine("pdf", options={"path": "/tmp/file.pdf"}),
                 },
             ),
