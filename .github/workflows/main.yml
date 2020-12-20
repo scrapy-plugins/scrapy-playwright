@@ -85,6 +85,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-18.04
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
 
     steps:
     - uses: actions/checkout@v2
@@ -95,7 +96,6 @@ jobs:
         python-version: 3.8
 
     - name: Publish to PyPI
-      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
       run: |
         pip install --upgrade setuptools wheel twine
         python setup.py sdist bdist_wheel
