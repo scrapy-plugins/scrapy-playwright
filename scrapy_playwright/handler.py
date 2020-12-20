@@ -71,6 +71,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     browser_type: str = "chromium"  # default browser type
     default_navigation_timeout: Optional[int] = None
     launch_options: dict = dict()
+    context_options: dict = dict()
 
     def __init__(self, crawler: Crawler) -> None:
         settings = crawler.settings
@@ -80,10 +81,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats = crawler.stats
 
         # read settings
+        self.launch_options = settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
+        self.context_args = settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
         if settings.get("PLAYWRIGHT_BROWSER_TYPE"):
             self.browser_type = settings["PLAYWRIGHT_BROWSER_TYPE"]
-        if settings.get("PLAYWRIGHT_LAUNCH_OPTIONS"):
-            self.launch_options = settings["PLAYWRIGHT_LAUNCH_OPTIONS"]
         if settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"):
             self.default_navigation_timeout = settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"]
 
@@ -99,11 +100,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.playwright = await self.playwright_context_manager.start()
         browser_launcher = getattr(self.playwright, self.browser_type).launch
         self.browser = await browser_launcher(**self.launch_options)
+        self.context = await self.browser.newContext(**self.context_args)
 
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
-        if self.browser:
+        if getattr(self, "context", None):
+            yield deferred_from_coro(self.context.close())
+        if getattr(self, "browser", None):
             yield deferred_from_coro(self.browser.close())
         yield deferred_from_coro(self.playwright_context_manager.__aexit__())
 
@@ -135,7 +139,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             return result
 
     async def _create_page_for_request(self, request: Request) -> Page:
-        page = await self.browser.newPage()  # type: ignore
+        page = await self.context.newPage()  # type: ignore
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.setDefaultNavigationTimeout(self.default_navigation_timeout)

@@ -108,6 +108,7 @@ class TestCaseDefaultBrowser:
         with StaticMockServer() as server:
             req = Request(
                 url=server.urljoin("/scroll.html"),
+                headers={"User-Agent": "scrapy-playwright"},
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": [
