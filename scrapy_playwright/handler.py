@@ -83,10 +83,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         # read settings
         self.launch_options = settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
         self.context_args = settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
+        self.default_navigation_timeout = (
+            settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT") or None
+        )
         if settings.get("PLAYWRIGHT_BROWSER_TYPE"):
             self.browser_type = settings["PLAYWRIGHT_BROWSER_TYPE"]
-        if settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"):
-            self.default_navigation_timeout = settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"]
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:

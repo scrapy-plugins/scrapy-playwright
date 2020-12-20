@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 from playwright.async_api import Page as PlaywrightPage
+from playwright.helper import TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -128,6 +129,33 @@ class TestCaseDefaultBrowser:
         assert resp.status == 200
         assert "playwright" in resp.flags
         assert len(resp.css("div.quote")) == 30
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_context_args(self):
+        handler = ScrapyPlaywrightDownloadHandler(
+            get_crawler(
+                settings_dict={
+                    "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+                    "PLAYWRIGHT_CONTEXT_ARGS": {"javaScriptEnabled": False},
+                }
+            )
+        )
+        await handler._launch_browser()
+
+        with StaticMockServer() as server:
+            req = Request(
+                url=server.urljoin("/scroll.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_coroutines": [
+                        PageCoro("waitForSelector", selector="div.quote", timeout=1000),
+                    ],
+                },
+            )
+            with pytest.raises(TimeoutError):
+                resp = await handler._download_request(req, Spider("foo"))
 
         await handler.browser.close()
 
