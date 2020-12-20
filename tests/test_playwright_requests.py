@@ -3,8 +3,8 @@ import subprocess
 from tempfile import NamedTemporaryFile
 
 import pytest
+from playwright import TimeoutError
 from playwright.async_api import Page as PlaywrightPage
-from playwright.helper import TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -155,7 +155,7 @@ class TestCaseDefaultBrowser:
                 },
             )
             with pytest.raises(TimeoutError):
-                resp = await handler._download_request(req, Spider("foo"))
+                await handler._download_request(req, Spider("foo"))
 
         await handler.browser.close()
 
