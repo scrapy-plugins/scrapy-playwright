@@ -228,4 +228,5 @@ class ScrollSpider(scrapy.Spider):
         page = response.meta["playwright_page"]
         await page.screenshot(options={"path": "quotes.png", "fullPage": True})
         yield {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
+        await page.close()
 ```

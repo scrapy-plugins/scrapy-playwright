@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -28,8 +29,11 @@ class StaticMockServer:
         return urljoin("http://{}:{}".format(self.address, self.port), url)
 
 
-class _PostRequestHandler(BaseHTTPRequestHandler):
+class _RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
+        """
+        Echo back the request body
+        """
         content_length = int(self.headers["Content-Length"])
         body = self.rfile.read(content_length)
         self.send_response(200)
@@ -37,10 +41,19 @@ class _PostRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Request body: ")
         self.wfile.write(body)
 
+    def do_GET(self):
+        """
+        Take a long time to reply
+        """
+        time.sleep(3)
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Hello world!")
 
-class PostMockServer:
+
+class MockServer:
     def __enter__(self):
-        self.httpd = HTTPServer(("127.0.0.1", 0), _PostRequestHandler)
+        self.httpd = HTTPServer(("127.0.0.1", 0), _RequestHandler)
         self.address, self.port = self.httpd.server_address
         self.thread = Thread(target=self.httpd.serve_forever)
         self.thread.start()

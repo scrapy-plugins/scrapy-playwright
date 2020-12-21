@@ -12,7 +12,7 @@ from scrapy.utils.test import get_crawler
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from scrapy_playwright.page import PageCoroutine as PageCoro
 
-from tests.mockserver import PostMockServer, StaticMockServer
+from tests.mockserver import MockServer, StaticMockServer
 
 
 def get_mimetype(file):
@@ -57,7 +57,7 @@ class TestCaseDefaultBrowser:
         )
         await handler._launch_browser()
 
-        with PostMockServer() as server:
+        with MockServer() as server:
             req = FormRequest(
                 server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
             )
@@ -129,6 +129,25 @@ class TestCaseDefaultBrowser:
         assert resp.status == 200
         assert "playwright" in resp.flags
         assert len(resp.css("div.quote")) == 30
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_timeout(self):
+        handler = ScrapyPlaywrightDownloadHandler(
+            get_crawler(
+                settings_dict={
+                    "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+                    "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
+                }
+            )
+        )
+        await handler._launch_browser()
+
+        with MockServer() as server:
+            req = Request(server.urljoin("/index.html"), meta={"playwright": True})
+            with pytest.raises(TimeoutError):
+                await handler._download_request(req, Spider("foo"))
 
         await handler.browser.close()
 
