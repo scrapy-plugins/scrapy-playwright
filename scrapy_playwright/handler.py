@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from time import time
 from typing import Callable, Optional, Type, TypeVar
 from urllib.parse import urlparse
@@ -23,6 +24,9 @@ __all__ = ["ScrapyPlaywrightDownloadHandler"]
 
 
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
+
+
+logger = logging.getLogger(__name__)
 
 
 def _make_request_handler(
@@ -94,6 +98,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return cls(crawler)
 
     def _engine_started(self) -> Deferred:
+        logger.info("Launching browser")
         return deferred_from_coro(self._launch_browser())
 
     async def _launch_browser(self) -> None:
@@ -101,14 +106,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.playwright = await self.playwright_context_manager.start()
         browser_launcher = getattr(self.playwright, self.browser_type).launch
         self.browser = await browser_launcher(**self.launch_options)
+        logger.info(f"Browser {self.browser_type} launched with options: {self.launch_options}")
         self.context = await self.browser.newContext(**self.context_args)
+        logger.info(f"Browser context started with args: {self.context_args}")
 
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
         if getattr(self, "context", None):
+            logger.info("Closing browser context")
             yield deferred_from_coro(self.context.close())
         if getattr(self, "browser", None):
+            logger.info("Closing browser")
             yield deferred_from_coro(self.browser.close())
         yield deferred_from_coro(self.playwright_context_manager.__aexit__())
 
