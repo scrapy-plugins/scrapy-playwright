@@ -130,13 +130,13 @@ Response, containing the final result.
 
     For instance,
     ```python
-    PageCoroutine("screenshot", options={"path": "quotes.png", "fullPage": True})
+    PageCoroutine("screenshot", path="quotes.png", fullPage=True)
     ```
 
     produces the same effect as:
     ```python
     # 'page' is a playwright.async_api.Page object
-    await page.screenshot(options={"path": "quotes.png", "fullPage": True})
+    await page.screenshot(path="quotes.png", fullPage=True)
     ```
 
 
@@ -192,7 +192,7 @@ class ClickAndSavePdfSpider(scrapy.Spider):
                 playwright=True,
                 playwright_page_coroutines={
                     "click": PageCoroutine("click", selector="a"),
-                    "pdf": PageCoroutine("pdf", options={"path": "/tmp/file.pdf"}),
+                    "pdf": PageCoroutine("pdf", path="/tmp/file.pdf"),
                 },
             ),
         )
@@ -226,7 +226,7 @@ class ScrollSpider(scrapy.Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        await page.screenshot(options={"path": "quotes.png", "fullPage": True})
+        await page.screenshot(path="quotes.png", fullPage=True)
         yield {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
         await page.close()
 ```
