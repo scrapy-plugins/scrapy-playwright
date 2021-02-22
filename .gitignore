@@ -10,5 +10,5 @@ htmlcov/
 coverage.xml
 build/
 dist/
-examples/
+examples/*.png
 pip-wheel-metadata/
