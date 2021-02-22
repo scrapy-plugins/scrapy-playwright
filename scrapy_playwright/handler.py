@@ -109,6 +109,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         logger.info(f"Browser {self.browser_type} launched")
         self.context = await self.browser.newContext(**self.context_args)
         logger.info("Browser context started")
+        if self.default_navigation_timeout:
+            self.context.setDefaultNavigationTimeout(self.default_navigation_timeout)
 
     @inlineCallbacks
     def close(self) -> Deferred:
