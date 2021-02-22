@@ -106,9 +106,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.playwright = await self.playwright_context_manager.start()
         browser_launcher = getattr(self.playwright, self.browser_type).launch
         self.browser = await browser_launcher(**self.launch_options)
-        logger.info(f"Browser {self.browser_type} launched with options: {self.launch_options}")
+        logger.info(f"Browser {self.browser_type} launched")
         self.context = await self.browser.newContext(**self.context_args)
-        logger.info(f"Browser context started with args: {self.context_args}")
+        logger.info("Browser context started")
 
     @inlineCallbacks
     def close(self) -> Deferred:
