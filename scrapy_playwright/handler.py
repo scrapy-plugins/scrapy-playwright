@@ -26,7 +26,7 @@ __all__ = ["ScrapyPlaywrightDownloadHandler"]
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("scrapy-playwright")
 
 
 def _make_request_handler(
