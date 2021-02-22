@@ -3,8 +3,7 @@ import subprocess
 from tempfile import NamedTemporaryFile
 
 import pytest
-from playwright import TimeoutError
-from playwright.async_api import Page as PlaywrightPage
+from playwright.async_api import Page as PlaywrightPage, TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -113,11 +112,11 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": [
-                        PageCoro("waitForSelector", selector="div.quote"),
+                        PageCoro("wait_for_selector", selector="div.quote"),
                         PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoro("waitForSelector", selector="div.quote:nth-child(11)"),
+                        PageCoro("wait_for_selector", selector="div.quote:nth-child(11)"),
                         PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoro("waitForSelector", selector="div.quote:nth-child(21)"),
+                        PageCoro("wait_for_selector", selector="div.quote:nth-child(21)"),
                     ],
                 },
             )
@@ -157,7 +156,7 @@ class TestCaseDefaultBrowser:
             get_crawler(
                 settings_dict={
                     "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-                    "PLAYWRIGHT_CONTEXT_ARGS": {"javaScriptEnabled": False},
+                    "PLAYWRIGHT_CONTEXT_ARGS": {"java_script_enabled": False},
                 }
             )
         )
@@ -169,7 +168,7 @@ class TestCaseDefaultBrowser:
                 meta={
                     "playwright": True,
                     "playwright_page_coroutines": [
-                        PageCoro("waitForSelector", selector="div.quote", timeout=1000),
+                        PageCoro("wait_for_selector", selector="div.quote", timeout=1000),
                     ],
                 },
             )

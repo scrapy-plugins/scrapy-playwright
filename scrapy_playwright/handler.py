@@ -4,8 +4,7 @@ from time import time
 from typing import Callable, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
-import playwright
-from playwright.async_api import Page
+from playwright.async_api import Page, PlaywrightContextManager, Request as PwRequest, Route
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
@@ -34,14 +33,11 @@ def _make_request_handler(
     scrapy_request: Request,
     stats: StatsCollector,
 ) -> Callable:
-    def request_handler(
-        route: playwright.async_api.Route,
-        request: playwright.async_api.Request,
-    ) -> None:
+    def request_handler(route: Route, pw_request: PwRequest) -> None:
         """
         Override request headers, method and body
         """
-        if request.url == scrapy_request.url:
+        if pw_request.url == scrapy_request.url:
             overrides = {
                 "method": scrapy_request.method,
                 "headers": {
@@ -50,21 +46,21 @@ def _make_request_handler(
                 },
             }
             if scrapy_request.body:
-                overrides["postData"] = scrapy_request.body.decode(scrapy_request.encoding)
+                overrides["post_data"] = scrapy_request.body.decode(scrapy_request.encoding)
             # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
             if browser_type == "firefox":
-                overrides["headers"]["host"] = urlparse(request.url).netloc
+                overrides["headers"]["host"] = urlparse(pw_request.url).netloc
         else:
-            overrides = {"headers": request.headers.copy()}
+            overrides = {"headers": pw_request.headers.copy()}
             # override user agent, for consistency with other requests
             if scrapy_request.headers.get("user-agent"):
                 user_agent = scrapy_request.headers["user-agent"].decode("utf-8")
                 overrides["headers"]["user-agent"] = user_agent
         asyncio.create_task(route.continue_(**overrides))
         # increment stats
-        stats.inc_value("playwright/request_method_count/{}".format(request.method))
+        stats.inc_value("playwright/request_method_count/{}".format(pw_request.method))
         stats.inc_value("playwright/request_count")
-        if request.isNavigationRequest():
+        if pw_request.is_navigation_request():
             stats.inc_value("playwright/request_count/navigation")
 
     return request_handler
@@ -102,15 +98,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return deferred_from_coro(self._launch_browser())
 
     async def _launch_browser(self) -> None:
-        self.playwright_context_manager = playwright.AsyncPlaywrightContextManager()
+        self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
         browser_launcher = getattr(self.playwright, self.browser_type).launch
         self.browser = await browser_launcher(**self.launch_options)
         logger.info(f"Browser {self.browser_type} launched")
-        self.context = await self.browser.newContext(**self.context_args)
+        self.context = await self.browser.new_context(**self.context_args)
         logger.info("Browser context started")
         if self.default_navigation_timeout:
-            self.context.setDefaultNavigationTimeout(self.default_navigation_timeout)
+            self.context.set_default_navigation_timeout(self.default_navigation_timeout)
 
     @inlineCallbacks
     def close(self) -> Deferred:
@@ -143,7 +139,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         try:
             result = await self._download_request_with_page(request, spider, page)
         except Exception:
-            if not page.isClosed():
+            if not page.is_closed():
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise
@@ -151,10 +147,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             return result
 
     async def _create_page_for_request(self, request: Request) -> Page:
-        page = await self.context.newPage()  # type: ignore
+        page = await self.context.new_page()  # type: ignore
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
-            page.setDefaultNavigationTimeout(self.default_navigation_timeout)
+            page.set_default_navigation_timeout(self.default_navigation_timeout)
         return page
 
     async def _download_request_with_page(
@@ -170,7 +166,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             if isinstance(pc, PageCoroutine):
                 method = getattr(page, pc.method)
                 pc.result = await method(*pc.args, **pc.kwargs)
-                await page.waitForLoadState(timeout=self.default_navigation_timeout)
+                await page.wait_for_load_state(timeout=self.default_navigation_timeout)
 
         body = (await page.content()).encode("utf8")
         request.meta["download_latency"] = time() - start_time

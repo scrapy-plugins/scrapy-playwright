@@ -6,7 +6,7 @@
 
 
 This project provides a Scrapy Download Handler which performs requests using
-[Playwright](https://github.com/microsoft/playwright-python). It can be used to handle
+[Playwright for Python](https://github.com/microsoft/playwright-python). It can be used to handle
 pages that require JavaScript. This package does not interfere with regular
 Scrapy workflows such as request scheduling or item processing.
 
@@ -59,23 +59,22 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
 * `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
     The browser type to be launched. Valid values are (`chromium`, `firefox`, `webkit`).
-    See the docs for the [`BrowserType` class](https://microsoft.github.io/playwright-python/async_api/index.html#playwright.async_api.BrowserType).
 
 * `PLAYWRIGHT_LAUNCH_OPTIONS` (type `dict`, default `{}`)
 
     A dictionary with options to be passed when launching the Browser.
-    See the docs for [`BrowserType.launch`](https://microsoft.github.io/playwright-python/async_api/index.html#playwright.async_api.BrowserType.launch).
+    See the docs for [`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser_typelaunchkwargs).
 
 * `PLAYWRIGHT_CONTEXT_ARGS` (type `dict`, default `{}`)
 
     A dictionary with keyword arguments to be passed when creating the default Browser context.
-    See the docs for [`Browser.new_context`](https://microsoft.github.io/playwright-python/async_api/index.html#playwright.async_api.Browser.new_context).
+    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[int]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,
     the default value will be used (30000 ms at the time of writing this).
-    See the docs for [page.setDefaultNavigationTimeout](https://playwright.dev/#version=v1.6.2&path=docs%2Fapi.md&q=pagesetdefaultnavigationtimeouttimeout).
+    See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser_contextset_default_navigation_timeouttimeout).
 
 
 ## Basic usage
@@ -217,9 +216,9 @@ class ScrollSpider(scrapy.Spider):
                 playwright=True,
                 playwright_include_page=True,
                 playwright_page_coroutines=[
-                    PageCoroutine("waitForSelector", "div.quote"),
+                    PageCoroutine("wait_for_selector", "div.quote"),
                     PageCoroutine("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                    PageCoroutine("waitForSelector", "div.quote:nth-child(11)"),  # 10 per page
+                    PageCoroutine("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
                 ],
             ),
         )

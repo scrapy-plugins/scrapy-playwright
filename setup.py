@@ -24,6 +24,7 @@ setuptools.setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Framework :: Scrapy",
         "Intended Audience :: Developers",
         "Topic :: Internet :: WWW/HTTP",
@@ -32,6 +33,6 @@ setuptools.setup(
     ],
     install_requires=[
         "scrapy>=2.0,!=2.4.0",
-        "playwright>=0.7.0",
+        "playwright>=1.8.0a1",
     ],
 )
