@@ -16,7 +16,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     author="Eugenio Lacuesta",
     author_email="eugenio.lacuesta@gmail.com",
-    url="https://github.com/elacuesta/scrapy-playwright",
+    url="https://github.com/scrapy-plugins/scrapy-playwright",
     packages=["scrapy_playwright"],
     classifiers=[
         "Development Status :: 1 - Planning",
