@@ -229,3 +229,6 @@ class ScrollSpider(scrapy.Spider):
         yield {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
         await page.close()
 ```
+
+
+For more examples, please see the scripts in the [examples](examples) directory.
