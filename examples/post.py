@@ -9,6 +9,7 @@ class PostSpider(Spider):
     """
     Send data using the POST verb
     """
+
     name = "post"
 
     def start_requests(self):
@@ -18,7 +19,9 @@ class PostSpider(Spider):
             meta={
                 "playwright": True,
                 "playwright_page_coroutines": [
-                    PageCoroutine("screenshot", path=Path(__file__).parent / "post.png", full_page=True),
+                    PageCoroutine(
+                        "screenshot", path=Path(__file__).parent / "post.png", full_page=True
+                    ),
                 ],
             },
         )

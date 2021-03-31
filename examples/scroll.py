@@ -9,6 +9,7 @@ class ScrollSpider(Spider):
     """
     Scroll down on an infinite-scroll page
     """
+
     name = "scroll"
 
     def start_requests(self):
@@ -21,7 +22,9 @@ class ScrollSpider(Spider):
                     PageCoroutine("wait_for_selector", "div.quote"),
                     PageCoroutine("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
                     PageCoroutine("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
-                    PageCoroutine("screenshot", path=Path(__file__).parent / "scroll.png", full_page=True),
+                    PageCoroutine(
+                        "screenshot", path=Path(__file__).parent / "scroll.png", full_page=True
+                    ),
                 ],
             },
         )

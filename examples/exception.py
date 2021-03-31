@@ -14,7 +14,9 @@ class HandleTimeoutMiddleware:
             meta={
                 "playwright": True,
                 "playwright_page_coroutines": [
-                    PageCoroutine("screenshot", path=Path(__file__).parent / "recovered.png", full_page=True),
+                    PageCoroutine(
+                        "screenshot", path=Path(__file__).parent / "recovered.png", full_page=True
+                    ),
                 ],
             },
         )
@@ -24,6 +26,7 @@ class HandleExceptionSpider(Spider):
     """
     Handle exceptions in the Playwright downloader, such as TimeoutError
     """
+
     name = "awesome"
     custom_settings = {
         "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
@@ -50,7 +53,7 @@ if __name__ == "__main__":
                 "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
                 # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             },
-            "RETRY_TIMES": 0
+            "RETRY_TIMES": 0,
         }
     )
     process.crawl(HandleExceptionSpider)

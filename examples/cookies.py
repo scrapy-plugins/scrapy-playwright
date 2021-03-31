@@ -9,6 +9,7 @@ class CookieSpider(Spider):
     """
     Send custom cookies
     """
+
     name = "cookies"
 
     def start_requests(self):
@@ -18,7 +19,9 @@ class CookieSpider(Spider):
             meta={
                 "playwright": True,
                 "playwright_page_coroutines": [
-                    PageCoroutine("screenshot", path=Path(__file__).parent / "cookies.png", full_page=True),
+                    PageCoroutine(
+                        "screenshot", path=Path(__file__).parent / "cookies.png", full_page=True
+                    ),
                 ],
             },
         )

@@ -7,6 +7,7 @@ class StorageSpider(Spider):
     """
     Set and get storage state
     """
+
     name = "storage"
 
     def start_requests(self):
