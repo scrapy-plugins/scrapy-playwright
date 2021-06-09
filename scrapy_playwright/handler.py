@@ -103,7 +103,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             return result
 
     async def _create_page(self) -> Page:
-        page = await self.context.new_page()  # type: ignore
+        page = await self.context.new_page()
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)

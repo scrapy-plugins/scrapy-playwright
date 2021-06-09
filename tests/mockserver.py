@@ -31,9 +31,7 @@ class StaticMockServer:
 
 class _RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        """
-        Echo back the request body
-        """
+        """Echo back the request body"""
         content_length = int(self.headers["Content-Length"])
         body = self.rfile.read(content_length)
         self.send_response(200)
@@ -42,10 +40,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        """
-        Take a long time to reply
-        """
-        time.sleep(3)
+        """Take a long time to reply"""
+        time.sleep(2)
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Hello world!")
