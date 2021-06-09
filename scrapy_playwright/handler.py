@@ -1,10 +1,17 @@
 import asyncio
 import logging
+from collections import defaultdict
 from time import time
-from typing import Callable, Optional, Type, TypeVar
+from typing import Callable, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
-from playwright.async_api import Page, PlaywrightContextManager, Request as PwRequest, Route
+from playwright.async_api import (
+    BrowserContext,
+    Page,
+    PlaywrightContextManager,
+    Request as PwRequest,
+    Route,
+)
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
@@ -33,6 +40,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     default_navigation_timeout: Optional[int] = None
     launch_options: dict = dict()
     context_options: dict = dict()
+    contexts: Dict[str, BrowserContext] = dict()
 
     def __init__(self, crawler: Crawler) -> None:
         settings = crawler.settings
@@ -41,9 +49,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
 
-        # read settings
+        self.context_kwargs: defaultdict = defaultdict(dict)
+        contexts = settings.getdict("PLAYWRIGHT_CONTEXTS") or {}
+        default_context_kwargs = settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
+        for name, kwargs in contexts.items():
+            self.context_kwargs[name].update(default_context_kwargs)
+            self.context_kwargs[name].update(kwargs)
+        if not self.context_kwargs:
+            self.context_kwargs["default"].update(default_context_kwargs)
+
         self.launch_options = settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
-        self.context_args = settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
         self.default_navigation_timeout = (
             settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT") or None
         )
@@ -64,17 +79,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         browser_launcher = getattr(self.playwright, self.browser_type).launch
         self.browser = await browser_launcher(**self.launch_options)
         logger.info(f"Browser {self.browser_type} launched")
-        self.context = await self.browser.new_context(**self.context_args)
-        logger.info("Browser context started")
+        for name, kwargs in self.context_kwargs.items():
+            self.contexts[name] = await self._create_context(name, kwargs)
+
+    async def _create_context(self, name: str, context_kwargs: dict) -> BrowserContext:
+        context = await self.browser.new_context(**context_kwargs)
+        logger.info("Browser context started: '%s'", name)
+        self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout:
-            self.context.set_default_navigation_timeout(self.default_navigation_timeout)
+            context.set_default_navigation_timeout(self.default_navigation_timeout)
+        return context
 
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
-        if getattr(self, "context", None):
-            logger.info("Closing browser context")
-            yield deferred_from_coro(self.context.close())
+        for name, context in self.contexts.items():
+            logger.info("Closing browser context: '%s'", name)
+            yield deferred_from_coro(context.close())
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             yield deferred_from_coro(self.browser.close())
@@ -88,7 +109,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _download_request(self, request: Request, spider: Spider) -> Response:
         page = request.meta.get("playwright_page")
         if not isinstance(page, Page):
-            page = await self._create_page()
+            page = await self._create_page(request)
         await page.unroute("**")
         await page.route("**", self._make_request_handler(scrapy_request=request))
 
@@ -102,8 +123,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         else:
             return result
 
-    async def _create_page(self) -> Page:
-        page = await self.context.new_page()
+    async def _create_page(self, request: Request) -> Page:
+        """Create a new page in a context, also creating a new context if necessary."""
+        context_name = request.meta.get("playwright_context_name") or "default"
+        if context_name not in self.contexts:
+            context_kwargs = request.meta.get("playwright_context_kwargs") or {}
+            self.contexts[context_name] = await self._create_context(context_name, context_kwargs)
+        page = await self.contexts[context_name].new_page()
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
