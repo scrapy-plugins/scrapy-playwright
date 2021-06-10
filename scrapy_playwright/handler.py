@@ -9,7 +9,7 @@ from playwright.async_api import (
     BrowserContext,
     Page,
     PlaywrightContextManager,
-    Request as PwRequest,
+    Request as PlaywrightRequest,
     Route,
 )
 from scrapy import Spider, signals
@@ -50,8 +50,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats = crawler.stats
 
         self.context_kwargs: defaultdict = defaultdict(dict)
-        contexts = settings.getdict("PLAYWRIGHT_CONTEXTS") or {}
         default_context_kwargs = settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
+        contexts = settings.getdict("PLAYWRIGHT_CONTEXTS") or {}
         for name, kwargs in contexts.items():
             self.context_kwargs[name].update(default_context_kwargs)
             self.context_kwargs[name].update(kwargs)
@@ -70,19 +70,22 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return cls(crawler)
 
     def _engine_started(self) -> Deferred:
-        logger.info("Launching browser")
+        """Launch the browser. The engine_started signal is
+        used because it supports returning deferreds.
+        """
         return deferred_from_coro(self._launch_browser())
 
     async def _launch_browser(self) -> None:
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
         browser_launcher = getattr(self.playwright, self.browser_type).launch
+        logger.info("Launching browser")
         self.browser = await browser_launcher(**self.launch_options)
         logger.info(f"Browser {self.browser_type} launched")
         for name, kwargs in self.context_kwargs.items():
-            self.contexts[name] = await self._create_context(name, kwargs)
+            self.contexts[name] = await self._create_browser_context(name, kwargs)
 
-    async def _create_context(self, name: str, context_kwargs: dict) -> BrowserContext:
+    async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
         context = await self.browser.new_context(**context_kwargs)
         logger.info("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
@@ -125,11 +128,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _create_page(self, request: Request) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
-        context_name = request.meta.get("playwright_context_name") or "default"
-        if context_name not in self.contexts:
-            context_kwargs = request.meta.get("playwright_context_kwargs") or {}
-            self.contexts[context_name] = await self._create_context(context_name, context_kwargs)
-        page = await self.contexts[context_name].new_page()
+        ctx_name = request.meta.get("playwright_context_name") or "default"
+        request.meta["playwright_context_name"] = ctx_name
+        if ctx_name not in self.contexts:
+            ctx_kwargs = request.meta.get("playwright_context_kwargs") or {}
+            self.contexts[ctx_name] = await self._create_browser_context(ctx_name, ctx_kwargs)
+        page = await self.contexts[ctx_name].new_page()
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
@@ -170,7 +174,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
 
     def _make_request_handler(self, scrapy_request: Request) -> Callable:
-        def request_handler(route: Route, pw_request: PwRequest) -> None:
+        def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
             if pw_request.url == scrapy_request.url:
                 overrides = {
