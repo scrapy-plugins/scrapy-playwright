@@ -67,7 +67,26 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
 * `PLAYWRIGHT_CONTEXT_ARGS` (type `dict`, default `{}`)
 
-    A dictionary with keyword arguments to be passed when creating the default Browser context.
+    A dictionary with default keyword arguments to be passed when creating Browser contexts.
+    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
+
+* `PLAYWRIGHT_CONTEXTS` (type `dict[str, dict]`, default `{}`)
+
+    A dictionary which defines Browser contexts to be created on startup.
+    It should be a mapping of (name, keyword arguments) For instance:
+    ```python
+    {
+        "first": {
+            "context_arg1": "value",
+            "context_arg2": "value",
+        },
+        "second": {
+            "context_arg1": "value",
+        },
+    }
+    ```
+    If no contexts are defined, a default context (called `default`) is created.
+    The arguments passed here take precedence over the ones defined in `PLAYWRIGHT_CONTEXT_ARGS`.
     See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[int]`, default `None`)

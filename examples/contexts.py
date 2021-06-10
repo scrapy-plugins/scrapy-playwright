@@ -74,10 +74,21 @@ class MultipleContextsSpider(Spider):
             },
             dont_filter=True,
         )
+        # default context
+        yield Request(
+            url="https://httpbin.org/headers",
+            meta={"playwright": True, "playwright_include_page": True},
+            dont_filter=True,
+        )
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        return {"url": response.url, "storage_state": await page.context.storage_state()}
+        context = response.meta["playwright_context_name"]
+        return {
+            "url": response.url,
+            "context": context,
+            "cookies": (await page.context.storage_state())["cookies"],
+        }
 
 
 if __name__ == "__main__":
