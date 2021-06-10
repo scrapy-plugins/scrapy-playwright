@@ -4,7 +4,12 @@ from time import time
 from typing import Callable, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
-from playwright.async_api import Page, PlaywrightContextManager, Request as PwRequest, Route
+from playwright.async_api import (
+    Page,
+    PlaywrightContextManager,
+    Request as PlaywrightRequest,
+    Route,
+)
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
@@ -144,7 +149,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
 
     def _make_request_handler(self, scrapy_request: Request) -> Callable:
-        def request_handler(route: Route, pw_request: PwRequest) -> None:
+        def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
             if pw_request.url == scrapy_request.url:
                 overrides = {
