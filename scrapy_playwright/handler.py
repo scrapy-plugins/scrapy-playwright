@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from time import time
-from typing import Callable, Dict, Optional, Type, TypeVar
+from typing import Callable, Coroutine, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
 from playwright.async_api import (
@@ -25,13 +25,17 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright.page import PageCoroutine
 
 
-__all__ = ["ScrapyPlaywrightDownloadHandler"]
+__all__ = ["ScrapyPlaywrightDownloadHandler", "PlaywrightAdapter"]
 
 
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
 logger = logging.getLogger("scrapy-playwright")
+
+
+class PlaywrightAdapter:
+    close_context: Callable[[str], Coroutine]
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -47,6 +51,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         super().__init__(settings=settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
+        crawler.signals.connect(self._spider_opened, signals.spider_opened)
         self.stats = crawler.stats
 
         self.context_kwargs: defaultdict = defaultdict(dict)
@@ -75,6 +80,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         """
         return deferred_from_coro(self._launch_browser())
 
+    def _spider_opened(self, spider: Spider) -> None:
+        spider.playwright_adapter = PlaywrightAdapter()
+        spider.playwright_adapter.close_context = self._close_browser_context  # type: ignore
+
     async def _launch_browser(self) -> None:
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
@@ -93,12 +102,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         return context
 
+    async def _close_browser_context(self, name: str) -> None:
+        if name in self.contexts:
+            logger.info("Closing browser context: '%s'", name)
+            await self.contexts[name].close()
+            self.contexts.pop(name)
+
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
-        for name, context in self.contexts.items():
-            logger.info("Closing browser context: '%s'", name)
-            yield deferred_from_coro(context.close())
+        for name in self.contexts.copy().keys():
+            yield deferred_from_coro(self._close_browser_context(name))
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             yield deferred_from_coro(self.browser.close())
@@ -128,12 +142,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _create_page(self, request: Request) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
-        ctx_name = request.meta.get("playwright_context_name") or "default"
-        request.meta["playwright_context_name"] = ctx_name
-        if ctx_name not in self.contexts:
-            ctx_kwargs = request.meta.get("playwright_context_kwargs") or {}
-            self.contexts[ctx_name] = await self._create_browser_context(ctx_name, ctx_kwargs)
-        page = await self.contexts[ctx_name].new_page()
+        context_name = request.meta.setdefault("playwright_context", "default")
+        context = self.contexts.get(context_name)
+        if context is None:
+            context_kwargs = request.meta.get("playwright_context_kwargs") or {}
+            context = await self._create_browser_context(context_name, context_kwargs)
+            self.contexts[context_name] = context
+        page = await context.new_page()
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)

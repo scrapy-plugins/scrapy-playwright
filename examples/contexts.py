@@ -39,7 +39,7 @@ class MultipleContextsSpider(Spider):
             url="https://httpbin.org/headers",
             meta={
                 "playwright": True,
-                "playwright_context_name": "first",
+                "playwright_context": "first",
                 "playwright_include_page": True,
             },
             dont_filter=True,
@@ -48,7 +48,7 @@ class MultipleContextsSpider(Spider):
             url="https://httpbin.org/headers",
             meta={
                 "playwright": True,
-                "playwright_context_name": "second",
+                "playwright_context": "second",
                 "playwright_include_page": True,
             },
             dont_filter=True,
@@ -58,7 +58,7 @@ class MultipleContextsSpider(Spider):
             url="https://httpbin.org/headers",
             meta={
                 "playwright": True,
-                "playwright_context_name": "third",
+                "playwright_context": "third",
                 "playwright_context_kwargs": {
                     "storage_state": {
                         "cookies": [
@@ -83,11 +83,13 @@ class MultipleContextsSpider(Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        context = response.meta["playwright_context_name"]
+        context_name = response.meta["playwright_context"]
+        storage_state = await page.context.storage_state()
+        await self.playwright_adapter.close_context(context_name)
         return {
             "url": response.url,
-            "context": context,
-            "cookies": (await page.context.storage_state())["cookies"],
+            "context": context_name,
+            "cookies": storage_state["cookies"],
         }
 
 
