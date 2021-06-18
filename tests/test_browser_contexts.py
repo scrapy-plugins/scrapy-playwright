@@ -1,3 +1,5 @@
+import platform
+
 import pytest
 from scrapy import Spider, Request
 from scrapy.utils.test import get_crawler
