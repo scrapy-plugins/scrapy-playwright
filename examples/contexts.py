@@ -85,7 +85,7 @@ class MultipleContextsSpider(Spider):
         page = response.meta["playwright_page"]
         context_name = response.meta["playwright_context"]
         storage_state = await page.context.storage_state()
-        await self.playwright_adapter.close_context(context_name)
+        await page.context.close()
         return {
             "url": response.url,
             "context": context_name,

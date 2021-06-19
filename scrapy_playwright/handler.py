@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from time import time
-from typing import Callable, Coroutine, Dict, Optional, Type, TypeVar
+from typing import Callable, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
 from playwright.async_api import (
@@ -25,17 +25,13 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright.page import PageCoroutine
 
 
-__all__ = ["ScrapyPlaywrightDownloadHandler", "PlaywrightAdapter"]
+__all__ = ["ScrapyPlaywrightDownloadHandler"]
 
 
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
 logger = logging.getLogger("scrapy-playwright")
-
-
-class PlaywrightAdapter:
-    close_context: Callable[[str], Coroutine]
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -51,7 +47,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         super().__init__(settings=settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
-        crawler.signals.connect(self._spider_opened, signals.spider_opened)
         self.stats = crawler.stats
 
         self.context_kwargs: defaultdict = defaultdict(dict)
@@ -80,10 +75,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         """
         return deferred_from_coro(self._launch_browser())
 
-    def _spider_opened(self, spider: Spider) -> None:
-        spider.playwright_adapter = PlaywrightAdapter()
-        spider.playwright_adapter.close_context = self._close_browser_context  # type: ignore
-
     async def _launch_browser(self) -> None:
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
@@ -96,23 +87,26 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
         context = await self.browser.new_context(**context_kwargs)
+        context.on("close", self._make_close_browser_context_callback(name))
         logger.info("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         return context
 
-    async def _close_browser_context(self, name: str) -> None:
-        if name in self.contexts:
-            logger.info("Closing browser context: '%s'", name)
-            await self.contexts[name].close()
-            self.contexts.pop(name)
+    def _make_close_browser_context_callback(self, name: str) -> Callable:
+        def close_callback() -> None:
+            logger.info("Browser context closed: '%s'", name)
+            if name in self.contexts:
+                self.contexts.pop(name)
+
+        return close_callback
 
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
-        for name in self.contexts.copy().keys():
-            yield deferred_from_coro(self._close_browser_context(name))
+        for context in self.contexts.copy().values():
+            yield deferred_from_coro(context.close())
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             yield deferred_from_coro(self.browser.close())
