@@ -21,9 +21,9 @@ to integrate `asyncio`-based projects such as `Playwright`.
 
 ## Requirements
 
-* Python 3.7+
-* Scrapy 2.0+
-* Playwright 0.7.0+
+* Python >= 3.7
+* Scrapy >= 2.0 (!= 2.4.0)
+* Playwright >= 1.8.0a1
 
 
 ## Installation
