@@ -1,4 +1,5 @@
 import platform
+import warnings
 
 import pytest
 from scrapy import Spider, Request
@@ -72,6 +73,50 @@ class MixinTestCaseMultipleContexts:
                         ],
                     },
                 },
+            }
+            req = Request(server.urljoin("/index.html"), meta=meta)
+            resp = await handler._download_request(req, Spider("foo"))
+
+        page = resp.meta["playwright_page"]
+        storage_state = await page.context.storage_state()
+        cookie = storage_state["cookies"][0]
+        assert cookie["name"] == "asdf"
+        assert cookie["value"] == "qwerty"
+        assert cookie["domain"] == "example.org"
+
+        await page.close()
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_deprecated_setting(self):
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXT_ARGS": {
+                "storage_state": {
+                    "cookies": [
+                        {
+                            "url": "https://example.org",
+                            "name": "asdf",
+                            "value": "qwerty",
+                        },
+                    ],
+                },
+            },
+        }
+        with warnings.catch_warnings(record=True) as warning_list:
+            handler = ScrapyPlaywrightDownloadHandler(get_crawler(settings_dict=settings))
+            await handler._launch_browser()
+
+        assert warning_list[0].category is DeprecationWarning
+        assert str(warning_list[0].message) == (
+            "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated,"
+            " please use PLAYWRIGHT_CONTEXTS instead"
+        )
+
+        with StaticMockServer() as server:
+            meta = {
+                "playwright": True,
+                "playwright_include_page": True,
             }
             req = Request(server.urljoin("/index.html"), meta=meta)
             resp = await handler._download_request(req, Spider("foo"))

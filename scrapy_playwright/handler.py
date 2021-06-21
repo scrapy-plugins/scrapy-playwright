@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import warnings
 from collections import defaultdict
 from time import time
 from typing import Callable, Dict, Optional, Tuple, Type, TypeVar
@@ -47,13 +48,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             crawler.settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT") or None
         )
 
+        default_context_kwargs: dict = {}
+        if "PLAYWRIGHT_CONTEXT_ARGS" in crawler.settings:
+            default_context_kwargs = crawler.settings.getdict("PLAYWRIGHT_CONTEXT_ARGS")
+            warnings.warn(
+                "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated,"
+                " please use PLAYWRIGHT_CONTEXTS instead",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
         self.context_kwargs: defaultdict = defaultdict(dict)
-        default_context_kwargs = crawler.settings.getdict("PLAYWRIGHT_CONTEXT_ARGS") or {}
         for name, kwargs in (crawler.settings.getdict("PLAYWRIGHT_CONTEXTS") or {}).items():
             self.context_kwargs[name].update(default_context_kwargs)
             self.context_kwargs[name].update(kwargs)
         if not self.context_kwargs:
-            self.context_kwargs["default"].update(default_context_kwargs)
+            self.context_kwargs["default"] = default_context_kwargs
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:

@@ -149,12 +149,14 @@ class MixinTestCase:
         await handler.browser.close()
 
     @pytest.mark.asyncio
-    async def test_context_args(self):
+    async def test_context_kwargs(self):
         handler = ScrapyPlaywrightDownloadHandler(
             get_crawler(
                 settings_dict={
                     "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-                    "PLAYWRIGHT_CONTEXT_ARGS": {"java_script_enabled": False},
+                    "PLAYWRIGHT_CONTEXTS": {
+                        "default": {"java_script_enabled": False},
+                    },
                 }
             )
         )
