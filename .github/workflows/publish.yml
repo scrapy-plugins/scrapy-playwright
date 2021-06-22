@@ -1,0 +1,25 @@
+name: Publish
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3
+
+    - name: Publish to PyPI
+      run: |
+        pip install --upgrade pip
+        pip install --upgrade setuptools wheel twine
+        python setup.py sdist bdist_wheel
+        export TWINE_USERNAME=__token__
+        export TWINE_PASSWORD=${{ secrets.PYPI_TOKEN }}
+        twine upload dist/*
