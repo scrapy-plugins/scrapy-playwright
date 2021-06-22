@@ -222,9 +222,9 @@ def parse(self, response):
 async def parse_in_new_context(self, response):
     page = response.meta["playwright_page"]
     title = await page.title()
-    yield {"title": title}
     await page.context.close()  # close the context
     await page.close()
+    return {"title": title}
 ```
 
 
