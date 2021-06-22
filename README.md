@@ -55,6 +55,8 @@ Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scra
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
+### Settings
+
 `scrapy-playwright` accepts the following settings:
 
 * `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
@@ -164,8 +166,8 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 
 ## Multiple browser contexts
 
-Multiple browser contexts to be launched at startup can be defined with the
-`PLAYWRIGHT_CONTEXTS` setting.
+Multiple [browser contexts](https://playwright.dev/python/docs/core-concepts/#browser-contexts)
+to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
 
 ### Choosing a specific context for a request
 
