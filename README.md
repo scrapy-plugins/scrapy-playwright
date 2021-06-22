@@ -205,7 +205,7 @@ yield scrapy.Request(
 
 ### Closing a context during a crawl
 
-After [receiving the Page object in your callback](receiving-the-page-object-in-the-callback),
+After [receiving the Page object in your callback](#receiving-the-page-object-in-the-callback),
 you can access a context though the corresponding [`Page.context`](https://playwright.dev/python/docs/api/class-page#page-context)
 attribute, and await [`close`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-close) on it.
 
