@@ -163,8 +163,8 @@ class AwesomeSpiderWithPage(scrapy.Spider):
     async def parse(self, response):
         page = response.meta["playwright_page"]
         title = await page.title()  # "Example Domain"
-        yield {"title": title}
         await page.close()
+        return {"title": title}
 ```
 
 **Notes:**
@@ -226,8 +226,8 @@ class ScrollSpider(scrapy.Spider):
     async def parse(self, response):
         page = response.meta["playwright_page"]
         await page.screenshot(path="quotes.png", fullPage=True)
-        yield {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
         await page.close()
+        return {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
 ```
 
 
