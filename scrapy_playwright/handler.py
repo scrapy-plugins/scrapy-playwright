@@ -53,7 +53,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             default_context_kwargs = crawler.settings.getdict("PLAYWRIGHT_CONTEXT_ARGS")
             warnings.warn(
                 "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated,"
-                " please use PLAYWRIGHT_CONTEXTS instead",
+                " please define the arguments within the 'default' context"
+                " using the PLAYWRIGHT_CONTEXTS setting instead",
                 category=DeprecationWarning,
                 stacklevel=2,
             )

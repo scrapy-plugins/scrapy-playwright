@@ -110,7 +110,8 @@ class MixinTestCaseMultipleContexts:
         assert warning_list[0].category is DeprecationWarning
         assert str(warning_list[0].message) == (
             "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated,"
-            " please use PLAYWRIGHT_CONTEXTS instead"
+            " please define the arguments within the 'default' context"
+            " using the PLAYWRIGHT_CONTEXTS setting instead"
         )
 
         with StaticMockServer() as server:
