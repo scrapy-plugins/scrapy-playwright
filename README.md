@@ -125,42 +125,7 @@ class AwesomeSpider(scrapy.Spider):
 ```
 
 
-## Page coroutines
-
-A sorted iterable (`list`, `tuple` or `dict`, for instance) could be passed
-in the `playwright_page_coroutines`
-[Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
-key to request coroutines to be awaited on the `Page` before returning the final
-`Response` to the callback.
-
-This is useful when you need to perform certain actions on a page, like scrolling
-down or clicking links, and you want everything to count as a single Scrapy
-Response, containing the final result.
-
-### Supported actions
-
-* `scrapy_playwright.page.PageCoroutine(method: str, *args, **kwargs)`:
-
-    _Represents a coroutine to be awaited on a `playwright.page.Page` object,
-    such as "click", "screenshot", "evaluate", etc.
-    `method` should be the name of the coroutine, `*args` and `**kwargs`
-    are passed to the function call._
-
-    _The coroutine result will be stored in the `PageCoroutine.result` attribute_
-
-    For instance,
-    ```python
-    PageCoroutine("screenshot", path="quotes.png", fullPage=True)
-    ```
-
-    produces the same effect as:
-    ```python
-    # 'page' is a playwright.async_api.Page object
-    await page.screenshot(path="quotes.png", fullPage=True)
-    ```
-
-
-### Receiving the Page object in the callback
+## Receiving the Page object in the callback
 
 Specifying a non-False value for the `playwright_include_page` `meta` key for a
 request will result in the corresponding `playwright.async_api.Page` object
@@ -195,6 +160,105 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 * Any network operations resulting from awaiting a coroutine on a `Page` object
   (`goto`, `goBack`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
+
+
+## Multiple browser contexts
+
+Multiple browser contexts to be launched at startup can be defined with the
+`PLAYWRIGHT_CONTEXTS` setting.
+
+### Choosing a specific context for a request
+
+Pass the name of the desired context in the `playwright_context` meta key:
+
+```python
+yield scrapy.Request(
+    url="https://example.org",
+    meta={"playwright": True, "playwright_context": "first"},
+)
+```
+
+### Creating a context during a crawl
+
+If the context specified in the `playwright_context` meta key does not exist, it will be created.
+You can specify keyword arguments to be passed to [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs)
+in the `playwright_context_kwargs` meta key:
+
+```python
+yield scrapy.Request(
+    url="https://example.org",
+    meta={
+        "playwright": True,
+        "playwright_context": "new",
+        "playwright_context_kwargs": {
+            "java_script_enabled": False,
+            "ignore_https_errors": True,
+            "proxy": {
+                "server": "http://myproxy.com:3128",
+                "username": "user",
+                "password": "pass",
+            },
+        },
+    },
+)
+```
+
+### Closing a context during a crawl
+
+After [receiving the Page object in your callback](receiving-the-page-object-in-the-callback),
+you can access a context though the corresponding [`Page.context`](https://playwright.dev/python/docs/api/class-page#page-context)
+attribute, and await [`close`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-close) on it.
+
+```python
+def parse(self, response):
+    yield scrapy.Request(
+        url="https://example.org",
+        callback=self.parse_in_new_context,
+        meta={"playwright": True, "playwright_context": "new", "playwright_include_page": True},
+    )
+
+async def parse_in_new_context(self, response):
+    page = response.meta["playwright_page"]
+    title = await page.title()
+    yield {"title": title}
+    await page.context.close()  # close the context
+    await page.close()
+```
+
+
+## Page coroutines
+
+A sorted iterable (`list`, `tuple` or `dict`, for instance) could be passed
+in the `playwright_page_coroutines`
+[Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
+key to request coroutines to be awaited on the `Page` before returning the final
+`Response` to the callback.
+
+This is useful when you need to perform certain actions on a page, like scrolling
+down or clicking links, and you want everything to count as a single Scrapy
+Response, containing the final result.
+
+### Supported actions
+
+* `scrapy_playwright.page.PageCoroutine(method: str, *args, **kwargs)`:
+
+    _Represents a coroutine to be awaited on a `playwright.page.Page` object,
+    such as "click", "screenshot", "evaluate", etc.
+    `method` should be the name of the coroutine, `*args` and `**kwargs`
+    are passed to the function call._
+
+    _The coroutine result will be stored in the `PageCoroutine.result` attribute_
+
+    For instance,
+    ```python
+    PageCoroutine("screenshot", path="quotes.png", fullPage=True)
+    ```
+
+    produces the same effect as:
+    ```python
+    # 'page' is a playwright.async_api.Page object
+    await page.screenshot(path="quotes.png", fullPage=True)
+    ```
 
 
 ## Examples
