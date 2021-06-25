@@ -21,7 +21,7 @@ class BooksSpider(Spider):
     }
 
     def parse(self, response: Response) -> Generator:
-        page_count = response.css(".pager .current::text").re_first("Page \d+ of (\d+)")
+        page_count = response.css(".pager .current::text").re_first(r"Page \d+ of (\d+)")
         page_count = int(page_count)
         for page in range(2, page_count + 1):
             yield response.follow(f"/catalogue/page-{page}.html")
