@@ -3,7 +3,7 @@ import logging
 import warnings
 from collections import defaultdict
 from time import time
-from typing import Callable, Dict, Optional, Tuple, Type, TypeVar
+from typing import Callable, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
 from playwright.async_api import (
@@ -86,18 +86,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 for name, kwargs in self.context_kwargs.items()
             ]
         )
-        self.contexts: Dict[str, BrowserContext] = dict(contexts)
+        self.contexts: Dict[str, BrowserContext] = dict(zip(self.context_kwargs.keys(), contexts))
 
-    async def _create_browser_context(
-        self, name: str, context_kwargs: dict
-    ) -> Tuple[str, BrowserContext]:
+    async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
         context = await self.browser.new_context(**context_kwargs)
         context.on("close", self._make_close_browser_context_callback(name))
         logger.info("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
-        return name, context
+        return context
 
     async def _create_page(self, request: Request) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
@@ -105,7 +103,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         context = self.contexts.get(context_name)
         if context is None:
             context_kwargs = request.meta.get("playwright_context_kwargs") or {}
-            _, context = await self._create_browser_context(context_name, context_kwargs)
+            context = await self._create_browser_context(context_name, context_kwargs)
             self.contexts[context_name] = context
         page = await context.new_page()
         self.stats.inc_value("playwright/page_count")
