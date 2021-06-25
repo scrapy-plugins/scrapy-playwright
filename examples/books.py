@@ -57,6 +57,7 @@ if __name__ == "__main__":
                 "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             },
             "CONCURRENT_REQUESTS": 32,
+            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 4,
             "CLOSESPIDER_ITEMCOUNT": 100,
             "FEEDS": {
                 "books.json": {"format": "json", "encoding": "utf-8", "indent": 4},
