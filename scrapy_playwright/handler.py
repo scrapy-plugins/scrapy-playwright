@@ -60,7 +60,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
         self.context_kwargs: defaultdict = defaultdict(dict)
         for name, kwargs in (crawler.settings.getdict("PLAYWRIGHT_CONTEXTS") or {}).items():
-            self.context_kwargs[name].update(default_context_kwargs)
             self.context_kwargs[name].update(kwargs)
         if not self.context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
