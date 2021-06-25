@@ -172,8 +172,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     overrides["headers"]["user-agent"] = user_agent
             asyncio.create_task(route.continue_(**overrides))
             # increment stats
-            self.stats.inc_value("playwright/request_method_count/{}".format(pw_request.method))
             self.stats.inc_value("playwright/request_count")
+            resource_type = pw_request.resource_type
+            self.stats.inc_value(f"playwright/request_count/resource_type/{resource_type}")
+            self.stats.inc_value(f"playwright/request_count/method/{pw_request.method}")
             if pw_request.is_navigation_request():
                 self.stats.inc_value("playwright/request_count/navigation")
 
