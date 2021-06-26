@@ -60,8 +60,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
         self.context_kwargs: defaultdict = defaultdict(dict)
         for name, kwargs in (crawler.settings.getdict("PLAYWRIGHT_CONTEXTS") or {}).items():
+            if name == "default":
+                self.context_kwargs[name] = default_context_kwargs
             self.context_kwargs[name].update(kwargs)
-        if not self.context_kwargs:
+        if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
     @classmethod
@@ -90,7 +92,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
         context = await self.browser.new_context(**context_kwargs)
         context.on("close", self._make_close_browser_context_callback(name))
-        logger.info("Browser context started: '%s'", name)
+        logger.debug("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
@@ -178,7 +180,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
-            logger.info("Browser context closed: '%s'", name)
+            logger.debug("Browser context closed: '%s'", name)
             if name in self.contexts:
                 self.contexts.pop(name)
 
