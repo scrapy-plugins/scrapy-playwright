@@ -183,7 +183,8 @@ yield scrapy.Request(
 ### Creating a context during a crawl
 
 If the context specified in the `playwright_context` meta key does not exist, it will be created.
-You can specify keyword arguments to be passed to [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs)
+You can specify keyword arguments to be passed to
+[`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs)
 in the `playwright_context_kwargs` meta key:
 
 ```python
@@ -204,6 +205,9 @@ yield scrapy.Request(
     },
 )
 ```
+
+Please note that if a context with the specified name already exists,
+that context is used and `playwright_context_kwargs` are ignored.
 
 ### Closing a context during a crawl
 
