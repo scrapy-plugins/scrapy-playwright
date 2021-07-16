@@ -22,9 +22,7 @@ def get_mimetype(file):
     ).stdout.strip()
 
 
-class TestCaseDefaultBrowser:
-    browser_type = "chromium"
-
+class MixinTestCase:
     @pytest.mark.asyncio
     async def test_basic_response(self):
         handler = ScrapyPlaywrightDownloadHandler(
@@ -151,12 +149,14 @@ class TestCaseDefaultBrowser:
         await handler.browser.close()
 
     @pytest.mark.asyncio
-    async def test_context_args(self):
+    async def test_context_kwargs(self):
         handler = ScrapyPlaywrightDownloadHandler(
             get_crawler(
                 settings_dict={
                     "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-                    "PLAYWRIGHT_CONTEXT_ARGS": {"java_script_enabled": False},
+                    "PLAYWRIGHT_CONTEXTS": {
+                        "default": {"java_script_enabled": False},
+                    },
                 }
             )
         )
@@ -239,10 +239,14 @@ class TestCaseDefaultBrowser:
         await handler.browser.close()
 
 
-class TestCaseFirefox(TestCaseDefaultBrowser):
+class TestCaseChromium(MixinTestCase):
+    browser_type = "chromium"
+
+
+class TestCaseFirefox(MixinTestCase):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestCaseWebkit(TestCaseDefaultBrowser):
+class TestCaseWebkit(MixinTestCase):
     browser_type = "webkit"
