@@ -1,5 +1,9 @@
 # scrapy-playwright changelog
 
+### [v0.0.5](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.5) (2021-08-20)
+
+* Improve garbage collection by removing unnecessary reference
+
 ### [v0.0.4](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.4) (2021-07-16)
 
 * Add support for multiple browser contexts ([#13](https://github.com/scrapy-plugins/scrapy-playwright/pull/13))
