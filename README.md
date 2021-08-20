@@ -32,6 +32,10 @@ to integrate `asyncio`-based projects such as `Playwright`.
 $ pip install scrapy-playwright
 ```
 
+## Changelog
+
+Please see the [changelog.md](changelog.md) file.
+
 
 ## Configuration
 
