@@ -132,7 +132,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if not isinstance(page, Page):
             page = await self._create_page(request)
         await page.unroute("**")
-        await page.route("**", self._make_request_handler(scrapy_request=request))
+        await page.route(
+            "**",
+            self._make_request_handler(
+                url=request.url,
+                method=request.method,
+                headers=request.headers.to_unicode_dict(),
+                body=request.body,
+                encoding=getattr(request, "encoding", None),
+            ),
+        )
 
         try:
             result = await self._download_request_with_page(request, page)
@@ -186,28 +195,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         return close_browser_context_callback
 
-    def _make_request_handler(self, scrapy_request: Request) -> Callable:
+    def _make_request_handler(
+        self, url: str, method: str, headers: dict, body: Optional[bytes], encoding: str = "utf8"
+    ) -> Callable:
         def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
-            if pw_request.url == scrapy_request.url:
-                overrides = {
-                    "method": scrapy_request.method,
-                    "headers": {
-                        key.decode("utf-8").lower(): value[0].decode("utf-8")
-                        for key, value in scrapy_request.headers.items()
-                    },
-                }
-                if scrapy_request.body:
-                    overrides["post_data"] = scrapy_request.body.decode(scrapy_request.encoding)
+            if pw_request.url == url:
+                overrides: dict = {"method": method, "headers": headers}
+                if body is not None:
+                    overrides["post_data"] = body.decode(encoding)
                 # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                 if self.browser_type == "firefox":
                     overrides["headers"]["host"] = urlparse(pw_request.url).netloc
             else:
                 overrides = {"headers": pw_request.headers.copy()}
                 # override user agent, for consistency with other requests
-                if scrapy_request.headers.get("user-agent"):
-                    user_agent = scrapy_request.headers["user-agent"].decode("utf-8")
-                    overrides["headers"]["user-agent"] = user_agent
+                if headers.get("user-agent"):
+                    overrides["headers"]["user-agent"] = headers["user-agent"]
             asyncio.create_task(route.continue_(**overrides))
             # increment stats
             self.stats.inc_value("playwright/request_count")
