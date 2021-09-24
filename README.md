@@ -271,6 +271,39 @@ Response, containing the final result.
     ```
 
 
+## Page events
+A dictionary with event names as keys and callables as values can be passed as the
+`playwright_page_events` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
+key, to attach handlers to Page events. For instance:
+
+```python
+from playwright.async_api import Dialog
+
+async def handle_dialog(self, dialog: Dialog) -> None:
+    logging.info(f"Handled dialog with message: {dialog.message}")
+    await dialog.dismiss()
+
+class EventSpider(scrapy.Spider):
+    name = "event"
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://example.org",
+            meta=dict(
+                playwright=True,
+                playwright_page_events={
+                    "dialog": handle_dialog,
+                },
+            ),
+        )
+```
+
+Se the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
+the accepted avents and the arguments passed to their handlers.
+
+**Note**: keep in mind that these handlers will remain attached for subsequent downloads using the same page.
+
+
 ## Examples
 
 **Click on a link, save the resulting page as PDF**
