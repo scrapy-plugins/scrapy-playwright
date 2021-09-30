@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 import time
@@ -40,11 +41,19 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        """Take a long time to reply"""
-        time.sleep(2)
+        body = "{}"
+        if self.path == "/headers":
+            body = json.dumps(dict(self.headers), indent=4)
+        else:
+            delay_match = re.match(r"^/delay/(\d+)$", self.path)
+            if delay_match:
+                delay = int(delay_match.group(1))
+                print(f"Sleeping {delay} seconds...")
+                time.sleep(delay)
+                body = json.dumps({"slept": delay})
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Hello world!")
+        self.wfile.write(body.encode())
 
 
 class MockServer:
@@ -59,5 +68,12 @@ class MockServer:
         self.httpd.shutdown()
         self.thread.join()
 
-    def urljoin(self, url):
+    def urljoin(self, url: str) -> str:
         return urljoin("http://{}:{}".format(self.address, self.port), url)
+
+
+if __name__ == "__main__":
+    with MockServer() as server:
+        print(f"Listening at http://{server.address}:{server.port}")
+        while True:
+            pass

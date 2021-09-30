@@ -1,3 +1,4 @@
+import json
 import platform
 import subprocess
 from tempfile import NamedTemporaryFile
@@ -56,7 +57,7 @@ class MixinTestCase:
 
         with MockServer() as server:
             req = FormRequest(
-                server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
+                server.urljoin("/delay/2"), meta={"playwright": True}, formdata={"foo": "bar"}
             )
             resp = await handler._download_request(req, Spider("foo"))
 
@@ -142,7 +143,7 @@ class MixinTestCase:
         await handler._launch_browser()
 
         with MockServer() as server:
-            req = Request(server.urljoin("/index.html"), meta={"playwright": True})
+            req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
             with pytest.raises(TimeoutError):
                 await handler._download_request(req, Spider("foo"))
 
@@ -235,6 +236,42 @@ class MixinTestCase:
             assert pdf_file.file.read() == req.meta["playwright_page_coroutines"]["pdf"].result
 
             pdf_file.close()
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_user_agent(self):
+        crawler = get_crawler(
+            settings_dict={
+                "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+                "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+                "USER_AGENT": None,
+            }
+        )
+        handler = ScrapyPlaywrightDownloadHandler(crawler)
+        await handler._launch_browser()
+
+        with MockServer() as server:
+            # if Scrapy's user agent is None, use the one from the Browser
+            req = Request(
+                url=server.urljoin("/headers"),
+                meta={"playwright": True},
+            )
+            resp = await handler._download_request(req, Spider("foo"))
+            headers = json.loads(resp.css("pre::text").get())
+            headers = {key.lower(): value for key, value in headers.items()}
+            assert headers["user-agent"] == self.browser_type
+
+            # if Scrapy's user agent is set to some value, use it
+            req = Request(
+                url=server.urljoin("/headers"),
+                meta={"playwright": True},
+                headers={"User-Agent": "foobar"},
+            )
+            resp = await handler._download_request(req, Spider("foo"))
+            headers = json.loads(resp.css("pre::text").get())
+            headers = {key.lower(): value for key, value in headers.items()}
+            assert headers["user-agent"] == "foobar"
 
         await handler.browser.close()
 
