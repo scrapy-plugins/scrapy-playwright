@@ -305,8 +305,8 @@ class EventSpider(scrapy.Spider):
         logging.info(f"Received response with URL {response.url}")
 ```
 
-Se the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
-the accepted avents and the arguments passed to their handlers.
+See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
+the accepted events and the arguments passed to their handlers.
 
 **Note**: keep in mind that, unless they are
 [removed later](https://playwright.dev/python/docs/events/#addingremoving-event-listener),
