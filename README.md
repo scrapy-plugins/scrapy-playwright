@@ -272,9 +272,12 @@ Response, containing the final result.
 
 
 ## Page events
-A dictionary with event names as keys and callables as values can be passed as the
-`playwright_page_event_handlers` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
-key, to attach handlers to Page events. For instance:
+A dictionary of Page event handlers can be specified in the  `playwright_page_event_handlers`
+[Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
+Keys are the name of the event to be handled (`dialog`, `download`, etc).
+Values can be either callables or strings (in which case a spider method with the name will be looked up).
+
+Example:
 
 ```python
 from playwright.async_api import Dialog
@@ -293,9 +296,13 @@ class EventSpider(scrapy.Spider):
                 playwright=True,
                 playwright_page_event_handlers={
                     "dialog": handle_dialog,
+                    "response": "handle_response",
                 },
             ),
         )
+
+    async def handle_response(self, response: PlaywrightResponse) -> None:
+        logging.info(f"Received response with URL {response.url}")
 ```
 
 Se the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
