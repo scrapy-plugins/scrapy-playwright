@@ -164,7 +164,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 * In order to avoid memory issues, it is recommended to manually close the page
   by awaiting the `Page.close` coroutine.
 * Any network operations resulting from awaiting a coroutine on a `Page` object
-  (`goto`, `goBack`, etc) will be executed directly by Playwright, bypassing the
+  (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
 
