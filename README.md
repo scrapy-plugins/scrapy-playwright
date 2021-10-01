@@ -273,7 +273,7 @@ Response, containing the final result.
 
 ## Page events
 A dictionary with event names as keys and callables as values can be passed as the
-`playwright_page_events` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
+`playwright_page_event_handlers` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
 key, to attach handlers to Page events. For instance:
 
 ```python
@@ -291,7 +291,7 @@ class EventSpider(scrapy.Spider):
             url="https://example.org",
             meta=dict(
                 playwright=True,
-                playwright_page_events={
+                playwright_page_event_handlers={
                     "dialog": handle_dialog,
                 },
             ),
@@ -301,7 +301,11 @@ class EventSpider(scrapy.Spider):
 Se the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
 the accepted avents and the arguments passed to their handlers.
 
-**Note**: keep in mind that these handlers will remain attached for subsequent downloads using the same page.
+**Note**: keep in mind that, unless they are
+[removed later](https://playwright.dev/python/docs/events/#addingremoving-event-listener),
+these handlers will remain attached to the page and will be called for subsequent
+downloads using the same page. This is usually not a problem, since by default
+requests are performed in single-use pages.
 
 
 ## Examples

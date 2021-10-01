@@ -264,7 +264,7 @@ class MixinTestCase:
                     "playwright_page_coroutines": [
                         PageCoro("evaluate", "alert('foobar');"),
                     ],
-                    "playwright_page_events": {
+                    "playwright_page_event_handlers": {
                         "dialog": spider.handle_dialog,
                     },
                 },
@@ -290,7 +290,7 @@ class MixinTestCase:
                     "playwright_page_coroutines": [
                         PageCoro("evaluate", "alert('foobar');"),
                     ],
-                    "playwright_page_events": {
+                    "playwright_page_event_handlers": {
                         "dialog": "handle_dialog",
                     },
                 },
@@ -313,7 +313,7 @@ class MixinTestCase:
                 url=server.urljoin("/index.html"),
                 meta={
                     "playwright": True,
-                    "playwright_page_events": {
+                    "playwright_page_event_handlers": {
                         "dialog": "missing_method",
                     },
                 },

@@ -133,7 +133,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page = await self._create_page(request)
 
         # attach event handlers
-        event_handlers = request.meta.get("playwright_page_events") or {}
+        event_handlers = request.meta.get("playwright_page_event_handlers") or {}
         for event, handler in event_handlers.items():
             if callable(handler):
                 page.on(event, handler)
