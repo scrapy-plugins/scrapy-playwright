@@ -131,6 +131,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = request.meta.get("playwright_page")
         if not isinstance(page, Page):
             page = await self._create_page(request)
+
+        # attach event handlers
+        event_handlers = request.meta.get("playwright_page_event_handlers") or {}
+        for event, handler in event_handlers.items():
+            if callable(handler):
+                page.on(event, handler)
+            elif isinstance(handler, str):
+                try:
+                    page.on(event, getattr(spider, handler))
+                except AttributeError:
+                    logger.warning(
+                        f"Spider '{spider.name}' does not have a '{handler}' attribute,"
+                        f" ignoring handler for event '{event}'"
+                    )
+
         await page.unroute("**")
         await page.route(
             "**",
