@@ -1,10 +1,11 @@
 import json
+import logging
 import platform
 import subprocess
 from tempfile import NamedTemporaryFile
 
 import pytest
-from playwright.async_api import Page as PlaywrightPage, TimeoutError
+from playwright.async_api import Dialog, Page as PlaywrightPage, TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -21,6 +22,16 @@ def get_mimetype(file):
         stdout=subprocess.PIPE,
         universal_newlines=True,
     ).stdout.strip()
+
+
+class DialogSpider(Spider):
+    """A spider with a method to handle the "dialog" page event"""
+
+    name = "dialog"
+
+    async def handle_dialog(self, dialog: Dialog) -> None:
+        self.dialog_message = dialog.message
+        await dialog.dismiss()
 
 
 class MixinTestCase:
@@ -272,6 +283,87 @@ class MixinTestCase:
             headers = json.loads(resp.css("pre::text").get())
             headers = {key.lower(): value for key, value in headers.items()}
             assert headers["user-agent"] == "foobar"
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_event_handler_dialog_callable(self):
+        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
+        handler = ScrapyPlaywrightDownloadHandler(crawler)
+        await handler._launch_browser()
+
+        with StaticMockServer() as server:
+            spider = DialogSpider()
+            req = Request(
+                url=server.urljoin("/index.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_coroutines": [
+                        PageCoro("evaluate", "alert('foobar');"),
+                    ],
+                    "playwright_page_event_handlers": {
+                        "dialog": spider.handle_dialog,
+                    },
+                },
+            )
+            await handler._download_request(req, spider)
+
+        assert spider.dialog_message == "foobar"
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_event_handler_dialog_str(self):
+        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
+        handler = ScrapyPlaywrightDownloadHandler(crawler)
+        await handler._launch_browser()
+
+        with StaticMockServer() as server:
+            spider = DialogSpider()
+            req = Request(
+                url=server.urljoin("/index.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_coroutines": [
+                        PageCoro("evaluate", "alert('foobar');"),
+                    ],
+                    "playwright_page_event_handlers": {
+                        "dialog": "handle_dialog",
+                    },
+                },
+            )
+            await handler._download_request(req, spider)
+
+        assert spider.dialog_message == "foobar"
+
+        await handler.browser.close()
+
+    @pytest.mark.asyncio
+    async def test_event_handler_dialog_missing(self, caplog):
+        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
+        handler = ScrapyPlaywrightDownloadHandler(crawler)
+        await handler._launch_browser()
+
+        with StaticMockServer() as server:
+            spider = DialogSpider()
+            req = Request(
+                url=server.urljoin("/index.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_event_handlers": {
+                        "dialog": "missing_method",
+                    },
+                },
+            )
+            await handler._download_request(req, spider)
+
+        assert (
+            "scrapy-playwright",
+            logging.WARNING,
+            "Spider 'dialog' does not have a 'missing_method' attribute,"
+            " ignoring handler for event 'dialog'",
+        ) in caplog.record_tuples
+        assert getattr(spider, "dialog_message", None) is None
 
         await handler.browser.close()
 
