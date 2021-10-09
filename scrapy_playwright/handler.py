@@ -115,12 +115,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
+        yield deferred_from_coro(self._close())
+
+    async def _close(self) -> None:
         for context in self.contexts.copy().values():
-            yield deferred_from_coro(context.close())
+            await context.close()
         if getattr(self, "browser", None):
             logger.info("Closing browser")
-            yield deferred_from_coro(self.browser.close())
-        yield deferred_from_coro(self.playwright_context_manager.__aexit__())
+            await self.browser.close()
+        await self.playwright_context_manager.__aexit__()
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):

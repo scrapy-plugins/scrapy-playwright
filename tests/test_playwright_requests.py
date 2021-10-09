@@ -1,6 +1,7 @@
 import logging
 import platform
 import subprocess
+from contextlib import asynccontextmanager
 from tempfile import NamedTemporaryFile
 
 import pytest
@@ -23,6 +24,18 @@ def get_mimetype(file):
     ).stdout.strip()
 
 
+@asynccontextmanager
+async def make_handler(settings_dict: dict):
+    """Convenience function to obtain an initialized handler and close it gracefully"""
+    try:
+        crawler = get_crawler(settings_dict=settings_dict)
+        handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
+        await handler._launch_browser()
+        yield handler
+    finally:
+        await handler._close()
+
+
 class DialogSpider(Spider):
     """A spider with a method to handle the "dialog" page event"""
 
@@ -36,289 +49,221 @@ class DialogSpider(Spider):
 class MixinTestCase:
     @pytest.mark.asyncio
     async def test_basic_response(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                meta = {"playwright": True, "playwright_include_page": True}
+                req = Request(server.urljoin("/index.html"), meta=meta)
+                resp = await handler._download_request(req, Spider("foo"))
 
-        with StaticMockServer() as server:
-            meta = {"playwright": True, "playwright_include_page": True}
-            req = Request(server.urljoin("/index.html"), meta=meta)
-            resp = await handler._download_request(req, Spider("foo"))
+            assert isinstance(resp, HtmlResponse)
+            assert resp.request is req
+            assert resp.url == req.url
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
+            assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
+            assert resp.meta["playwright_page"].url == resp.url
 
-        assert isinstance(resp, HtmlResponse)
-        assert resp.request is req
-        assert resp.url == req.url
-        assert resp.status == 200
-        assert "playwright" in resp.flags
-        assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
-        assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
-        assert resp.meta["playwright_page"].url == resp.url
-
-        await resp.meta["playwright_page"].close()
-        await handler.browser.close()
+            await resp.meta["playwright_page"].close()
 
     @pytest.mark.asyncio
     async def test_post_request(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                req = FormRequest(
+                    server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
+                )
+                resp = await handler._download_request(req, Spider("foo"))
 
-        with MockServer() as server:
-            req = FormRequest(
-                server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
-            )
-            resp = await handler._download_request(req, Spider("foo"))
-
-        assert resp.request is req
-        assert resp.url == req.url
-        assert resp.status == 200
-        assert "playwright" in resp.flags
-        assert "Request body: foo=bar" in resp.text
-
-        await handler.browser.close()
+            assert resp.request is req
+            assert resp.url == req.url
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert "Request body: foo=bar" in resp.text
 
     @pytest.mark.asyncio
     async def test_page_coroutine_navigation(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": [PageCoro("click", "a.lorem_ipsum")],
+                    },
+                )
+                resp = await handler._download_request(req, Spider("foo"))
 
-        with StaticMockServer() as server:
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": [PageCoro("click", "a.lorem_ipsum")],
-                },
-            )
-            resp = await handler._download_request(req, Spider("foo"))
-
-        assert isinstance(resp, HtmlResponse)
-        assert resp.request is req
-        assert resp.url == server.urljoin("/lorem_ipsum.html")
-        assert resp.status == 200
-        assert "playwright" in resp.flags
-        assert resp.css("title::text").get() == "Lorem Ipsum"
-        text = resp.css("p::text").get()
-        assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-
-        await handler.browser.close()
+            assert isinstance(resp, HtmlResponse)
+            assert resp.request is req
+            assert resp.url == server.urljoin("/lorem_ipsum.html")
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert resp.css("title::text").get() == "Lorem Ipsum"
+            text = resp.css("p::text").get()
+            assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
     @pytest.mark.asyncio
     async def test_page_coroutine_infinite_scroll(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/scroll.html"),
+                    headers={"User-Agent": "scrapy-playwright"},
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": [
+                            PageCoro("wait_for_selector", selector="div.quote"),
+                            PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                            PageCoro("wait_for_selector", selector="div.quote:nth-child(11)"),
+                            PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                            PageCoro("wait_for_selector", selector="div.quote:nth-child(21)"),
+                        ],
+                    },
+                )
+                resp = await handler._download_request(req, Spider("foo"))
 
-        with StaticMockServer() as server:
-            req = Request(
-                url=server.urljoin("/scroll.html"),
-                headers={"User-Agent": "scrapy-playwright"},
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": [
-                        PageCoro("wait_for_selector", selector="div.quote"),
-                        PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoro("wait_for_selector", selector="div.quote:nth-child(11)"),
-                        PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                        PageCoro("wait_for_selector", selector="div.quote:nth-child(21)"),
-                    ],
-                },
-            )
-            resp = await handler._download_request(req, Spider("foo"))
-
-        assert isinstance(resp, HtmlResponse)
-        assert resp.request is req
-        assert resp.url == server.urljoin("/scroll.html")
-        assert resp.status == 200
-        assert "playwright" in resp.flags
-        assert len(resp.css("div.quote")) == 30
-
-        await handler.browser.close()
+            assert isinstance(resp, HtmlResponse)
+            assert resp.request is req
+            assert resp.url == server.urljoin("/scroll.html")
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert len(resp.css("div.quote")) == 30
 
     @pytest.mark.asyncio
     async def test_timeout(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(
-                settings_dict={
-                    "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-                    "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
-                }
-            )
-        )
-        await handler._launch_browser()
-
-        with MockServer() as server:
-            req = Request(server.urljoin("/index.html"), meta={"playwright": True})
-            with pytest.raises(TimeoutError):
-                await handler._download_request(req, Spider("foo"))
-
-        await handler.browser.close()
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
+                with pytest.raises(TimeoutError):
+                    await handler._download_request(req, Spider("foo"))
 
     @pytest.mark.asyncio
     async def test_context_kwargs(self):
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(
-                settings_dict={
-                    "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-                    "PLAYWRIGHT_CONTEXTS": {
-                        "default": {"java_script_enabled": False},
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {
+                "default": {"java_script_enabled": False},
+            },
+        }
+        async with make_handler(settings_dict) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/scroll.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": [
+                            PageCoro("wait_for_selector", selector="div.quote", timeout=1000),
+                        ],
                     },
-                }
-            )
-        )
-        await handler._launch_browser()
-
-        with StaticMockServer() as server:
-            req = Request(
-                url=server.urljoin("/scroll.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": [
-                        PageCoro("wait_for_selector", selector="div.quote", timeout=1000),
-                    ],
-                },
-            )
-            with pytest.raises(TimeoutError):
-                await handler._download_request(req, Spider("foo"))
-
-        await handler.browser.close()
+                )
+                with pytest.raises(TimeoutError):
+                    await handler._download_request(req, Spider("foo"))
 
     @pytest.mark.asyncio
     async def test_page_coroutine_screenshot(self):
-        png_file = NamedTemporaryFile(mode="w+b")
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with NamedTemporaryFile(mode="w+b") as png_file:
+                with StaticMockServer() as server:
+                    req = Request(
+                        url=server.urljoin("/index.html"),
+                        meta={
+                            "playwright": True,
+                            "playwright_page_coroutines": {
+                                "png": PageCoro("screenshot", path=png_file.name, type="png"),
+                            },
+                        },
+                    )
+                    await handler._download_request(req, Spider("foo"))
 
-        with StaticMockServer() as server:
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": {
-                        "png": PageCoro("screenshot", path=png_file.name, type="png"),
-                    },
-                },
-            )
-            await handler._download_request(req, Spider("foo"))
-
-            assert get_mimetype(png_file) == "image/png"
-
-            png_file.file.seek(0)
-            assert png_file.file.read() == req.meta["playwright_page_coroutines"]["png"].result
-
-            png_file.close()
-
-        await handler.browser.close()
+                png_file.file.seek(0)
+                assert png_file.file.read() == req.meta["playwright_page_coroutines"]["png"].result
+                assert get_mimetype(png_file) == "image/png"
 
     @pytest.mark.asyncio
     async def test_page_coroutine_pdf(self):
         if self.browser_type != "chromium":
             pytest.skip("PDF generation is supported only in Chromium")
 
-        pdf_file = NamedTemporaryFile(mode="w+b")
-        handler = ScrapyPlaywrightDownloadHandler(
-            get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        )
-        await handler._launch_browser()
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with NamedTemporaryFile(mode="w+b") as pdf_file:
+                with StaticMockServer() as server:
+                    req = Request(
+                        url=server.urljoin("/index.html"),
+                        meta={
+                            "playwright": True,
+                            "playwright_page_coroutines": {
+                                "pdf": PageCoro("pdf", path=pdf_file.name),
+                            },
+                        },
+                    )
+                    await handler._download_request(req, Spider("foo"))
 
-        with StaticMockServer() as server:
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": {
-                        "pdf": PageCoro("pdf", path=pdf_file.name),
-                    },
-                },
-            )
-            await handler._download_request(req, Spider("foo"))
-
-            assert get_mimetype(pdf_file) == "application/pdf"
-
-            pdf_file.file.seek(0)
-            assert pdf_file.file.read() == req.meta["playwright_page_coroutines"]["pdf"].result
-
-            pdf_file.close()
-
-        await handler.browser.close()
+                pdf_file.file.seek(0)
+                assert pdf_file.file.read() == req.meta["playwright_page_coroutines"]["pdf"].result
+                assert get_mimetype(pdf_file) == "application/pdf"
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):
-        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        handler = ScrapyPlaywrightDownloadHandler(crawler)
-        await handler._launch_browser()
-
-        with StaticMockServer() as server:
-            spider = DialogSpider()
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": [
-                        PageCoro("evaluate", "alert('foobar');"),
-                    ],
-                    "playwright_page_event_handlers": {
-                        "dialog": spider.handle_dialog,
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                spider = DialogSpider()
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": [
+                            PageCoro("evaluate", "alert('foobar');"),
+                        ],
+                        "playwright_page_event_handlers": {
+                            "dialog": spider.handle_dialog,
+                        },
                     },
-                },
-            )
-            await handler._download_request(req, spider)
+                )
+                await handler._download_request(req, spider)
 
-        assert spider.dialog_message == "foobar"
-
-        await handler.browser.close()
+            assert spider.dialog_message == "foobar"
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_str(self):
-        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        handler = ScrapyPlaywrightDownloadHandler(crawler)
-        await handler._launch_browser()
-
-        with StaticMockServer() as server:
-            spider = DialogSpider()
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_coroutines": [
-                        PageCoro("evaluate", "alert('foobar');"),
-                    ],
-                    "playwright_page_event_handlers": {
-                        "dialog": "handle_dialog",
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                spider = DialogSpider()
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": [
+                            PageCoro("evaluate", "alert('foobar');"),
+                        ],
+                        "playwright_page_event_handlers": {
+                            "dialog": "handle_dialog",
+                        },
                     },
-                },
-            )
-            await handler._download_request(req, spider)
+                )
+                await handler._download_request(req, spider)
 
-        assert spider.dialog_message == "foobar"
-
-        await handler.browser.close()
+            assert spider.dialog_message == "foobar"
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_missing(self, caplog):
-        crawler = get_crawler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": self.browser_type})
-        handler = ScrapyPlaywrightDownloadHandler(crawler)
-        await handler._launch_browser()
-
-        with StaticMockServer() as server:
-            spider = DialogSpider()
-            req = Request(
-                url=server.urljoin("/index.html"),
-                meta={
-                    "playwright": True,
-                    "playwright_page_event_handlers": {
-                        "dialog": "missing_method",
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                spider = DialogSpider()
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_event_handlers": {
+                            "dialog": "missing_method",
+                        },
                     },
-                },
-            )
-            await handler._download_request(req, spider)
+                )
+                await handler._download_request(req, spider)
 
         assert (
             "scrapy-playwright",
@@ -327,8 +272,6 @@ class MixinTestCase:
             " ignoring handler for event 'dialog'",
         ) in caplog.record_tuples
         assert getattr(spider, "dialog_message", None) is None
-
-        await handler.browser.close()
 
 
 class TestCaseChromium(MixinTestCase):
