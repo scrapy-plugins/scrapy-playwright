@@ -5,9 +5,10 @@ jobs:
   tests:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-10.15]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -19,11 +20,6 @@ jobs:
 
     - name: Install tox
       run: pip install tox
-
-    - name: Install playwright & browsers
-      run: |
-        pip install playwright
-        python -m playwright install
 
     - name: Run tests
       run: tox -e py
