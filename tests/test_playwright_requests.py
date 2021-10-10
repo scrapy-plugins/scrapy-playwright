@@ -1,18 +1,16 @@
 import logging
 import platform
 import subprocess
-from contextlib import asynccontextmanager
 from tempfile import NamedTemporaryFile
 
 import pytest
 from playwright.async_api import Dialog, Page as PlaywrightPage, TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
-from scrapy.utils.test import get_crawler
 
-from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from scrapy_playwright.page import PageCoroutine as PageCoro
 
+from tests import make_handler
 from tests.mockserver import MockServer, StaticMockServer
 
 
@@ -22,18 +20,6 @@ def get_mimetype(file):
         stdout=subprocess.PIPE,
         universal_newlines=True,
     ).stdout.strip()
-
-
-@asynccontextmanager
-async def make_handler(settings_dict: dict):
-    """Convenience function to obtain an initialized handler and close it gracefully"""
-    try:
-        crawler = get_crawler(settings_dict=settings_dict)
-        handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
-        await handler._launch_browser()
-        yield handler
-    finally:
-        await handler._close()
 
 
 class DialogSpider(Spider):
