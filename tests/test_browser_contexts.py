@@ -39,6 +39,7 @@ class MixinTestCaseMultipleContexts:
 
             page = resp.meta["playwright_page"]
             storage_state = await page.context.storage_state()
+            await page.context.close()
             await page.close()
             cookie = storage_state["cookies"][0]
             assert cookie["name"] == "foo"
