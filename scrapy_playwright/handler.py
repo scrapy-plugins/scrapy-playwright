@@ -118,8 +118,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         yield deferred_from_coro(self._close())
 
     async def _close(self) -> None:
-        for context in self.contexts.copy().values():
-            await context.close()
+        self.contexts.clear()
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             await self.browser.close()
