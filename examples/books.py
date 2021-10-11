@@ -33,10 +33,10 @@ class BooksSpider(Spider):
             )
 
     async def parse_book(self, response: Response) -> dict:
-        url_md5 = hashlib.md5(response.url.encode("utf-8")).hexdigest()
+        url_sha256 = hashlib.sha256(response.url.encode("utf-8")).hexdigest()
         page = response.meta["playwright_page"]
         await page.screenshot(
-            path=Path(__file__).parent / "books" / f"{url_md5}.png", full_page=True
+            path=Path(__file__).parent / "books" / f"{url_sha256}.png", full_page=True
         )
         await page.close()
         return {
@@ -44,7 +44,7 @@ class BooksSpider(Spider):
             "title": response.css("h1::text").get(),
             "price": response.css("p.price_color::text").get(),
             "breadcrumbs": response.css(".breadcrumb a::text").getall(),
-            "image": f"books/{url_md5}.png",
+            "image": f"books/{url_sha256}.png",
         }
 
 

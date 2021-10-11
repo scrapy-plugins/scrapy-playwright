@@ -32,6 +32,10 @@ to integrate `asyncio`-based projects such as `Playwright`.
 $ pip install scrapy-playwright
 ```
 
+## Changelog
+
+Please see the [changelog.md](changelog.md) file.
+
 
 ## Configuration
 
@@ -160,7 +164,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 * In order to avoid memory issues, it is recommended to manually close the page
   by awaiting the `Page.close` coroutine.
 * Any network operations resulting from awaiting a coroutine on a `Page` object
-  (`goto`, `goBack`, etc) will be executed directly by Playwright, bypassing the
+  (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
 
@@ -265,6 +269,50 @@ Response, containing the final result.
     # 'page' is a playwright.async_api.Page object
     await page.screenshot(path="quotes.png", fullPage=True)
     ```
+
+
+## Page events
+A dictionary of Page event handlers can be specified in the  `playwright_page_event_handlers`
+[Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
+Keys are the name of the event to be handled (`dialog`, `download`, etc).
+Values can be either callables or strings (in which case a spider method with the name will be looked up).
+
+Example:
+
+```python
+from playwright.async_api import Dialog
+
+async def handle_dialog(self, dialog: Dialog) -> None:
+    logging.info(f"Handled dialog with message: {dialog.message}")
+    await dialog.dismiss()
+
+class EventSpider(scrapy.Spider):
+    name = "event"
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://example.org",
+            meta=dict(
+                playwright=True,
+                playwright_page_event_handlers={
+                    "dialog": handle_dialog,
+                    "response": "handle_response",
+                },
+            ),
+        )
+
+    async def handle_response(self, response: PlaywrightResponse) -> None:
+        logging.info(f"Received response with URL {response.url}")
+```
+
+See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
+the accepted events and the arguments passed to their handlers.
+
+**Note**: keep in mind that, unless they are
+[removed later](https://playwright.dev/python/docs/events/#addingremoving-event-listener),
+these handlers will remain attached to the page and will be called for subsequent
+downloads using the same page. This is usually not a problem, since by default
+requests are performed in single-use pages.
 
 
 ## Examples

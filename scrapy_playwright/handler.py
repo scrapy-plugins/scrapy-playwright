@@ -141,12 +141,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     @inlineCallbacks
     def close(self) -> Deferred:
         yield super().close()
-        for context in self.contexts.copy().values():
-            yield deferred_from_coro(context.close())
+        yield deferred_from_coro(self._close())
+
+    async def _close(self) -> None:
+        self.contexts.clear()
         if getattr(self, "browser", None):
             logger.info("Closing browser")
-            yield deferred_from_coro(self.browser.close())
-        yield deferred_from_coro(self.playwright_context_manager.__aexit__())
+            await self.browser.close()
+        await self.playwright_context_manager.__aexit__()
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
@@ -157,8 +159,32 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = request.meta.get("playwright_page")
         if not isinstance(page, Page):
             page = await self._create_page(request)
+
+        # attach event handlers
+        event_handlers = request.meta.get("playwright_page_event_handlers") or {}
+        for event, handler in event_handlers.items():
+            if callable(handler):
+                page.on(event, handler)
+            elif isinstance(handler, str):
+                try:
+                    page.on(event, getattr(spider, handler))
+                except AttributeError:
+                    logger.warning(
+                        f"Spider '{spider.name}' does not have a '{handler}' attribute,"
+                        f" ignoring handler for event '{event}'"
+                    )
+
         await page.unroute("**")
-        await page.route("**", self._make_request_handler(scrapy_request=request))
+        await page.route(
+            "**",
+            self._make_request_handler(
+                url=request.url,
+                method=request.method,
+                headers=request.headers.to_unicode_dict(),
+                body=request.body,
+                encoding=getattr(request, "encoding", None),
+            ),
+        )
 
         try:
             result = await self._download_request_with_page(request, page)
@@ -221,28 +247,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         return close_browser_context_callback
 
-    def _make_request_handler(self, scrapy_request: Request) -> Callable:
+    def _make_request_handler(
+        self, url: str, method: str, headers: dict, body: Optional[bytes], encoding: str = "utf8"
+    ) -> Callable:
         def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
-            if pw_request.url == scrapy_request.url:
-                overrides = {
-                    "method": scrapy_request.method,
-                    "headers": {
-                        key.decode("utf-8").lower(): value[0].decode("utf-8")
-                        for key, value in scrapy_request.headers.items()
-                    },
-                }
-                if scrapy_request.body:
-                    overrides["post_data"] = scrapy_request.body.decode(scrapy_request.encoding)
+            if pw_request.url == url:
+                overrides: dict = {"method": method, "headers": headers}
+                if body is not None:
+                    overrides["post_data"] = body.decode(encoding)
                 # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                 if self.browser_type == "firefox":
                     overrides["headers"]["host"] = urlparse(pw_request.url).netloc
             else:
                 overrides = {"headers": pw_request.headers.copy()}
                 # override user agent, for consistency with other requests
-                if scrapy_request.headers.get("user-agent"):
-                    user_agent = scrapy_request.headers["user-agent"].decode("utf-8")
-                    overrides["headers"]["user-agent"] = user_agent
+                if headers.get("user-agent"):
+                    overrides["headers"]["user-agent"] = headers["user-agent"]
             asyncio.create_task(route.continue_(**overrides))
             # increment stats
             self.stats.inc_value("playwright/request_count")
