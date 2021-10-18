@@ -1,3 +1,4 @@
+import json
 import logging
 import platform
 import subprocess
@@ -57,7 +58,7 @@ class MixinTestCase:
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
                 req = FormRequest(
-                    server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
+                    server.urljoin("/delay/2"), meta={"playwright": True}, formdata={"foo": "bar"}
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
@@ -124,7 +125,7 @@ class MixinTestCase:
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
+                req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
                 with pytest.raises(TimeoutError):
                     await handler._download_request(req, Spider("foo"))
 
@@ -192,6 +193,36 @@ class MixinTestCase:
                 pdf_file.file.seek(0)
                 assert pdf_file.file.read() == req.meta["playwright_page_coroutines"]["pdf"].result
                 assert get_mimetype(pdf_file) == "application/pdf"
+
+    @pytest.mark.asyncio
+    async def test_user_agent(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "USER_AGENT": None,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                # if Scrapy's user agent is None, use the one from the Browser
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+                headers = json.loads(resp.css("pre::text").get())
+                headers = {key.lower(): value for key, value in headers.items()}
+                assert headers["user-agent"] == self.browser_type
+
+                # if Scrapy's user agent is set to some value, use it
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                    headers={"User-Agent": "foobar"},
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+                headers = json.loads(resp.css("pre::text").get())
+                headers = {key.lower(): value for key, value in headers.items()}
+                assert headers["user-agent"] == "foobar"
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):

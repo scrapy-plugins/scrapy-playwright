@@ -217,12 +217,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
+            headers.setdefault("user-agent", pw_request.headers.get("user-agent"))
             if pw_request.url == url:
                 overrides: dict = {"method": method, "headers": headers}
                 if body is not None:
                     overrides["post_data"] = body.decode(encoding)
-                # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                 if self.browser_type == "firefox":
+                    # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                     overrides["headers"]["host"] = urlparse(pw_request.url).netloc
             else:
                 overrides = {"headers": pw_request.headers.copy()}
