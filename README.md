@@ -282,7 +282,7 @@ Example:
 ```python
 from playwright.async_api import Dialog
 
-async def handle_dialog(self, dialog: Dialog) -> None:
+async def handle_dialog(dialog: Dialog) -> None:
     logging.info(f"Handled dialog with message: {dialog.message}")
     await dialog.dismiss()
 
