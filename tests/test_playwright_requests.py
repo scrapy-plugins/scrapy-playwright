@@ -225,6 +225,27 @@ class MixinTestCase:
                 assert headers["user-agent"] == "foobar"
 
     @pytest.mark.asyncio
+    async def test_use_playwright_headers(self):
+        """Ignore Scrapy headers"""
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": "scrapy_playwright.headers.use_playwright_headers",  # noqa: E501
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+                headers = json.loads(resp.css("pre::text").get())
+                headers = {key.lower(): value for key, value in headers.items()}
+                assert headers["user-agent"] == self.browser_type
+                assert "asdf" not in headers
+
+    @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
