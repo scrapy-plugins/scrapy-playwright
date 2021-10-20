@@ -29,6 +29,6 @@ async def use_scrapy_headers(
 async def use_playwright_headers(
     browser_type: str,
     playwright_request: PlaywrightRequest,
-    scrapy_headers: dict,
+    scrapy_headers: Headers,
 ) -> dict:
     return playwright_request.headers
