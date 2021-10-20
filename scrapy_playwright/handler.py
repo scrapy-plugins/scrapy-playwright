@@ -253,7 +253,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def _make_request_handler(
         self, method: str, scrapy_headers: Headers, body: Optional[bytes], encoding: str = "utf8"
     ) -> Callable:
-        async def request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
+        async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers
@@ -268,4 +268,4 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             await route.continue_(**overrides)
 
-        return request_handler
+        return _request_handler
