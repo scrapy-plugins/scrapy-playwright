@@ -258,8 +258,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers
             )
+
+            # the request that reches the callback should contain the headers that were sent
             scrapy_headers.clear()
             scrapy_headers.update(processed_headers)
+
             overrides: dict = {"headers": processed_headers}
             if playwright_request.is_navigation_request():
                 overrides["method"] = method
