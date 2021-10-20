@@ -11,6 +11,7 @@ from playwright.async_api import (
     Page,
     PlaywrightContextManager,
     Request as PlaywrightRequest,
+    Response as PlaywrightResponse,
     Route,
 )
 from scrapy import Spider, signals
@@ -33,6 +34,26 @@ PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownload
 
 
 logger = logging.getLogger("scrapy-playwright")
+
+
+def _make_request_logger(context_name: str) -> Callable:
+    def _log_request(request: PlaywrightRequest) -> None:
+        logger.debug(
+            f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
+            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
+        )
+
+    return _log_request
+
+
+def _make_response_logger(context_name: str) -> Callable:
+    def _log_request(response: PlaywrightResponse) -> None:
+        logger.debug(
+            f"[Context={context_name}] Response: <{response.status} {response.url}> "
+            f"(referrer: {response.headers.get('referer')})"
+        )
+
+    return _log_request
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -107,6 +128,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             context = await self._create_browser_context(context_name, context_kwargs)
             self.contexts[context_name] = context
         page = await context.new_page()
+        page.on("request", _make_request_logger(context_name))
+        page.on("response", _make_response_logger(context_name))
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
