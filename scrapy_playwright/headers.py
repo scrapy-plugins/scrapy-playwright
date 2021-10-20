@@ -1,12 +1,13 @@
 from urllib.parse import urlparse
 
 from playwright.async_api import Request as PlaywrightRequest
+from scrapy.http.headers import Headers
 
 
 async def use_scrapy_headers(
     browser_type: str,
     playwright_request: PlaywrightRequest,
-    scrapy_headers: dict,
+    scrapy_headers: Headers,
 ) -> dict:
     headers = scrapy_headers.to_unicode_dict()
 

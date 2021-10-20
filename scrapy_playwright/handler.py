@@ -251,7 +251,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return close_browser_context_callback
 
     def _make_request_handler(
-        self, method: str, scrapy_headers: dict, body: Optional[bytes], encoding: str = "utf8"
+        self, method: str, scrapy_headers: Headers, body: Optional[bytes], encoding: str = "utf8"
     ) -> Callable:
         async def request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
