@@ -259,7 +259,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 self.browser_type, playwright_request, scrapy_headers
             )
 
-            # the request that reches the callback should contain the headers that were sent
+            # the request that reaches the callback should contain the headers that were sent
             scrapy_headers.clear()
             scrapy_headers.update(processed_headers)
 
