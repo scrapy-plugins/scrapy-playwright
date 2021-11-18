@@ -1,7 +1,7 @@
 # Playwright integration for Scrapy
 [![version](https://img.shields.io/pypi/v/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright)
 [![pyversions](https://img.shields.io/pypi/pyversions/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright)
-[![actions](https://github.com/scrapy-plugins/scrapy-playwright/workflows/Build/badge.svg)](https://github.com/scrapy-plugins/scrapy-playwright/actions)
+[![Tests](https://github.com/scrapy-plugins/scrapy-playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/scrapy-plugins/scrapy-playwright/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/scrapy-plugins/scrapy-playwright/branch/master/graph/badge.svg)](https://codecov.io/gh/scrapy-plugins/scrapy-playwright)
 
 
@@ -129,6 +129,14 @@ class AwesomeSpider(scrapy.Spider):
         # 'response' contains the page as seen by the browser
         yield {"url": response.url}
 ```
+
+### Notes about the User-Agent header
+
+By default, outgoing requests include the `User-Agent` set by Scrapy (either with the
+`USER_AGENT` or `DEFAULT_REQUEST_HEADERS` settings or via the `Request.headers` attribute).
+This could cause some sites to react in unexpected ways, for instance if the user agent
+does not match the Browser being used. If you prefer to send the `User-Agent` from the Browser,
+set the Scrapy user agent to `None`.
 
 
 ## Receiving the Page object in the callback
@@ -282,7 +290,7 @@ Example:
 ```python
 from playwright.async_api import Dialog
 
-async def handle_dialog(self, dialog: Dialog) -> None:
+async def handle_dialog(dialog: Dialog) -> None:
     logging.info(f"Handled dialog with message: {dialog.message}")
     await dialog.dismiss()
 

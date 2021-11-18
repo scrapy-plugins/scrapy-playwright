@@ -11,6 +11,7 @@ from playwright.async_api import (
     Page,
     PlaywrightContextManager,
     Request as PlaywrightRequest,
+    Response as PlaywrightResponse,
     Route,
 )
 from scrapy import Spider, signals
@@ -33,6 +34,26 @@ PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownload
 
 
 logger = logging.getLogger("scrapy-playwright")
+
+
+def _make_request_logger(context_name: str) -> Callable:
+    def _log_request(request: PlaywrightRequest) -> None:
+        logger.debug(
+            f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
+            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
+        )
+
+    return _log_request
+
+
+def _make_response_logger(context_name: str) -> Callable:
+    def _log_request(response: PlaywrightResponse) -> None:
+        logger.debug(
+            f"[Context={context_name}] Response: <{response.status} {response.url}> "
+            f"(referrer: {response.headers.get('referer')})"
+        )
+
+    return _log_request
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -116,17 +137,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_semaphores[context_name] = asyncio.Semaphore(
                 value=self.max_pages_per_context
             )
+
         await self.context_semaphores[context_name].acquire()
+
         page = await context.new_page()
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
+        page.on("response", _make_response_logger(context_name))
+        page.on("request", _make_request_logger(context_name))
+        page.on("request", self._increment_request_stats)
+
+        self.stats.inc_value("playwright/page_count")
         logger.debug(
-            "Context '%s': new page created, page count is %i (%i for all contexts)",
+            "[Context=%s] New page created, page count is %i (%i for all contexts)",
             context_name,
             len(context.pages),
             self._get_total_page_count(),
         )
-        self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
         return page
@@ -237,6 +264,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         return close_page_callback
 
+    def _increment_request_stats(self, request: PlaywrightRequest) -> None:
+        stats_prefix = "playwright/request_count"
+        self.stats.inc_value(stats_prefix)
+        self.stats.inc_value(f"{stats_prefix}/resource_type/{request.resource_type}")
+        self.stats.inc_value(f"{stats_prefix}/method/{request.method}")
+        if request.is_navigation_request():
+            self.stats.inc_value(f"{stats_prefix}/navigation")
+
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
             logger.debug("Browser context closed: '%s'", name)
@@ -252,12 +287,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
+            headers.setdefault("user-agent", pw_request.headers.get("user-agent"))
             if pw_request.url == url:
                 overrides: dict = {"method": method, "headers": headers}
                 if body is not None:
                     overrides["post_data"] = body.decode(encoding)
-                # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                 if self.browser_type == "firefox":
+                    # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
                     overrides["headers"]["host"] = urlparse(pw_request.url).netloc
             else:
                 overrides = {"headers": pw_request.headers.copy()}
@@ -265,12 +301,5 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 if headers.get("user-agent"):
                     overrides["headers"]["user-agent"] = headers["user-agent"]
             asyncio.create_task(route.continue_(**overrides))
-            # increment stats
-            self.stats.inc_value("playwright/request_count")
-            resource_type = pw_request.resource_type
-            self.stats.inc_value(f"playwright/request_count/resource_type/{resource_type}")
-            self.stats.inc_value(f"playwright/request_count/method/{pw_request.method}")
-            if pw_request.is_navigation_request():
-                self.stats.inc_value("playwright/request_count/navigation")
 
         return request_handler
