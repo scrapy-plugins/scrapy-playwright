@@ -2,6 +2,7 @@ import asyncio
 import logging
 import warnings
 from collections import defaultdict
+from contextlib import suppress
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
@@ -65,9 +66,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         self.browser_type: str = crawler.settings.get("PLAYWRIGHT_BROWSER_TYPE") or "chromium"
         self.launch_options: dict = crawler.settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
-        self.default_navigation_timeout: Optional[int] = (
-            crawler.settings.getint("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT") or None
-        )
+        self.default_navigation_timeout: Optional[float] = None
+        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in crawler.settings:
+            with suppress(TypeError, ValueError):
+                self.default_navigation_timeout = float(
+                    crawler.settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
+                )
 
         default_context_kwargs: dict = {}
         if "PLAYWRIGHT_CONTEXT_ARGS" in crawler.settings:
@@ -115,7 +119,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         context.on("close", self._make_close_browser_context_callback(name))
         logger.debug("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
-        if self.default_navigation_timeout:
+        if self.default_navigation_timeout is not None:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         return context
 
@@ -132,7 +136,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page.on("request", _make_request_logger(context_name))
         page.on("request", self._increment_request_stats)
         self.stats.inc_value("playwright/page_count")
-        if self.default_navigation_timeout:
+        if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
         return page
 

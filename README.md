@@ -97,7 +97,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     The arguments passed here take precedence over the ones defined in `PLAYWRIGHT_CONTEXT_ARGS`.
     See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
 
-* `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[int]`, default `None`)
+* `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,
     the default value will be used (30000 ms at the time of writing this).
