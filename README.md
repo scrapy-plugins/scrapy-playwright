@@ -379,3 +379,12 @@ class ScrollSpider(scrapy.Spider):
 
 
 For more examples, please see the scripts in the [examples](examples) directory.
+
+
+## Known limitations
+
+* Currently, `scrapy-plawright` does not work natively on Windows. See
+  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121)
+  for more infomation. Additionally, please see
+  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494)
+  for a possible workaround.
