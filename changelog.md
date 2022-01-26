@@ -1,5 +1,23 @@
 # scrapy-playwright changelog
 
+### [v0.0.8](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.8) (2022-01-13)
+
+* Fix PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT setting (allow zero value)
+
+
+### [v0.0.7](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.7) (2021-10-20)
+
+* Log all requests/responses (debug level)
+
+
+### [v0.0.6](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.6) (2021-10-19)
+
+* Page event handlers
+* Python 3.10 support
+* Doc fixes
+* Override User-Agent header
+
+
 ### [v0.0.5](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.5) (2021-08-20)
 
 * Improve garbage collection by removing unnecessary reference
