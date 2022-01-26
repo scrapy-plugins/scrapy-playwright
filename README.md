@@ -103,11 +103,11 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser_contextset_default_navigation_timeouttimeout).
 
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `str|Callable`, default `scrapy_playwright.headers.use_scrapy_headers`)
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `str`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
-    A coroutine function (`async def`), or the path to one, that processes headers for a given request
-    and returns a dictionary with the headers to be use (note that, depending on the browser, additional
-    default headers will be sent as well).
+    The path to a coroutine function (`async def`) that processes headers for a given request
+    and returns a dictionary with the headers to be used (note that, depending on the browser,
+    additional default headers will be sent as well).
 
     The function must return a `dict` object, and receives the following keyword arguments:
 
