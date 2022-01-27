@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.9](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.9) (2022-01-27)
+
+* Ability to process request headers
+
+
 ### [v0.0.8](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.8) (2022-01-13)
 
 * Fix PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT setting (allow zero value)
