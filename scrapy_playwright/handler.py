@@ -5,7 +5,6 @@ from collections import defaultdict
 from contextlib import suppress
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
-from urllib.parse import urlparse
 
 from playwright.async_api import (
     BrowserContext,
@@ -22,9 +21,11 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.utils.defer import deferred_from_coro
+from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 
+from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageCoroutine
 
 
@@ -66,12 +67,20 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         self.browser_type: str = crawler.settings.get("PLAYWRIGHT_BROWSER_TYPE") or "chromium"
         self.launch_options: dict = crawler.settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
+
         self.default_navigation_timeout: Optional[float] = None
         if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in crawler.settings:
             with suppress(TypeError, ValueError):
                 self.default_navigation_timeout = float(
                     crawler.settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
                 )
+
+        if crawler.settings.get("PLAYWRIGHT_PROCESS_REQUEST_HEADERS"):
+            self.process_request_headers = load_object(
+                crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
+            )
+        else:
+            self.process_request_headers = use_scrapy_headers
 
         default_context_kwargs: dict = {}
         if "PLAYWRIGHT_CONTEXT_ARGS" in crawler.settings:
@@ -180,9 +189,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         await page.route(
             "**",
             self._make_request_handler(
-                url=request.url,
                 method=request.method,
-                headers=request.headers.to_unicode_dict(),
+                scrapy_headers=request.headers,
                 body=request.body,
                 encoding=getattr(request, "encoding", None),
             ),
@@ -249,23 +257,24 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return close_browser_context_callback
 
     def _make_request_handler(
-        self, url: str, method: str, headers: dict, body: Optional[bytes], encoding: str = "utf8"
+        self, method: str, scrapy_headers: Headers, body: Optional[bytes], encoding: str = "utf8"
     ) -> Callable:
-        def request_handler(route: Route, pw_request: PlaywrightRequest) -> None:
+        async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
-            headers.setdefault("user-agent", pw_request.headers.get("user-agent"))
-            if pw_request.url == url:
-                overrides: dict = {"method": method, "headers": headers}
+            processed_headers = await self.process_request_headers(
+                self.browser_type, playwright_request, scrapy_headers
+            )
+
+            # the request that reaches the callback should contain the headers that were sent
+            scrapy_headers.clear()
+            scrapy_headers.update(processed_headers)
+
+            overrides: dict = {"headers": processed_headers}
+            if playwright_request.is_navigation_request():
+                overrides["method"] = method
                 if body is not None:
                     overrides["post_data"] = body.decode(encoding)
-                if self.browser_type == "firefox":
-                    # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
-                    overrides["headers"]["host"] = urlparse(pw_request.url).netloc
-            else:
-                overrides = {"headers": pw_request.headers.copy()}
-                # override user agent, for consistency with other requests
-                if headers.get("user-agent"):
-                    overrides["headers"]["user-agent"] = headers["user-agent"]
-            asyncio.create_task(route.continue_(**overrides))
 
-        return request_handler
+            await route.continue_(**overrides)
+
+        return _request_handler
