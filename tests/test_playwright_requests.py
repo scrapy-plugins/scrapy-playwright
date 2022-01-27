@@ -118,6 +118,41 @@ class MixinTestCase:
             assert len(resp.css("div.quote")) == 30
 
     @pytest.mark.asyncio
+    async def test_timeout_value(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+        }
+        async with make_handler(settings_dict) as handler:
+            assert handler.default_navigation_timeout is None
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": None,
+        }
+        async with make_handler(settings_dict) as handler:
+            assert handler.default_navigation_timeout is None
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0,
+        }
+        async with make_handler(settings_dict) as handler:
+            assert handler.default_navigation_timeout == 0
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 123,
+        }
+        async with make_handler(settings_dict) as handler:
+            assert handler.default_navigation_timeout == 123
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0.5,
+        }
+        async with make_handler(settings_dict) as handler:
+            assert handler.default_navigation_timeout == 0.5
+
+    @pytest.mark.asyncio
     async def test_timeout(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -223,6 +258,53 @@ class MixinTestCase:
                 headers = json.loads(resp.css("pre::text").get())
                 headers = {key.lower(): value for key, value in headers.items()}
                 assert headers["user-agent"] == "foobar"
+
+    @pytest.mark.asyncio
+    async def test_use_playwright_headers(self):
+        """Ignore Scrapy headers"""
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": "scrapy_playwright.headers.use_playwright_headers",  # noqa: E501
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+                headers = json.loads(resp.css("pre::text").get())
+                headers = {key.lower(): value for key, value in headers.items()}
+                assert headers["user-agent"] == self.browser_type
+                assert "asdf" not in headers
+
+    @pytest.mark.asyncio
+    async def test_use_custom_headers(self):
+        """Custom header processing function"""
+
+        async def important_headers(*args, **kwargs) -> dict:
+            return {"foo": "bar"}
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": important_headers,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+                headers = json.loads(resp.css("pre::text").get())
+                headers = {key.lower(): value for key, value in headers.items()}
+                assert headers["foo"] == "bar"
+                assert headers.get("user-agent") not in (self.browser_type, "foobar")
+                assert "asdf" not in headers
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):

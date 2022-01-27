@@ -97,12 +97,31 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     The arguments passed here take precedence over the ones defined in `PLAYWRIGHT_CONTEXT_ARGS`.
     See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
 
-* `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[int]`, default `None`)
+* `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser_contextset_default_navigation_timeouttimeout).
 
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `str`, default `scrapy_playwright.headers.use_scrapy_headers`)
+
+    The path to a coroutine function (`async def`) that processes headers for a given request
+    and returns a dictionary with the headers to be used (note that, depending on the browser,
+    additional default headers will be sent as well).
+
+    The function must return a `dict` object, and receives the following keyword arguments:
+
+    ```python
+    browser_type: str, playwright_request: playwright.async_api.Request, scrapy_headers: scrapy.http.headers.Headers
+    ```
+
+    The default value (`scrapy_playwright.headers.use_scrapy_headers`) tries to emulate Scrapy's
+    behaviour for navigation requests, i.e. overriding headers with their values from the Scrapy request.
+    For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
+    is overriden, for consistency.
+
+    There is nother function available: `scrapy_playwright.headers.use_playwright_headers`,
+    which will return the headers from the Playwright request without any changes.
 
 ## Basic usage
 
@@ -135,8 +154,8 @@ class AwesomeSpider(scrapy.Spider):
 By default, outgoing requests include the `User-Agent` set by Scrapy (either with the
 `USER_AGENT` or `DEFAULT_REQUEST_HEADERS` settings or via the `Request.headers` attribute).
 This could cause some sites to react in unexpected ways, for instance if the user agent
-does not match the Browser being used. If you prefer to send the `User-Agent` from the Browser,
-set the Scrapy user agent to `None`.
+does not match the running Browser. If you prefer the `User-Agent` sent by
+default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
 ## Receiving the Page object in the callback
@@ -379,3 +398,12 @@ class ScrollSpider(scrapy.Spider):
 
 
 For more examples, please see the scripts in the [examples](examples) directory.
+
+
+## Known limitations
+
+* Currently, `scrapy-plawright` does not work natively on Windows. See
+  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121)
+  for more infomation. Additionally, please see
+  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494)
+  for a possible workaround.
