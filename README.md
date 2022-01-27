@@ -120,7 +120,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is nother function available: `scrapy_playwright.headers.use_playwright_headers`,
+    There is another function available: `scrapy_playwright.headers.use_playwright_headers`,
     which will return the headers from the Playwright request without any changes.
 
 ## Basic usage
