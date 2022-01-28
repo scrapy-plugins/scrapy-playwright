@@ -208,8 +208,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _download_request_with_page(self, request: Request, page: Page) -> Response:
         start_time = time()
-        page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
-        response = await page.goto(request.url, **page_goto_kwargs)
+        response = await page.goto(request.url)
 
         page_coroutines = request.meta.get("playwright_page_coroutines") or ()
         if isinstance(page_coroutines, dict):
