@@ -123,6 +123,12 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     There is nother function available: `scrapy_playwright.headers.use_playwright_headers`,
     which will return the headers from the Playwright request without any changes.
 
+* `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
+
+    Maximum amount of allowed concurrent Playwright pages for each context.
+    See the [notes about leaving unclosed pages](#receiving-the-page-object-in-the-callback).
+
+
 ## Basic usage
 
 Set the `playwright` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
@@ -177,6 +183,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         yield scrapy.Request(
             url="https://example.org",
             meta={"playwright": True, "playwright_include_page": True},
+            errback=self.errback,
         )
 
     async def parse(self, response):
@@ -184,12 +191,19 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         title = await page.title()  # "Example Domain"
         await page.close()
         return {"title": title}
+
+    async def errback(self, failure):
+        page = failure.request.meta["playwright_page"]
+        await page.close()
 ```
 
 **Notes:**
 
 * In order to avoid memory issues, it is recommended to manually close the page
   by awaiting the `Page.close` coroutine.
+* Be careful about leaving pages unclosed, as they count towards the limit set by
+  `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. It's recommended to set a Request errback to
+  make sure pages are closed even if a request fails.
 * Any network operations resulting from awaiting a coroutine on a `Page` object
   (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
