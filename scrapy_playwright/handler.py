@@ -103,6 +103,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
+        self.abort_route: Optional[str] = None
+        if "PLAYWRIGHT_ABORT_ROUTE" in crawler.settings:
+            self.abort_route = crawler.settings["PLAYWRIGHT_ABORT_ROUTE"]
+
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
         return cls(crawler)
@@ -156,9 +160,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = await context.new_page()
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
-        page.on("response", _make_response_logger(context_name))
         page.on("request", _make_request_logger(context_name))
+        page.on("response", _make_response_logger(context_name))
         page.on("request", self._increment_request_stats)
+        page.on("response", self._increment_response_stats)
 
         self.stats.inc_value("playwright/page_count")
         logger.debug(
@@ -214,7 +219,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         f" ignoring handler for event '{event}'"
                     )
 
+        async def handle_aborted_route(route: Route) -> None:
+            self.stats.inc_value("playwright/route/aborted")
+            await route.abort()
+
         await page.unroute("**")
+
+        abort_route = request.meta.get("playwright_abort_route") or self.abort_route
+        if abort_route:
+            await page.route(abort_route, handle_aborted_route)
+
         await page.route(
             "**",
             self._make_request_handler(
@@ -283,6 +297,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(f"{stats_prefix}/method/{request.method}")
         if request.is_navigation_request():
             self.stats.inc_value(f"{stats_prefix}/navigation")
+
+    def _increment_response_stats(self, response: PlaywrightResponse) -> None:
+        stats_prefix = "playwright/response_count"
+        self.stats.inc_value(stats_prefix)
+        self.stats.inc_value(f"{stats_prefix}/resource_type/{response.request.resource_type}")
+        self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
 
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
