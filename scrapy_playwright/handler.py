@@ -172,7 +172,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
-        page.on("response", _make_response_logger(context_name))
         page.on("request", _make_request_logger(context_name))
         page.on("response", _make_response_logger(context_name))
         page.on("request", self._increment_request_stats)
