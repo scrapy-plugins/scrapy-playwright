@@ -159,15 +159,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
 
         await self.context_semaphores[context_name].acquire()
-
         page = await context.new_page()
-        page.on("close", self._make_close_page_callback(context_name))
-        page.on("crash", self._make_close_page_callback(context_name))
-        page.on("request", _make_request_logger(context_name))
-        page.on("response", _make_response_logger(context_name))
-        page.on("request", self._increment_request_stats)
-        page.on("response", self._increment_response_stats)
-
         self.stats.inc_value("playwright/page_count")
         logger.debug(
             "[Context=%s] New page created, page count is %i (%i for all contexts)",
@@ -177,6 +169,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
+
+        page.on("close", self._make_close_page_callback(context_name))
+        page.on("crash", self._make_close_page_callback(context_name))
+        page.on("response", _make_response_logger(context_name))
+        page.on("request", _make_request_logger(context_name))
+        page.on("response", _make_response_logger(context_name))
+        page.on("request", self._increment_request_stats)
+        page.on("response", self._increment_response_stats)
+
         return page
 
     def _get_total_page_count(self):
