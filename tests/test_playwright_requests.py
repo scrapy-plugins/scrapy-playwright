@@ -373,7 +373,7 @@ class MixinTestCase:
         assert getattr(spider, "dialog_message", None) is None
 
     @pytest.mark.asyncio
-    async def test_abort_route(self):
+    async def test_block_requests(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
             "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE": lambda req: not req.url.endswith(".jpg"),
