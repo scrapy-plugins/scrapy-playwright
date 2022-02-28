@@ -103,9 +103,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
-        self.abort_route: Optional[str] = None
-        if "PLAYWRIGHT_ABORT_ROUTE" in crawler.settings:
-            self.abort_route = crawler.settings["PLAYWRIGHT_ABORT_ROUTE"]
+        if "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE" in crawler.settings:
+            accept_request_predicate = crawler.settings["PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"]
+            self.accept_request = load_object(accept_request_predicate)
+        else:
+            self.accept_request = lambda _: False
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -219,16 +221,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         f" ignoring handler for event '{event}'"
                     )
 
-        async def handle_abort_route(route: Route) -> None:
-            self.stats.inc_value("playwright/route/aborted")
-            await route.abort()
-
         await page.unroute("**")
-
-        abort_route = request.meta.get("playwright_abort_route") or self.abort_route
-        if abort_route:
-            await page.route(abort_route, handle_abort_route)
-
         await page.route(
             "**",
             self._make_request_handler(
@@ -319,6 +312,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
+            if not self.accept_request(playwright_request):
+                await route.abort()
+                self.stats.inc_value("playwright/request_count/blocked")
+                return None
+
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers
             )

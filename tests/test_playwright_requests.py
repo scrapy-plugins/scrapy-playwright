@@ -377,7 +377,7 @@ class MixinTestCase:
     async def test_abort_route(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_ABORT_ROUTE": re.compile(r"(\.jpg$)|(\.js$)"),
+            "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE": lambda req: not req.url.endswith(".jpg"),
         }
         async with make_handler(settings_dict) as handler:
             with StaticMockServer() as server:
@@ -387,13 +387,13 @@ class MixinTestCase:
                 )
                 await handler._download_request(req, Spider("foo"))
 
-                req_prefix = "playwright/request_count/resource_type"
-                resp_prefix = "playwright/response_count/resource_type"
-                assert handler.stats.get_value(f"{req_prefix}/document") == 1
-                assert handler.stats.get_value(f"{req_prefix}/image") == 3
-                assert handler.stats.get_value(f"{resp_prefix}/document") == 1
-                assert handler.stats.get_value(f"{resp_prefix}/image") is None
-                assert handler.stats.get_value("playwright/route/aborted") == 3
+                req_prefix = "playwright/request_count"
+                resp_prefix = "playwright/response_count"
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/image") == 3
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
+                assert handler.stats.get_value(f"{req_prefix}/blocked") == 3
 
 
 class TestCaseChromium(MixinTestCase):

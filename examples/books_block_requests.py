@@ -8,9 +8,9 @@ from scrapy.http.response import Response
 
 
 class BooksSpider(Spider):
-    """Extract all books, save screenshots."""
+    """Extract book, block some requests, save screenshot."""
 
-    name = "books_abort_route"
+    name = "books_block_requests"
 
     def start_requests(self) -> list:
         return [
@@ -22,7 +22,9 @@ class BooksSpider(Spider):
 
     async def parse(self, response: Response) -> None:
         page = response.meta["playwright_page"]
-        await page.screenshot(path=Path(__file__).parent / "books_abort_route.png", full_page=True)
+        await page.screenshot(
+            path=Path(__file__).parent / "books_block_requests.png", full_page=True
+        )
         await page.close()
 
 
@@ -34,8 +36,7 @@ if __name__ == "__main__":
                 # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
                 "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             },
-            # "PLAYWRIGHT_ABORT_ROUTE": r"**/*.{jpg,js}",  # does not work for multiple extensions
-            "PLAYWRIGHT_ABORT_ROUTE": re.compile(r"(\.jpg$)|(\.js$)"),
+            "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE": lambda req: not req.url.endswith(".jpg"),
         }
     )
     process.crawl(BooksSpider)
