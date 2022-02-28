@@ -141,9 +141,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             context = await self._create_browser_context(context_name, context_kwargs)
             self.contexts[context_name] = context
         page = await context.new_page()
-        page.on("response", _make_response_logger(context_name))
         page.on("request", _make_request_logger(context_name))
+        page.on("response", _make_response_logger(context_name))
         page.on("request", self._increment_request_stats)
+        page.on("response", self._increment_response_stats)
         self.stats.inc_value("playwright/page_count")
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
@@ -247,6 +248,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(f"{stats_prefix}/method/{request.method}")
         if request.is_navigation_request():
             self.stats.inc_value(f"{stats_prefix}/navigation")
+
+    def _increment_response_stats(self, response: PlaywrightResponse) -> None:
+        stats_prefix = "playwright/response_count"
+        self.stats.inc_value(stats_prefix)
+        self.stats.inc_value(f"{stats_prefix}/resource_type/{response.request.resource_type}")
+        self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
 
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
