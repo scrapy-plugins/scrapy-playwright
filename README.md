@@ -112,7 +112,9 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     The function must return a `dict` object, and receives the following keyword arguments:
 
     ```python
-    browser_type: str, playwright_request: playwright.async_api.Request, scrapy_headers: scrapy.http.headers.Headers
+    - browser_type: str
+    - playwright_request: playwright.async_api.Request
+    - scrapy_headers: scrapy.http.headers.Headers
     ```
 
     The default value (`scrapy_playwright.headers.use_scrapy_headers`) tries to emulate Scrapy's
@@ -120,7 +122,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is nother function available: `scrapy_playwright.headers.use_playwright_headers`,
+    There is another function available: `scrapy_playwright.headers.use_playwright_headers`,
     which will return the headers from the Playwright request without any changes.
 
 * `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
@@ -208,6 +210,45 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
+
+## Proxy support
+
+Proxies are supported at the Browser level by specifying the `proxy` key in
+the `PLAYWRIGHT_LAUNCH_OPTIONS` setting:
+
+```python
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "proxy": {
+        "server": "http://myproxy.com:3128",
+        "username": "user",
+        "password": "pass",
+    },
+}
+```
+
+You can also set proxies per context with the `PLAYWRIGHT_CONTEXTS` setting:
+
+```python
+PLAYWRIGHT_CONTEXTS = {
+    "default": {
+        "proxy": {
+            "server": "http://default-proxy.com:3128",
+            "username": "user1",
+            "password": "pass1",
+        },
+    },
+    "alternative": {
+        "proxy": {
+            "server": "http://alternative-proxy.com:3128",
+            "username": "user2",
+            "password": "pass2",
+        },
+    },
+}
+```
+
+See also the [upstream Playwright section](https://playwright.dev/python/docs/network#http-proxy)
+on HTTP Proxies.
 
 ## Multiple browser contexts
 
@@ -416,8 +457,11 @@ For more examples, please see the scripts in the [examples](examples) directory.
 
 ## Known limitations
 
-* Currently, `scrapy-plawright` does not work natively on Windows. See
+* This package does not work natively on Windows. See
   [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121)
   for more infomation. Additionally, please see
   [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494)
   for a possible workaround.
+
+* Specifying a proxy via the `proxy` Request meta key is not supported.
+  Refer to the [Proxy support](#proxy-support) section for more information.
