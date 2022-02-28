@@ -1,5 +1,4 @@
 import logging
-import re
 from pathlib import Path
 
 from scrapy import Spider, Request

@@ -1,7 +1,6 @@
 import json
 import logging
 import platform
-import re
 import subprocess
 from tempfile import NamedTemporaryFile
 
