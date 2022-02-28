@@ -1,6 +1,7 @@
 import json
 import logging
 import platform
+import re
 import subprocess
 from tempfile import NamedTemporaryFile
 
@@ -371,6 +372,28 @@ class MixinTestCase:
             " ignoring handler for event 'dialog'",
         ) in caplog.record_tuples
         assert getattr(spider, "dialog_message", None) is None
+
+    @pytest.mark.asyncio
+    async def test_abort_route(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_ABORT_ROUTE": re.compile(r"(\.jpg$)|(\.js$)"),
+        }
+        async with make_handler(settings_dict) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/gallery.html"),
+                    meta={"playwright": True},
+                )
+                await handler._download_request(req, Spider("foo"))
+
+                req_prefix = "playwright/request_count/resource_type"
+                resp_prefix = "playwright/response_count/resource_type"
+                assert handler.stats.get_value(f"{req_prefix}/document") == 1
+                assert handler.stats.get_value(f"{req_prefix}/image") == 3
+                assert handler.stats.get_value(f"{resp_prefix}/document") == 1
+                assert handler.stats.get_value(f"{resp_prefix}/image") is None
+                assert handler.stats.get_value("playwright/route/aborted") == 3
 
 
 class TestCaseChromium(MixinTestCase):

@@ -219,7 +219,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         f" ignoring handler for event '{event}'"
                     )
 
-        async def handle_aborted_route(route: Route) -> None:
+        async def handle_abort_route(route: Route) -> None:
             self.stats.inc_value("playwright/route/aborted")
             await route.abort()
 
@@ -227,7 +227,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         abort_route = request.meta.get("playwright_abort_route") or self.abort_route
         if abort_route:
-            await page.route(abort_route, handle_aborted_route)
+            await page.route(abort_route, handle_abort_route)
 
         await page.route(
             "**",
