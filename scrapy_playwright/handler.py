@@ -107,7 +107,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             accept_request_predicate = crawler.settings["PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"]
             self.accept_request = load_object(accept_request_predicate)
         else:
-            self.accept_request = lambda _: False
+            self.accept_request = lambda _: True
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
