@@ -103,9 +103,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
-        if "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE" in crawler.settings:
-            accept_request_predicate = crawler.settings["PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"]
-            self.accept_request = load_object(accept_request_predicate)
+        if crawler.settings.get("PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"):
+            self.accept_request = load_object(
+                crawler.settings["PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"]
+            )
         else:
             self.accept_request = lambda _: True
 
