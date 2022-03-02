@@ -222,7 +222,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 pc.result = await method(*pc.args, **pc.kwargs)
                 await page.wait_for_load_state(timeout=self.default_navigation_timeout)
 
-        body = await page.content()
+        body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
 
         if request.meta.get("playwright_include_page"):
@@ -233,6 +233,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         headers = Headers(response.headers)
         headers.pop("Content-Encoding", None)
+        encoding = _get_response_encoding(headers, body_str) or "utf-8"
+        body = body_str.encode(encoding)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
         return respcls(
             url=page.url,
@@ -241,7 +243,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             body=body,
             request=request,
             flags=["playwright"],
-            encoding=_get_response_encoding(headers, body),
+            encoding=encoding,
         )
 
     def _increment_request_stats(self, request: PlaywrightRequest) -> None:
