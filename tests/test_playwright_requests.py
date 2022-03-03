@@ -2,6 +2,7 @@ import json
 import logging
 import platform
 import subprocess
+from ipaddress import ip_address
 from tempfile import NamedTemporaryFile
 
 import pytest
@@ -371,6 +372,19 @@ class MixinTestCase:
             " ignoring handler for event 'dialog'",
         ) in caplog.record_tuples
         assert getattr(spider, "dialog_message", None) is None
+
+    @pytest.mark.asyncio
+    async def test_response_attributes(self):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                spider = DialogSpider()
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={"playwright": True},
+                )
+                response = await handler._download_request(req, spider)
+
+        assert response.ip_address == ip_address(server.address)
 
 
 class TestCaseChromium(MixinTestCase):

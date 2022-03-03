@@ -5,7 +5,7 @@ from scrapy_playwright.page import PageCoroutine
 
 class StorageSpider(Spider):
     """
-    Set and get storage state
+    Set and get storage state. Also get the server's IP address.
     """
 
     name = "storage"
@@ -24,7 +24,11 @@ class StorageSpider(Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        return {"url": response.url, "storage_state": await page.context.storage_state()}
+        return {
+            "url": response.url,
+            "storage_state": await page.context.storage_state(),
+            "ip_address": response.ip_address,
+        }
 
 
 if __name__ == "__main__":
