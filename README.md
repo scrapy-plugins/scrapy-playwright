@@ -339,8 +339,16 @@ Response, containing the final result.
     ```
 
 
+### Impact on Response objects
+
+Certain `Response` attributes (e.g. `url`, `ip_address`) reflect the state after the last
+action performed on a page. If you issue a `PageCoroutine` with a `click` action and that
+results in a navigation, the `Response.url` attribute will point to the destination URL,
+which might be different from the request's URL.
+
+
 ## Page events
-A dictionary of Page event handlers can be specified in the  `playwright_page_event_handlers`
+A dictionary of Page event handlers can be specified in the `playwright_page_event_handlers`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
 Keys are the name of the event to be handled (`dialog`, `download`, etc).
 Values can be either callables or strings (in which case a spider method with the name will be looked up).
