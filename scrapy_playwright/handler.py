@@ -233,7 +233,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.stats.inc_value("playwright/page_count/closed")
 
         server_ip_address = None
-        with suppress(AttributeError):
+        with suppress(AttributeError, KeyError, ValueError):
             server_addr = await response.server_addr()
             server_ip_address = ip_address(server_addr["ipAddress"])
 
