@@ -330,16 +330,15 @@ This is useful when you need to perform certain actions on a page, like scrollin
 down or clicking links, and you want everything to count as a single Scrapy
 Response, containing the final result.
 
-### Supported actions
+### `PageCoroutine` class
 
 * `scrapy_playwright.page.PageCoroutine(method: str, *args, **kwargs)`:
 
-    _Represents a coroutine to be awaited on a `playwright.page.Page` object,
+    Represents a coroutine to be awaited on a `playwright.page.Page` object,
     such as "click", "screenshot", "evaluate", etc.
     `method` should be the name of the coroutine, `*args` and `**kwargs`
-    are passed to the function call._
-
-    _The coroutine result will be stored in the `PageCoroutine.result` attribute_
+    are passed to the function call. The return value of the coroutine call
+    will be stored in the `PageCoroutine.result` attribute.
 
     For instance,
     ```python
@@ -353,8 +352,21 @@ Response, containing the final result.
     ```
 
 
+### Supported coroutines
+
+Please refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
+to see available coroutines
+
+### Impact on Response objects
+
+Certain `Response` attributes (e.g. `url`, `ip_address`) reflect the state after the last
+action performed on a page. If you issue a `PageCoroutine` with an action that results in
+a navigation (e.g. a `click` on a link), the `Response.url` attribute will point to the
+new URL, which might be different from the request's URL.
+
+
 ## Page events
-A dictionary of Page event handlers can be specified in the  `playwright_page_event_handlers`
+A dictionary of Page event handlers can be specified in the `playwright_page_event_handlers`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
 Keys are the name of the event to be handled (`dialog`, `download`, etc).
 Values can be either callables or strings (in which case a spider method with the name will be looked up).

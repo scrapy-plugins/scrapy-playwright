@@ -3,6 +3,7 @@ import logging
 import warnings
 from collections import defaultdict
 from contextlib import suppress
+from ipaddress import ip_address
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
 
@@ -260,6 +261,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
+        server_ip_address = None
+        with suppress(AttributeError, KeyError, ValueError):
+            server_addr = await response.server_addr()
+            server_ip_address = ip_address(server_addr["ipAddress"])
+
         headers = Headers(response.headers)
         headers.pop("Content-Encoding", None)
         encoding = _get_response_encoding(headers, body_str) or "utf-8"
@@ -273,6 +279,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             request=request,
             flags=["playwright"],
             encoding=encoding,
+            ip_address=server_ip_address,
         )
 
     def _make_close_page_callback(self, context_name: str) -> Callable:
