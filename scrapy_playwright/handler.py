@@ -106,12 +106,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
-        if crawler.settings.get("PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"):
-            self.accept_request = load_object(
-                crawler.settings["PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE"]
-            )
+        if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
+            self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
         else:
-            self.accept_request = lambda _: True
+            self.abort_request = None
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -325,9 +323,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
-            if not self.accept_request(playwright_request):
+            if self.abort_request and self.abort_request(playwright_request):
                 await route.abort()
-                self.stats.inc_value("playwright/request_count/blocked")
+                self.stats.inc_value("playwright/request_count/aborted")
                 return None
 
             processed_headers = await self.process_request_headers(

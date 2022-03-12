@@ -390,7 +390,7 @@ class MixinTestCase:
     async def test_block_requests(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE": lambda req: not req.url.endswith(".jpg"),
+            "PLAYWRIGHT_ABORT_REQUEST": lambda req: req.url.endswith(".jpg"),
         }
         async with make_handler(settings_dict) as handler:
             with StaticMockServer() as server:
@@ -406,7 +406,7 @@ class MixinTestCase:
                 assert handler.stats.get_value(f"{req_prefix}/resource_type/image") == 3
                 assert handler.stats.get_value(f"{resp_prefix}/resource_type/document") == 1
                 assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
-                assert handler.stats.get_value(f"{req_prefix}/blocked") == 3
+                assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
 
 class TestCaseChromium(MixinTestCase):

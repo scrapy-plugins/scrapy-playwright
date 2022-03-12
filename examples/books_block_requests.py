@@ -35,7 +35,7 @@ if __name__ == "__main__":
                 # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
                 "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             },
-            "PLAYWRIGHT_ACCEPT_REQUEST_PREDICATE": lambda req: not req.url.endswith(".jpg"),
+            "PLAYWRIGHT_ABORT_REQUEST": lambda req: req.url.endswith(".jpg"),
         }
     )
     process.crawl(BooksSpider)
