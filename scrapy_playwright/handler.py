@@ -266,6 +266,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             server_addr = await response.server_addr()
             server_ip_address = ip_address(server_addr["ipAddress"])
 
+        with suppress(AttributeError):
+            request.meta["playwright_security_details"] = await response.security_details()
+
         headers = Headers(response.headers)
         headers.pop("Content-Encoding", None)
         encoding = _get_response_encoding(headers, body_str) or "utf-8"
