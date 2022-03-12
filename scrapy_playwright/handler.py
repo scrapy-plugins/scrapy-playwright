@@ -3,6 +3,7 @@ import logging
 import warnings
 from collections import defaultdict
 from contextlib import suppress
+from ipaddress import ip_address
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
 
@@ -22,8 +23,10 @@ from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
+from scrapy.utils.python import to_unicode
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
+from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageCoroutine
@@ -256,7 +259,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 pc.result = await method(*pc.args, **pc.kwargs)
                 await page.wait_for_load_state(timeout=self.default_navigation_timeout)
 
-        body = (await page.content()).encode("utf8")
+        body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
 
         if request.meta.get("playwright_include_page"):
@@ -265,8 +268,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
+        server_ip_address = None
+        with suppress(AttributeError, KeyError, ValueError):
+            server_addr = await response.server_addr()
+            server_ip_address = ip_address(server_addr["ipAddress"])
+
         headers = Headers(response.headers)
         headers.pop("Content-Encoding", None)
+        encoding = _get_response_encoding(headers, body_str) or "utf-8"
+        body = body_str.encode(encoding)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
         return respcls(
             url=page.url,
@@ -275,6 +285,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             body=body,
             request=request,
             flags=["playwright"],
+            encoding=encoding,
+            ip_address=server_ip_address,
         )
 
     def _make_close_page_callback(self, context_name: str) -> Callable:
@@ -335,3 +347,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await route.continue_(**overrides)
 
         return _request_handler
+
+
+def _get_response_encoding(headers: Headers, body: str) -> Optional[str]:
+    encoding = None
+    if headers.get("content-type"):
+        content_type = to_unicode(headers["content-type"])
+        encoding = http_content_type_encoding(content_type)
+    if not encoding:
+        encoding = html_body_declared_encoding(body)
+    return encoding
