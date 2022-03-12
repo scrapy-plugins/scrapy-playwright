@@ -106,10 +106,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
 
+        self.abort_request: Optional[Callable[[PlaywrightRequest], bool]] = None
         if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
             self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
-        else:
-            self.abort_request = None
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
