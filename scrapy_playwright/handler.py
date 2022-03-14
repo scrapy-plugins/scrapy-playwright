@@ -105,6 +105,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_kwargs[name].update(kwargs)
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
+        self.contexts: Dict[str, BrowserContext] = dict()
+        self.context_semaphores: Dict[str, asyncio.Semaphore] = dict()
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -127,8 +129,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 for name, kwargs in self.context_kwargs.items()
             ]
         )
-        self.contexts: Dict[str, BrowserContext] = dict(zip(self.context_kwargs.keys(), contexts))
-        self.context_semaphores: Dict[str, asyncio.Semaphore] = {
+        self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
+        self.context_semaphores = {
             name: asyncio.Semaphore(value=self.max_pages_per_context)
             for name in self.contexts.keys()
         }
@@ -189,6 +191,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _close(self) -> None:
         self.contexts.clear()
+        self.context_semaphores.clear()
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             await self.browser.close()
