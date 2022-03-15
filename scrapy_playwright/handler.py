@@ -254,6 +254,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 method = getattr(page, pc.method)
                 pc.result = await method(*pc.args, **pc.kwargs)
                 await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+            else:
+                logger.warning(
+                    f"Ignoring {repr(pc)}: expected PageCoroutine, got {repr(type(pc))}"
+                )
 
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
