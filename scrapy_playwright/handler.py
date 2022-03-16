@@ -3,6 +3,7 @@ import logging
 import warnings
 from collections import defaultdict
 from contextlib import suppress
+from inspect import isawaitable
 from ipaddress import ip_address
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
@@ -251,9 +252,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page_coroutines = page_coroutines.values()
         for pc in page_coroutines:
             if isinstance(pc, PageCoroutine):
-                method = getattr(page, pc.method)
-                pc.result = await method(*pc.args, **pc.kwargs)
-                await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+                try:
+                    method = getattr(page, pc.method)
+                except AttributeError:
+                    logger.warning(f"Ignoring {repr(pc)}: could not find coroutine")
+                else:
+                    result = method(*pc.args, **pc.kwargs)
+                    pc.result = await result if isawaitable(result) else result
+                    await page.wait_for_load_state(timeout=self.default_navigation_timeout)
             else:
                 logger.warning(
                     f"Ignoring {repr(pc)}: expected PageCoroutine, got {repr(type(pc))}"
