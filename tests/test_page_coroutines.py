@@ -23,7 +23,7 @@ async def test_page_coroutines():
 
 class MixinPageCoroutineTestCase:
     @pytest.mark.asyncio
-    async def test_page_bad_page_coroutine(self, caplog):
+    async def test_page_non_page_coroutine(self, caplog):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
@@ -51,6 +51,38 @@ class MixinPageCoroutineTestCase:
                     logging.WARNING,
                     f"Ignoring {repr(obj)}: expected PageCoroutine, got {repr(type(obj))}",
                 ) in caplog.record_tuples
+
+    @pytest.mark.asyncio
+    async def test_page_mixed_page_coroutines(self, caplog):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/index.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_coroutines": {
+                            "does_not_exist": PageCoroutine("does_not_exist"),
+                            "is_closed": PageCoroutine("is_closed"),  # not awaitable
+                            "title": PageCoroutine("title"),  # awaitable
+                        },
+                    },
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+
+            assert isinstance(resp, HtmlResponse)
+            assert resp.request is req
+            assert resp.url == server.urljoin("/index.html")
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+
+            does_not_exist = req.meta["playwright_page_coroutines"]["does_not_exist"]
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Ignoring {repr(does_not_exist)}: could not find coroutine",
+            ) in caplog.record_tuples
+            assert not req.meta["playwright_page_coroutines"]["is_closed"].result
+            assert req.meta["playwright_page_coroutines"]["title"].result == "Awesome site"
 
 
 class TestPageCoroutineChromium(MixinPageCoroutineTestCase):
