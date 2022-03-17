@@ -10,7 +10,7 @@ from playwright.async_api import Dialog, Page as PlaywrightPage, TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 
-from scrapy_playwright.page import PageMethod as PageMethod
+from scrapy_playwright.page import PageMethod
 
 from tests import make_handler
 from tests.mockserver import MockServer, StaticMockServer
