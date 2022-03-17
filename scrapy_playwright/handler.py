@@ -31,7 +31,7 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 from scrapy_playwright.headers import use_scrapy_headers
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
@@ -248,23 +248,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         start_time = time()
         response = await page.goto(request.url)
 
-        page_coroutines = request.meta.get("playwright_page_coroutines") or ()
-        if isinstance(page_coroutines, dict):
-            page_coroutines = page_coroutines.values()
-        for pc in page_coroutines:
-            if isinstance(pc, PageCoroutine):
-                try:
-                    method = getattr(page, pc.method)
-                except AttributeError:
-                    logger.warning(f"Ignoring {repr(pc)}: could not find coroutine")
-                else:
-                    result = method(*pc.args, **pc.kwargs)
-                    pc.result = await result if isawaitable(result) else result
-                    await page.wait_for_load_state(timeout=self.default_navigation_timeout)
-            else:
-                logger.warning(
-                    f"Ignoring {repr(pc)}: expected PageCoroutine, got {repr(type(pc))}"
-                )
+        await self._apply_page_methods(page, request)
 
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
@@ -298,6 +282,33 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             encoding=encoding,
             ip_address=server_ip_address,
         )
+
+    async def _apply_page_methods(self, page: Page, request: Request) -> None:
+        page_methods = request.meta.get("playwright_page_methods") or ()
+
+        if not page_methods and "playwright_page_coroutines" in request.meta:
+            page_methods = request.meta["playwright_page_coroutines"]
+            warnings.warn(
+                "The 'playwright_page_coroutines' request meta key is deprecated,"
+                " please use 'playwright_page_methods' instead.",
+                category=ScrapyDeprecationWarning,
+                stacklevel=1,
+            )
+
+        if isinstance(page_methods, dict):
+            page_methods = page_methods.values()
+        for pm in page_methods:
+            if isinstance(pm, PageMethod):
+                try:
+                    method = getattr(page, pm.method)
+                except AttributeError:
+                    logger.warning(f"Ignoring {repr(pm)}: could not find method")
+                else:
+                    result = method(*pm.args, **pm.kwargs)
+                    pm.result = await result if isawaitable(result) else result
+                    await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+            else:
+                logger.warning(f"Ignoring {repr(pm)}: expected PageMethod, got {repr(type(pm))}")
 
     def _increment_request_stats(self, request: PlaywrightRequest) -> None:
         stats_prefix = "playwright/request_count"
