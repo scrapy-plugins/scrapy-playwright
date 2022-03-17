@@ -5,33 +5,33 @@ import pytest
 from scrapy import Spider, Request
 from scrapy.http.response.html import HtmlResponse
 
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 from tests import make_handler
 from tests.mockserver import StaticMockServer
 
 
 @pytest.mark.asyncio
-async def test_page_coroutines():
-    screenshot = PageCoroutine("screenshot", "foo", 123, path="/tmp/file", type="png")
+async def test_page_methods():
+    screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
     assert screenshot.method == "screenshot"
     assert screenshot.args == ("foo", 123)
     assert screenshot.kwargs == {"path": "/tmp/file", "type": "png"}
     assert screenshot.result is None
-    assert str(screenshot) == "<PageCoroutine for method 'screenshot'>"
+    assert str(screenshot) == "<PageMethod for method 'screenshot'>"
 
 
-class MixinPageCoroutineTestCase:
+class MixinPageMethodTestCase:
     @pytest.mark.asyncio
-    async def test_page_non_page_coroutine(self, caplog):
+    async def test_page_non_page_method(self, caplog):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [
-                            "not-a-page-coroutine",
+                        "playwright_page_methods": [
+                            "not-a-page-method",
                             5,
                             None,
                         ],
@@ -45,25 +45,25 @@ class MixinPageCoroutineTestCase:
             assert resp.status == 200
             assert "playwright" in resp.flags
 
-            for obj in req.meta["playwright_page_coroutines"]:
+            for obj in req.meta["playwright_page_methods"]:
                 assert (
                     "scrapy-playwright",
                     logging.WARNING,
-                    f"Ignoring {repr(obj)}: expected PageCoroutine, got {repr(type(obj))}",
+                    f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
                 ) in caplog.record_tuples
 
     @pytest.mark.asyncio
-    async def test_page_mixed_page_coroutines(self, caplog):
+    async def test_page_mixed_page_methods(self, caplog):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": {
-                            "does_not_exist": PageCoroutine("does_not_exist"),
-                            "is_closed": PageCoroutine("is_closed"),  # not awaitable
-                            "title": PageCoroutine("title"),  # awaitable
+                        "playwright_page_methods": {
+                            "does_not_exist": PageMethod("does_not_exist"),
+                            "is_closed": PageMethod("is_closed"),  # not awaitable
+                            "title": PageMethod("title"),  # awaitable
                         },
                     },
                 )
@@ -75,24 +75,24 @@ class MixinPageCoroutineTestCase:
             assert resp.status == 200
             assert "playwright" in resp.flags
 
-            does_not_exist = req.meta["playwright_page_coroutines"]["does_not_exist"]
+            does_not_exist = req.meta["playwright_page_methods"]["does_not_exist"]
             assert (
                 "scrapy-playwright",
                 logging.WARNING,
-                f"Ignoring {repr(does_not_exist)}: could not find coroutine",
+                f"Ignoring {repr(does_not_exist)}: could not find method",
             ) in caplog.record_tuples
-            assert not req.meta["playwright_page_coroutines"]["is_closed"].result
-            assert req.meta["playwright_page_coroutines"]["title"].result == "Awesome site"
+            assert not req.meta["playwright_page_methods"]["is_closed"].result
+            assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
 
-class TestPageCoroutineChromium(MixinPageCoroutineTestCase):
+class TestPageMethodChromium(MixinPageMethodTestCase):
     browser_type = "chromium"
 
 
-class TestPageCoroutineFirefox(MixinPageCoroutineTestCase):
+class TestPageMethodFirefox(MixinPageMethodTestCase):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestPageCoroutineWebkit(MixinPageCoroutineTestCase):
+class TestPageMethodWebkit(MixinPageMethodTestCase):
     browser_type = "webkit"

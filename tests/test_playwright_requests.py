@@ -10,7 +10,7 @@ from playwright.async_api import Dialog, Page as PlaywrightPage, TimeoutError
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 
-from scrapy_playwright.page import PageCoroutine as PageCoro
+from scrapy_playwright.page import PageMethod as PageMethod
 
 from tests import make_handler
 from tests.mockserver import MockServer, StaticMockServer
@@ -70,14 +70,14 @@ class MixinTestCase:
             assert "Request body: foo=bar" in resp.text
 
     @pytest.mark.asyncio
-    async def test_page_coroutine_navigation(self):
+    async def test_page_method_navigation(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [PageCoro("click", "a.lorem_ipsum")],
+                        "playwright_page_methods": [PageMethod("click", "a.lorem_ipsum")],
                     },
                 )
                 resp = await handler._download_request(req, Spider("foo"))
@@ -92,7 +92,7 @@ class MixinTestCase:
             assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
     @pytest.mark.asyncio
-    async def test_page_coroutine_infinite_scroll(self):
+    async def test_page_method_infinite_scroll(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
@@ -100,12 +100,16 @@ class MixinTestCase:
                     headers={"User-Agent": "scrapy-playwright"},
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [
-                            PageCoro("wait_for_selector", selector="div.quote"),
-                            PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                            PageCoro("wait_for_selector", selector="div.quote:nth-child(11)"),
-                            PageCoro("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                            PageCoro("wait_for_selector", selector="div.quote:nth-child(21)"),
+                        "playwright_page_methods": [
+                            PageMethod("wait_for_selector", selector="div.quote"),
+                            PageMethod(
+                                "evaluate", "window.scrollBy(0, document.body.scrollHeight)"
+                            ),
+                            PageMethod("wait_for_selector", selector="div.quote:nth-child(11)"),
+                            PageMethod(
+                                "evaluate", "window.scrollBy(0, document.body.scrollHeight)"
+                            ),
+                            PageMethod("wait_for_selector", selector="div.quote:nth-child(21)"),
                         ],
                     },
                 )
@@ -179,8 +183,8 @@ class MixinTestCase:
                     url=server.urljoin("/scroll.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [
-                            PageCoro("wait_for_selector", selector="div.quote", timeout=1000),
+                        "playwright_page_methods": [
+                            PageMethod("wait_for_selector", selector="div.quote", timeout=1000),
                         ],
                     },
                 )
@@ -188,7 +192,7 @@ class MixinTestCase:
                     await handler._download_request(req, Spider("foo"))
 
     @pytest.mark.asyncio
-    async def test_page_coroutine_screenshot(self):
+    async def test_page_method_screenshot(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with NamedTemporaryFile(mode="w+b") as png_file:
                 with StaticMockServer() as server:
@@ -196,19 +200,19 @@ class MixinTestCase:
                         url=server.urljoin("/index.html"),
                         meta={
                             "playwright": True,
-                            "playwright_page_coroutines": {
-                                "png": PageCoro("screenshot", path=png_file.name, type="png"),
+                            "playwright_page_methods": {
+                                "png": PageMethod("screenshot", path=png_file.name, type="png"),
                             },
                         },
                     )
                     await handler._download_request(req, Spider("foo"))
 
                 png_file.file.seek(0)
-                assert png_file.file.read() == req.meta["playwright_page_coroutines"]["png"].result
+                assert png_file.file.read() == req.meta["playwright_page_methods"]["png"].result
                 assert get_mimetype(png_file) == "image/png"
 
     @pytest.mark.asyncio
-    async def test_page_coroutine_pdf(self):
+    async def test_page_method_pdf(self):
         if self.browser_type != "chromium":
             pytest.skip("PDF generation is supported only in Chromium")
 
@@ -219,15 +223,15 @@ class MixinTestCase:
                         url=server.urljoin("/index.html"),
                         meta={
                             "playwright": True,
-                            "playwright_page_coroutines": {
-                                "pdf": PageCoro("pdf", path=pdf_file.name),
+                            "playwright_page_methods": {
+                                "pdf": PageMethod("pdf", path=pdf_file.name),
                             },
                         },
                     )
                     await handler._download_request(req, Spider("foo"))
 
                 pdf_file.file.seek(0)
-                assert pdf_file.file.read() == req.meta["playwright_page_coroutines"]["pdf"].result
+                assert pdf_file.file.read() == req.meta["playwright_page_methods"]["pdf"].result
                 assert get_mimetype(pdf_file) == "application/pdf"
 
     @pytest.mark.asyncio
@@ -316,8 +320,8 @@ class MixinTestCase:
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [
-                            PageCoro("evaluate", "alert('foobar');"),
+                        "playwright_page_methods": [
+                            PageMethod("evaluate", "alert('foobar');"),
                         ],
                         "playwright_page_event_handlers": {
                             "dialog": spider.handle_dialog,
@@ -337,8 +341,8 @@ class MixinTestCase:
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_coroutines": [
-                            PageCoro("evaluate", "alert('foobar');"),
+                        "playwright_page_methods": [
+                            PageMethod("evaluate", "alert('foobar');"),
                         ],
                         "playwright_page_event_handlers": {
                             "dialog": "handle_dialog",
