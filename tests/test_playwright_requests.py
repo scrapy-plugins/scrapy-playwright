@@ -387,10 +387,10 @@ class MixinTestCase:
         assert response.ip_address == ip_address(server.address)
 
     @pytest.mark.asyncio
-    async def test_block_requests(self):
+    async def test_abort_requests(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_ABORT_REQUEST": lambda req: req.url.endswith(".jpg"),
+            "PLAYWRIGHT_ABORT_REQUEST": lambda req: req.resource_type == "image",
         }
         async with make_handler(settings_dict) as handler:
             with StaticMockServer() as server:
