@@ -298,13 +298,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             ip_address=server_ip_address,
         )
 
-    def _make_close_page_callback(self, context_name: str) -> Callable:
-        def close_page_callback() -> None:
-            if context_name in self.context_semaphores:
-                self.context_semaphores[context_name].release()
-
-        return close_page_callback
-
     def _increment_request_stats(self, request: PlaywrightRequest) -> None:
         stats_prefix = "playwright/request_count"
         self.stats.inc_value(stats_prefix)
@@ -318,6 +311,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(stats_prefix)
         self.stats.inc_value(f"{stats_prefix}/resource_type/{response.request.resource_type}")
         self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
+
+    def _make_close_page_callback(self, context_name: str) -> Callable:
+        def close_page_callback() -> None:
+            if context_name in self.context_semaphores:
+                self.context_semaphores[context_name].release()
+
+        return close_page_callback
 
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
