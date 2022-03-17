@@ -1,7 +1,7 @@
 from playwright.async_api import Dialog, Response as PlaywrightResponse
 from scrapy import Spider, Request
 from scrapy.crawler import CrawlerProcess
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 class EventsSpider(Spider):
@@ -16,8 +16,8 @@ class EventsSpider(Spider):
             url="https://example.org",
             meta={
                 "playwright": True,
-                "playwright_page_coroutines": [
-                    PageCoroutine("evaluate", "alert('foobar');"),
+                "playwright_page_methods": [
+                    PageMethod("evaluate", "alert('foobar');"),
                 ],
                 "playwright_page_event_handlers": {
                     "dialog": self.handle_dialog,
