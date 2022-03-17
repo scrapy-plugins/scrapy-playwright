@@ -19,6 +19,7 @@ from playwright.async_api import (
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
+from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
@@ -96,7 +97,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated, please use"
                 " PLAYWRIGHT_CONTEXTS instead. Keyword arguments defined in"
                 " PLAYWRIGHT_CONTEXT_ARGS will be used when creating the 'default' context",
-                category=DeprecationWarning,
+                category=ScrapyDeprecationWarning,
                 stacklevel=2,
             )
         self.context_kwargs: defaultdict = defaultdict(dict)
