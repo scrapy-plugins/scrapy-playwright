@@ -93,7 +93,7 @@ class MixinPageMethodTestCase:
         assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
     @pytest.mark.asyncio
-    async def test_deprecated(self, caplog):
+    async def test_deprecated_request_meta_key(self, caplog):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
