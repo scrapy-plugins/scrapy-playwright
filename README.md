@@ -311,31 +311,30 @@ async def parse_in_new_context(self, response):
 ```
 
 
-## Page coroutines
+## Executing actions on pages
 
 A sorted iterable (`list`, `tuple` or `dict`, for instance) could be passed
-in the `playwright_page_coroutines`
+in the `playwright_page_methods`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
 key to request coroutines to be awaited on the `Page` before returning the final
 `Response` to the callback.
 
 This is useful when you need to perform certain actions on a page, like scrolling
-down or clicking links, and you want everything to count as a single Scrapy
-Response, containing the final result.
+down or clicking links, and you want to handle only the final result in your callback.
 
-### `PageCoroutine` class
+### `PageMethod` class
 
-* `scrapy_playwright.page.PageCoroutine(method: str, *args, **kwargs)`:
+* `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
 
-    Represents a coroutine to be awaited on a `playwright.page.Page` object,
-    such as "click", "screenshot", "evaluate", etc.
-    `method` should be the name of the coroutine, `*args` and `**kwargs`
-    are passed to the function call. The return value of the coroutine call
-    will be stored in the `PageCoroutine.result` attribute.
+    Represents a method to be called (and awaited if necessary) on a
+    `playwright.page.Page` object, such as "click", "screenshot", "evaluate", etc.
+    `method` is the name of the method, `*args` and `**kwargs`
+    are passed when calling such method. The return value
+    will be stored in the `PageMethod.result` attribute.
 
     For instance,
     ```python
-    PageCoroutine("screenshot", path="quotes.png", fullPage=True)
+    PageMethod("screenshot", path="quotes.png", fullPage=True)
     ```
 
     produces the same effect as:
@@ -345,15 +344,15 @@ Response, containing the final result.
     ```
 
 
-### Supported coroutines
+### Supported methods
 
 Please refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
-to see available coroutines
+to see available methods.
 
 ### Impact on Response objects
 
 Certain `Response` attributes (e.g. `url`, `ip_address`) reflect the state after the last
-action performed on a page. If you issue a `PageCoroutine` with an action that results in
+action performed on a page. If you issue a `PageMethod` with an action that results in
 a navigation (e.g. a `click` on a link), the `Response.url` attribute will point to the
 new URL, which might be different from the request's URL.
 
@@ -415,15 +414,15 @@ class ClickAndSavePdfSpider(scrapy.Spider):
             url="https://example.org",
             meta=dict(
                 playwright=True,
-                playwright_page_coroutines={
-                    "click": PageCoroutine("click", selector="a"),
-                    "pdf": PageCoroutine("pdf", path="/tmp/file.pdf"),
+                playwright_page_methods={
+                    "click": PageMethod("click", selector="a"),
+                    "pdf": PageMethod("pdf", path="/tmp/file.pdf"),
                 },
             ),
         )
 
     def parse(self, response):
-        pdf_bytes = response.meta["playwright_page_coroutines"]["pdf"].result
+        pdf_bytes = response.meta["playwright_page_methods"]["pdf"].result
         with open("iana.pdf", "wb") as fp:
             fp.write(pdf_bytes)
         yield {"url": response.url}  # response.url is "https://www.iana.org/domains/reserved"
@@ -441,10 +440,10 @@ class ScrollSpider(scrapy.Spider):
             meta=dict(
                 playwright=True,
                 playwright_include_page=True,
-                playwright_page_coroutines=[
-                    PageCoroutine("wait_for_selector", "div.quote"),
-                    PageCoroutine("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                    PageCoroutine("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
+                playwright_page_methods=[
+                    PageMethod("wait_for_selector", "div.quote"),
+                    PageMethod("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                    PageMethod("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
                 ],
             ),
         )
@@ -482,3 +481,15 @@ For more examples, please see the scripts in the [examples](examples) directory.
     Deprecated since
     [`v0.0.4`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.4),
     use the `PLAYWRIGHT_CONTEXTS` setting instead
+
+* `scrapy_playwright.page.PageCoroutine` class
+
+    Deprecated since
+    [`v0.0.13`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13),
+    use `scrapy_playwright.page.PageMethod` instead
+
+* `playwright_page_coroutines` Request meta key
+
+    Deprecated since
+    [`v0.0.13`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13),
+    use `playwright_page_methods` instead
