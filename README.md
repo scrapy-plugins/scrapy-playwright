@@ -1,25 +1,26 @@
-# Playwright integration for Scrapy
+# scrapy-playwright: Playwright integration for Scrapy
 [![version](https://img.shields.io/pypi/v/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright)
 [![pyversions](https://img.shields.io/pypi/pyversions/scrapy-playwright.svg)](https://pypi.python.org/pypi/scrapy-playwright)
 [![Tests](https://github.com/scrapy-plugins/scrapy-playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/scrapy-plugins/scrapy-playwright/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/scrapy-plugins/scrapy-playwright/branch/master/graph/badge.svg)](https://codecov.io/gh/scrapy-plugins/scrapy-playwright)
 
 
-This project provides a Scrapy Download Handler which performs requests using
-[Playwright for Python](https://github.com/microsoft/playwright-python). It can be used to handle
-pages that require JavaScript. This package does not interfere with regular
-Scrapy workflows such as request scheduling or item processing.
-
-
-## Motivation
-
-After the release of [version 2.0](https://docs.scrapy.org/en/latest/news.html#scrapy-2-0-0-2020-03-03),
-which includes partial [coroutine syntax support](https://docs.scrapy.org/en/2.0/topics/coroutines.html)
-and experimental [asyncio support](https://docs.scrapy.org/en/2.0/topics/asyncio.html), Scrapy allows
-to integrate `asyncio`-based projects such as `Playwright`.
+A Scrapy Download Handler which performs requests using
+[Playwright for Python](https://github.com/microsoft/playwright-python).
+It can be used to handle pages that require JavaScript (among other things),
+while adhering to the regular Scrapy workflow (i.e. without interfering
+with request scheduling, item processing, etc).
 
 
 ## Requirements
+
+After the release of [version 2.0](https://docs.scrapy.org/en/latest/news.html#scrapy-2-0-0-2020-03-03),
+which includes [coroutine syntax support](https://docs.scrapy.org/en/2.0/topics/coroutines.html)
+and [asyncio support](https://docs.scrapy.org/en/2.0/topics/asyncio.html), Scrapy allows
+to integrate `asyncio`-based projects such as `Playwright`.
+
+
+### Minimum required versions
 
 * Python >= 3.7
 * Scrapy >= 2.0 (!= 2.4.0)
@@ -50,8 +51,8 @@ DOWNLOAD_HANDLERS = {
 ```
 
 Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
-`http/https` handler, and it will only use Playwright for requests that are
-explicitly marked (see the "Basic usage" section for details).
+`http/https` handler. Unless explicitly marked (see the "Basic usage"),
+requests will be processed by the regular Scrapy download handler.
 
 Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
 
@@ -70,13 +71,6 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     A dictionary with options to be passed when launching the Browser.
     See the docs for [`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser_typelaunchkwargs).
-
-* `PLAYWRIGHT_CONTEXT_ARGS` (type `dict`, default `{}`)
-
-    A dictionary with default keyword arguments to be passed when creating the
-    "default" Browser context.
-
-    **Deprecated: use `PLAYWRIGHT_CONTEXTS` instead**
 
 * `PLAYWRIGHT_CONTEXTS` (type `dict[str, dict]`, default `{}`)
 
@@ -176,7 +170,6 @@ the callback needs to be defined as a coroutine function (`async def`).
 
 ```python
 import scrapy
-import playwright
 
 class AwesomeSpiderWithPage(scrapy.Spider):
     name = "page"
@@ -477,3 +470,15 @@ For more examples, please see the scripts in the [examples](examples) directory.
 
 * Specifying a proxy via the `proxy` Request meta key is not supported.
   Refer to the [Proxy support](#proxy-support) section for more information.
+
+
+##  Deprecations
+
+* `PLAYWRIGHT_CONTEXT_ARGS` setting (type `dict`, default `{}`)
+
+    A dictionary with default keyword arguments to be
+    used when creating the "default" Browser context.
+
+    Deprecated since
+    [`v0.0.4`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.4),
+    use the `PLAYWRIGHT_CONTEXTS` setting instead
