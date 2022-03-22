@@ -334,13 +334,34 @@ down or clicking links, and you want to handle only the final result in your cal
 
     For instance,
     ```python
-    PageMethod("screenshot", path="quotes.png", fullPage=True)
+    def start_requests(self):
+        yield Request(
+            url="https://example.org",
+            meta={
+                "playwright": True,
+                "playwright_page_methods": [
+                    PageMethod("screenshot", path="example.png", fullPage=True),
+                ],
+            },
+        )
+
+    def parse(self, response):
+        screenshot = response.meta["playwright_page_methods"][0]
+        # screenshot.result contains the image's bytes
     ```
 
     produces the same effect as:
     ```python
-    # 'page' is a playwright.async_api.Page object
-    await page.screenshot(path="quotes.png", fullPage=True)
+    def start_requests(self):
+        yield Request(
+            url="https://example.org",
+            meta={"playwright": True, "playwright_include_page": True},
+        )
+
+    async def parse(self, response):
+        page = response.meta["playwright_page"]
+        await page.screenshot(path="example.png", full_page=True)
+        await page.close()
     ```
 
 
@@ -358,6 +379,7 @@ new URL, which might be different from the request's URL.
 
 
 ## Page events
+
 A dictionary of Page event handlers can be specified in the `playwright_page_event_handlers`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
 Keys are the name of the event to be handled (`dialog`, `download`, etc).
