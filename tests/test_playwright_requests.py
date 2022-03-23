@@ -6,7 +6,11 @@ from ipaddress import ip_address
 from tempfile import NamedTemporaryFile
 
 import pytest
-from playwright.async_api import Dialog, Page as PlaywrightPage, TimeoutError
+from playwright.async_api import (
+    Dialog,
+    Page as PlaywrightPage,
+    TimeoutError as PlaywrightTimeoutError,
+)
 from scrapy import Spider, Request, FormRequest
 from scrapy.http.response.html import HtmlResponse
 
@@ -21,6 +25,7 @@ def get_mimetype(file):
         ["file", "--mime-type", "--brief", file.name],
         stdout=subprocess.PIPE,
         universal_newlines=True,
+        check=False,
     ).stdout.strip()
 
 
@@ -166,7 +171,7 @@ class MixinTestCase:
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
                 req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
-                with pytest.raises(TimeoutError):
+                with pytest.raises(PlaywrightTimeoutError):
                     await handler._download_request(req, Spider("foo"))
 
     @pytest.mark.asyncio
@@ -188,7 +193,7 @@ class MixinTestCase:
                         ],
                     },
                 )
-                with pytest.raises(TimeoutError):
+                with pytest.raises(PlaywrightTimeoutError):
                     await handler._download_request(req, Spider("foo"))
 
     @pytest.mark.asyncio
@@ -267,10 +272,12 @@ class MixinTestCase:
     @pytest.mark.asyncio
     async def test_use_playwright_headers(self):
         """Ignore Scrapy headers"""
+        from scrapy_playwright.headers import use_playwright_headers
+
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
             "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
-            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": "scrapy_playwright.headers.use_playwright_headers",  # noqa: E501
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": use_playwright_headers,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:

@@ -1,13 +1,12 @@
-from urllib.parse import urlparse
-
-from playwright.async_api import Request as PlaywrightRequest
-from scrapy.http.headers import Headers
-
-
 """
 This module includes functions to process request headers.
 Refer to the PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting for more information.
 """
+
+from urllib.parse import urlparse
+
+from playwright.async_api import Request as PlaywrightRequest
+from scrapy.http.headers import Headers
 
 
 async def use_scrapy_headers(
@@ -28,11 +27,11 @@ async def use_scrapy_headers(
             # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
             headers["host"] = urlparse(playwright_request.url).netloc
         return headers
-    else:
-        # override user agent, for consistency with other requests
-        if headers.get("user-agent"):
-            playwright_request.headers["user-agent"] = headers["user-agent"]
-        return playwright_request.headers
+
+    # override user agent, for consistency with other requests
+    if headers.get("user-agent"):
+        playwright_request.headers["user-agent"] = headers["user-agent"]
+    return playwright_request.headers
 
 
 async def use_playwright_headers(

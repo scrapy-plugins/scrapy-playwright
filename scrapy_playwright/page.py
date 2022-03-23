@@ -18,7 +18,7 @@ class PageMethod:
         self.result = None
 
     def __str__(self):
-        return "<%s for method '%s'>" % (self.__class__.__name__, self.method)
+        return f"<{self.__class__.__name__} for method '{self.method}'>"
 
     __repr__ = __str__
 
