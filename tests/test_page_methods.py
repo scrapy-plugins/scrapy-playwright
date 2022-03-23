@@ -58,7 +58,7 @@ class MixinPageMethodTestCase:
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
-        self.assert_correct_response(resp, req)
+        assert_correct_response(resp, req)
         for obj in req.meta["playwright_page_methods"]:
             assert (
                 "scrapy-playwright",
@@ -83,7 +83,7 @@ class MixinPageMethodTestCase:
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
-        self.assert_correct_response(resp, req)
+        assert_correct_response(resp, req)
         does_not_exist = req.meta["playwright_page_methods"]["does_not_exist"]
         assert (
             "scrapy-playwright",
@@ -109,7 +109,7 @@ class MixinPageMethodTestCase:
                 with warnings.catch_warnings(record=True) as warning_list:
                     resp = await handler._download_request(req, Spider("foo"))
 
-        self.assert_correct_response(resp, req)
+        assert_correct_response(resp, req)
         assert str(warning_list[0].message) == (
             "The 'playwright_page_coroutines' request meta key is deprecated,"
             " please use 'playwright_page_methods' instead."
