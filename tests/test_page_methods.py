@@ -32,14 +32,15 @@ async def test_deprecated_class():
         )
 
 
-class MixinPageMethodTestCase:
-    def assert_correct_response(self, response: HtmlResponse, request: Request) -> None:
-        assert isinstance(response, HtmlResponse)
-        assert response.request is request
-        assert response.url == request.url
-        assert response.status == 200
-        assert "playwright" in response.flags
+def assert_correct_response(response: HtmlResponse, request: Request) -> None:
+    assert isinstance(response, HtmlResponse)
+    assert response.request is request
+    assert response.url == request.url
+    assert response.status == 200
+    assert "playwright" in response.flags
 
+
+class MixinPageMethodTestCase:
     @pytest.mark.asyncio
     async def test_page_non_page_method(self, caplog):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
