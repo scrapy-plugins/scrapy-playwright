@@ -9,9 +9,11 @@ def body_str(charset: str, content: str = "áéíóú") -> str:
         <!doctype html>
         <html>
         <head>
-        <p>{content}</p>
         <meta charset="{charset}">
         </head>
+        <body>
+        <p>{content}</p>
+        </body>
         </html>
     """.strip()
 
