@@ -106,8 +106,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_kwargs[name].update(kwargs)
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
-        self.contexts: Dict[str, BrowserContext] = dict()
-        self.context_semaphores: Dict[str, asyncio.Semaphore] = dict()
+        self.contexts: Dict[str, BrowserContext] = {}
+        self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -132,8 +132,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
         self.context_semaphores = {
-            name: asyncio.Semaphore(value=self.max_pages_per_context)
-            for name in self.contexts.keys()
+            name: asyncio.Semaphore(value=self.max_pages_per_context) for name in self.contexts
         }
 
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
