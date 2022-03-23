@@ -3,7 +3,7 @@ import setuptools
 from scrapy_playwright import __version__
 
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 
@@ -32,6 +32,7 @@ setuptools.setup(
         "Topic :: Software Development :: Libraries :: Application Frameworks",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
+    python_requires=">=3.7",
     install_requires=[
         "scrapy>=2.0,!=2.4.0",
         "playwright>=1.8.0a1",

@@ -3,6 +3,7 @@ import logging
 import warnings
 from collections import defaultdict
 from contextlib import suppress
+from inspect import isawaitable
 from ipaddress import ip_address
 from time import time
 from typing import Callable, Dict, Optional, Type, TypeVar
@@ -105,6 +106,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_kwargs[name].update(kwargs)
         if "default" not in self.context_kwargs and default_context_kwargs:
             self.context_kwargs["default"] = default_context_kwargs
+        self.contexts: Dict[str, BrowserContext] = {}
+        self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
 
         self.abort_request: Optional[Callable[[PlaywrightRequest], bool]] = None
         if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
@@ -131,10 +134,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 for name, kwargs in self.context_kwargs.items()
             ]
         )
-        self.contexts: Dict[str, BrowserContext] = dict(zip(self.context_kwargs.keys(), contexts))
-        self.context_semaphores: Dict[str, asyncio.Semaphore] = {
-            name: asyncio.Semaphore(value=self.max_pages_per_context)
-            for name in self.contexts.keys()
+        self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
+        self.context_semaphores = {
+            name: asyncio.Semaphore(value=self.max_pages_per_context) for name in self.contexts
         }
 
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
@@ -193,6 +195,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _close(self) -> None:
         self.contexts.clear()
+        self.context_semaphores.clear()
         if getattr(self, "browser", None):
             logger.info("Closing browser")
             await self.browser.close()
@@ -252,9 +255,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page_coroutines = page_coroutines.values()
         for pc in page_coroutines:
             if isinstance(pc, PageCoroutine):
-                method = getattr(page, pc.method)
-                pc.result = await method(*pc.args, **pc.kwargs)
-                await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+                try:
+                    method = getattr(page, pc.method)
+                except AttributeError:
+                    logger.warning(f"Ignoring {repr(pc)}: could not find coroutine")
+                else:
+                    result = method(*pc.args, **pc.kwargs)
+                    pc.result = await result if isawaitable(result) else result
+                    await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+            else:
+                logger.warning(
+                    f"Ignoring {repr(pc)}: expected PageCoroutine, got {repr(type(pc))}"
+                )
 
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
@@ -289,13 +301,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             ip_address=server_ip_address,
         )
 
-    def _make_close_page_callback(self, context_name: str) -> Callable:
-        def close_page_callback() -> None:
-            if context_name in self.context_semaphores:
-                self.context_semaphores[context_name].release()
-
-        return close_page_callback
-
     def _increment_request_stats(self, request: PlaywrightRequest) -> None:
         stats_prefix = "playwright/request_count"
         self.stats.inc_value(stats_prefix)
@@ -309,6 +314,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(stats_prefix)
         self.stats.inc_value(f"{stats_prefix}/resource_type/{response.request.resource_type}")
         self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
+
+    def _make_close_page_callback(self, context_name: str) -> Callable:
+        def close_page_callback() -> None:
+            if context_name in self.context_semaphores:
+                self.context_semaphores[context_name].release()
+
+        return close_page_callback
 
     def _make_close_browser_context_callback(self, name: str) -> Callable:
         def close_browser_context_callback() -> None:
