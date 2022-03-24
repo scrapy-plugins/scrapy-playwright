@@ -130,7 +130,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     `playwright.async_api.Request` object and must return `True` if the
     request should be aborted, `False` otherwise.
 
-    For instance, the following aborts downloading all images:
+    For instance, the following prevents the download of images:
     ```python
     PLAYWRIGHT_ABORT_REQUEST = lambda req: req.resource_type == "image"
     ```
