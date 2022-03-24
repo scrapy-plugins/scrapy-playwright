@@ -109,6 +109,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.contexts: Dict[str, BrowserContext] = {}
         self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
 
+        self.abort_request: Optional[Callable[[PlaywrightRequest], bool]] = None
+        if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
+            self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
+
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
         return cls(crawler)
@@ -332,6 +336,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
+            if self.abort_request and self.abort_request(playwright_request):
+                await route.abort()
+                self.stats.inc_value("playwright/request_count/aborted")
+                return None
+
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers
             )
