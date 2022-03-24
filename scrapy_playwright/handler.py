@@ -6,7 +6,7 @@ from contextlib import suppress
 from inspect import isawaitable
 from ipaddress import ip_address
 from time import time
-from typing import Callable, Dict, Optional, Type, TypeVar
+from typing import Callable, Dict, Generator, Optional, Tuple, Type, TypeVar
 
 from playwright.async_api import (
     BrowserContext,
@@ -109,6 +109,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_kwargs["default"] = default_context_kwargs
         self.contexts: Dict[str, BrowserContext] = {}
         self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
+
+        self.abort_request: Optional[Callable[[PlaywrightRequest], bool]] = None
+        if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
+            self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -268,8 +272,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         headers = Headers(response.headers)
         headers.pop("Content-Encoding", None)
-        encoding = _get_response_encoding(headers, body_str) or "utf-8"
-        body = body_str.encode(encoding)
+        body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
         return respcls(
             url=page.url,
@@ -345,6 +348,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
+            if self.abort_request and self.abort_request(playwright_request):
+                await route.abort()
+                self.stats.inc_value("playwright/request_count/aborted")
+                return None
+
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers
             )
@@ -364,11 +372,19 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return _request_handler
 
 
-def _get_response_encoding(headers: Headers, body: str) -> Optional[str]:
-    encoding = None
+def _possible_encodings(headers: Headers, text: str) -> Generator[str, None, None]:
     if headers.get("content-type"):
         content_type = to_unicode(headers["content-type"])
-        encoding = http_content_type_encoding(content_type)
-    if not encoding:
-        encoding = html_body_declared_encoding(body)
-    return encoding
+        yield http_content_type_encoding(content_type)
+    yield html_body_declared_encoding(text)
+
+
+def _encode_body(headers: Headers, text: str) -> Tuple[bytes, str]:
+    for encoding in filter(None, _possible_encodings(headers, text)):
+        try:
+            body = text.encode(encoding)
+        except UnicodeEncodeError:
+            pass
+        else:
+            return body, encoding
+    return text.encode("utf-8"), "utf-8"  # fallback

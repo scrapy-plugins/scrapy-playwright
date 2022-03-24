@@ -97,7 +97,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser_contextset_default_navigation_timeouttimeout).
 
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `str`, default `scrapy_playwright.headers.use_scrapy_headers`)
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
     The path to a coroutine function (`async def`) that processes headers for a given request
     and returns a dictionary with the headers to be used (note that, depending on the browser,
@@ -123,6 +123,21 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     Maximum amount of allowed concurrent Playwright pages for each context.
     See the [notes about leaving unclosed pages](#receiving-the-page-object-in-the-callback).
+
+* `PLAYWRIGHT_ABORT_REQUEST` (type `Optional[Union[Callable, str]]`, default `None`)
+
+    A predicate function (or the path to a function) that receives a
+    `playwright.async_api.Request` object and must return `True` if the
+    request should be aborted, `False` otherwise.
+
+    For instance, the following prevents the download of images:
+    ```python
+    PLAYWRIGHT_ABORT_REQUEST = lambda req: req.resource_type == "image"
+    ```
+
+    Note that all requests will appear in the DEBUG level logs, however there will
+    be no corresponding response log lines for aborted requests. Aborted requests
+    are counted in the `playwright/request_count/aborted` job stats item.
 
 
 ## Basic usage

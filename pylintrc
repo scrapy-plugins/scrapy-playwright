@@ -13,7 +13,6 @@ disable=
     unused-argument,
     # tests
     abstract-method,
-    bare-except,
     duplicate-code,
     import-outside-toplevel,
     inconsistent-return-statements,
