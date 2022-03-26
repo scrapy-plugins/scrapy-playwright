@@ -372,10 +372,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             try:
                 await route.continue_(**overrides)
-            except Exception as ex:
-                logger.warning(
-                    f"{playwright_request}: failed processing Playwright request ({ex})"
-                )
+            except Exception as ex:  # pylint: disable=broad-except
+                if _is_safe_close_error(ex):
+                    logger.warning(
+                        f"{playwright_request}: failed processing Playwright request ({ex})"
+                    )
+                else:
+                    raise
 
         return _request_handler
 
@@ -396,3 +399,13 @@ def _encode_body(headers: Headers, text: str) -> Tuple[bytes, str]:
         else:
             return body, encoding
     return text.encode("utf-8"), "utf-8"  # fallback
+
+
+def _is_safe_close_error(error: Exception) -> bool:
+    """
+    https://github.com/microsoft/playwright-python/blob/v1.20.0/playwright/_impl/_helper.py#L234-L238
+    """
+    message = str(error)
+    return message.endswith("Browser has been closed") or message.endswith(
+        "Target page, context or browser has been closed"
+    )
