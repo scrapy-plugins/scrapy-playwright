@@ -339,45 +339,45 @@ down or clicking links, and you want to handle only the final result in your cal
 
 ### `PageMethod` class
 
-* `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
+#### `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
 
-    Represents a method to be called (and awaited if necessary) on a
-    `playwright.page.Page` object, such as "click", "screenshot", "evaluate", etc.
-    `method` is the name of the method, `*args` and `**kwargs`
-    are passed when calling such method. The return value
-    will be stored in the `PageMethod.result` attribute.
+Represents a method to be called (and awaited if necessary) on a
+`playwright.page.Page` object, such as "click", "screenshot", "evaluate", etc.
+`method` is the name of the method, `*args` and `**kwargs`
+are passed when calling such method. The return value
+will be stored in the `PageMethod.result` attribute.
 
-    For instance,
-    ```python
-    def start_requests(self):
-        yield Request(
-            url="https://example.org",
-            meta={
-                "playwright": True,
-                "playwright_page_methods": [
-                    PageMethod("screenshot", path="example.png", fullPage=True),
-                ],
-            },
-        )
+For instance,
+```python
+def start_requests(self):
+    yield Request(
+        url="https://example.org",
+        meta={
+            "playwright": True,
+            "playwright_page_methods": [
+                PageMethod("screenshot", path="example.png", fullPage=True),
+            ],
+        },
+    )
 
-    def parse(self, response):
-        screenshot = response.meta["playwright_page_methods"][0]
-        # screenshot.result contains the image's bytes
-    ```
+def parse(self, response):
+    screenshot = response.meta["playwright_page_methods"][0]
+    # screenshot.result contains the image's bytes
+```
 
-    produces the same effect as:
-    ```python
-    def start_requests(self):
-        yield Request(
-            url="https://example.org",
-            meta={"playwright": True, "playwright_include_page": True},
-        )
+produces the same effect as:
+```python
+def start_requests(self):
+    yield Request(
+        url="https://example.org",
+        meta={"playwright": True, "playwright_include_page": True},
+    )
 
-    async def parse(self, response):
-        page = response.meta["playwright_page"]
-        await page.screenshot(path="example.png", full_page=True)
-        await page.close()
-    ```
+async def parse(self, response):
+    page = response.meta["playwright_page"]
+    await page.screenshot(path="example.png", full_page=True)
+    await page.close()
+```
 
 
 ### Supported methods
@@ -508,7 +508,14 @@ For more examples, please see the scripts in the [examples](examples) directory.
   Refer to the [Proxy support](#proxy-support) section for more information.
 
 
-##  Deprecations
+##  Deprecation policy
+
+Deprecated features will be supported for at least six months
+following the release that deprecated them. After that, they
+may be removed at any time. See the [changelog](changelog.md)
+for more information about deprecations and removals.
+
+### Currently deprecated features
 
 * `PLAYWRIGHT_CONTEXT_ARGS` setting (type `dict`, default `{}`)
 
@@ -522,11 +529,11 @@ For more examples, please see the scripts in the [examples](examples) directory.
 * `scrapy_playwright.page.PageCoroutine` class
 
     Deprecated since
-    [`v0.0.13`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13),
+    [`v0.0.14`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14),
     use `scrapy_playwright.page.PageMethod` instead
 
 * `playwright_page_coroutines` Request meta key
 
     Deprecated since
-    [`v0.0.13`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13),
+    [`v0.0.14`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14),
     use `playwright_page_methods` instead
