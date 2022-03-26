@@ -239,8 +239,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         try:
             result = await self._download_request_with_page(request, page)
-        except Exception:
+        except Exception as ex:
             if not page.is_closed():
+                logger.warning(
+                    f"{request}: failed processing Scrapy request ({type(ex)}), closing page"
+                )
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise
@@ -367,7 +370,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 if body is not None:
                     overrides["post_data"] = body.decode(encoding)
 
-            await route.continue_(**overrides)
+            try:
+                await route.continue_(**overrides)
+            except Exception as ex:
+                logger.warning(
+                    f"{playwright_request}: failed processing Playwright request ({ex})"
+                )
 
         return _request_handler
 
