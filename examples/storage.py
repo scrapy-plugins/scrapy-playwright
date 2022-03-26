@@ -24,9 +24,11 @@ class StorageSpider(Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
+        storage_state = await page.context.storage_state()
+        await page.close()
         return {
             "url": response.url,
-            "storage_state": await page.context.storage_state(),
+            "storage_state": storage_state,
             "ip_address": response.ip_address,
         }
 
