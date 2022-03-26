@@ -4,6 +4,7 @@ import warnings
 
 import pytest
 from scrapy import Spider, Request
+from scrapy.exceptions import ScrapyDeprecationWarning
 
 from tests import make_handler
 from tests.mockserver import StaticMockServer
@@ -153,7 +154,7 @@ class MixinTestCaseMultipleContexts:
         }
         with warnings.catch_warnings(record=True) as warning_list:
             async with make_handler(settings) as handler:
-                assert warning_list[0].category is DeprecationWarning
+                assert warning_list[0].category is ScrapyDeprecationWarning
                 assert str(warning_list[0].message) == (
                     "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated, please use"
                     " PLAYWRIGHT_CONTEXTS instead. Keyword arguments defined in"

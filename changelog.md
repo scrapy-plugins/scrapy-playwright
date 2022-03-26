@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
+
+* Renamed `PageCoroutine` to `PageMethod` (`PageCoroutine` is now deprecated)
+
+
 ### [v0.0.13](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13) (2022-03-24)
 
 * PageCoroutine checks

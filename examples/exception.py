@@ -3,7 +3,7 @@ from pathlib import Path
 
 from scrapy import Spider, Request
 from scrapy.crawler import CrawlerProcess
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 class HandleTimeoutMiddleware:
@@ -13,8 +13,8 @@ class HandleTimeoutMiddleware:
             url="https://httpbin.org/get",
             meta={
                 "playwright": True,
-                "playwright_page_coroutines": [
-                    PageCoroutine(
+                "playwright_page_methods": [
+                    PageMethod(
                         "screenshot", path=Path(__file__).parent / "recovered.png", full_page=True
                     ),
                 ],

@@ -1,6 +1,6 @@
 from scrapy import Spider, Request
 from scrapy.crawler import CrawlerProcess
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 class StorageSpider(Spider):
@@ -16,8 +16,8 @@ class StorageSpider(Spider):
             meta={
                 "playwright": True,
                 "playwright_include_page": True,
-                "playwright_page_coroutines": [
-                    PageCoroutine("evaluate_handle", "window.localStorage.setItem('foo', 'bar');"),
+                "playwright_page_methods": [
+                    PageMethod("evaluate_handle", "window.localStorage.setItem('foo', 'bar');"),
                 ],
             },
         )
