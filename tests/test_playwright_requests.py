@@ -4,6 +4,7 @@ import platform
 import subprocess
 from ipaddress import ip_address
 from tempfile import NamedTemporaryFile
+from unittest.mock import MagicMock, patch
 
 import pytest
 from playwright.async_api import (
@@ -12,6 +13,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
+from scrapy.http.headers import Headers
 from scrapy.http.response.html import HtmlResponse
 
 from scrapy_playwright.page import PageMethod
@@ -64,7 +66,7 @@ class MixinTestCase:
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
                 req = FormRequest(
-                    server.urljoin("/delay/2"), meta={"playwright": True}, formdata={"foo": "bar"}
+                    server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
@@ -173,6 +175,28 @@ class MixinTestCase:
                 req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
                 with pytest.raises(PlaywrightTimeoutError):
                     await handler._download_request(req, Spider("foo"))
+
+    @patch("scrapy_playwright.handler.logger")
+    @pytest.mark.asyncio
+    async def test_route_continue_exception(self, logger):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            req_handler = handler._make_request_handler("GET", Headers({}), b"")
+
+            # safe error, only warn
+            exc = Exception("Target page, context or browser has been closed")
+            route_safe = MagicMock()
+            route_safe.continue_.side_effect = exc
+            playwright_request = MagicMock()
+            await req_handler(route_safe, playwright_request)
+            logger.warning.assert_called_with(
+                f"{playwright_request}: failed processing Playwright request ({exc})"
+            )
+
+            # unknown error, re-raise
+            route_unknown = MagicMock()
+            route_unknown.continue_.side_effect = ZeroDivisionError("asdf")
+            with pytest.raises(ZeroDivisionError):
+                await req_handler(route_unknown, playwright_request=MagicMock())
 
     @pytest.mark.asyncio
     async def test_context_kwargs(self):
