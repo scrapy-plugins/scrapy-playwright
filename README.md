@@ -65,12 +65,12 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 `scrapy-playwright` accepts the following settings:
 
 * `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
-    The browser type to be launched. Valid values are (`chromium`, `firefox`, `webkit`).
+    The browser type to be launched, e.g. `chromium`, `firefox`, `webkit`.
 
 * `PLAYWRIGHT_LAUNCH_OPTIONS` (type `dict`, default `{}`)
 
     A dictionary with options to be passed when launching the Browser.
-    See the docs for [`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser_typelaunchkwargs).
+    See the docs for [`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
 
 * `PLAYWRIGHT_CONTEXTS` (type `dict[str, dict]`, default `{}`)
 
@@ -89,13 +89,13 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     ```
     If no contexts are defined, a default context (called `default`) is created.
     The arguments passed here take precedence over the ones defined in `PLAYWRIGHT_CONTEXT_ARGS`.
-    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs).
+    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,
     the default value will be used (30000 ms at the time of writing this).
-    See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser_contextset_default_navigation_timeouttimeout).
+    See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
 
 * `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
@@ -175,7 +175,7 @@ does not match the running Browser. If you prefer the `User-Agent` sent by
 default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
-## Receiving the Page object in the callback
+## Receiving Page objects in callbacks
 
 Specifying a non-False value for the `playwright_include_page` `meta` key for a
 request will result in the corresponding `playwright.async_api.Page` object
@@ -260,7 +260,7 @@ on HTTP Proxies.
 
 ## Multiple browser contexts
 
-Multiple [browser contexts](https://playwright.dev/python/docs/core-concepts/#browser-contexts)
+Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
 
 ### Choosing a specific context for a request
@@ -278,7 +278,7 @@ yield scrapy.Request(
 
 If the context specified in the `playwright_context` meta key does not exist, it will be created.
 You can specify keyword arguments to be passed to
-[`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browsernew_contextkwargs)
+[`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context)
 in the `playwright_context_kwargs` meta key:
 
 ```python
@@ -347,7 +347,7 @@ Represents a method to be called (and awaited if necessary) on a
 are passed when calling such method. The return value
 will be stored in the `PageMethod.result` attribute.
 
-For instance,
+For instance:
 ```python
 def start_requests(self):
     yield Request(
@@ -375,7 +375,8 @@ def start_requests(self):
 
 async def parse(self, response):
     page = response.meta["playwright_page"]
-    await page.screenshot(path="example.png", full_page=True)
+    screenshot = await page.screenshot(path="example.png", full_page=True)
+    # screenshot contains the image's bytes
     await page.close()
 ```
 
@@ -393,7 +394,7 @@ a navigation (e.g. a `click` on a link), the `Response.url` attribute will point
 new URL, which might be different from the request's URL.
 
 
-## Page events
+## Handling page events
 
 A dictionary of Page event handlers can be specified in the `playwright_page_event_handlers`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
@@ -428,11 +429,11 @@ class EventSpider(scrapy.Spider):
         logging.info(f"Received response with URL {response.url}")
 ```
 
-See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page/) for a list of
+See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page) for a list of
 the accepted events and the arguments passed to their handlers.
 
 **Note**: keep in mind that, unless they are
-[removed later](https://playwright.dev/python/docs/events/#addingremoving-event-listener),
+[removed later](https://playwright.dev/python/docs/events#addingremoving-event-listener),
 these handlers will remain attached to the page and will be called for subsequent
 downloads using the same page. This is usually not a problem, since by default
 requests are performed in single-use pages.
@@ -508,7 +509,7 @@ For more examples, please see the scripts in the [examples](examples) directory.
   Refer to the [Proxy support](#proxy-support) section for more information.
 
 
-##  Deprecation policy
+## Deprecation policy
 
 Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
