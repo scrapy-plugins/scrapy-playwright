@@ -75,7 +75,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 * `PLAYWRIGHT_CONTEXTS` (type `dict[str, dict]`, default `{}`)
 
     A dictionary which defines Browser contexts to be created on startup.
-    It should be a mapping of (name, keyword arguments) For instance:
+    It should be a mapping of (name, keyword arguments). For instance:
     ```python
     {
         "first": {
@@ -87,8 +87,8 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
         },
     }
     ```
-    If no contexts are defined, a default context (called `default`) is created.
-    The arguments passed here take precedence over the ones defined in `PLAYWRIGHT_CONTEXT_ARGS`.
+    A default context (called `default`) is created if no contexts are defined,
+    this will be used by all requests which do not explicitly specify a context.
     See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
@@ -517,15 +517,6 @@ may be removed at any time. See the [changelog](changelog.md)
 for more information about deprecations and removals.
 
 ### Currently deprecated features
-
-* `PLAYWRIGHT_CONTEXT_ARGS` setting (type `dict`, default `{}`)
-
-    A dictionary with default keyword arguments to be
-    used when creating the "default" Browser context.
-
-    Deprecated since
-    [`v0.0.4`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.4),
-    use the `PLAYWRIGHT_CONTEXTS` setting instead
 
 * `scrapy_playwright.page.PageCoroutine` class
 
