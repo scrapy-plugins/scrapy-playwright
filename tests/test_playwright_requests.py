@@ -165,16 +165,22 @@ class MixinTestCase:
             assert handler.default_navigation_timeout == 0.5
 
     @pytest.mark.asyncio
-    async def test_timeout(self):
+    async def test_timeout_error(self, caplog):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
-                with pytest.raises(PlaywrightTimeoutError):
+                req = Request(server.urljoin("/delay/1"), meta={"playwright": True})
+                with pytest.raises(PlaywrightTimeoutError) as excinfo:
                     await handler._download_request(req, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"{req}: failed processing Scrapy request"
+                    f" ({type(excinfo.value)}), closing page",
+                ) in caplog.record_tuples
 
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
