@@ -180,23 +180,23 @@ class MixinTestCase:
     @pytest.mark.asyncio
     async def test_route_continue_exception(self, logger):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req_handler = handler._make_request_handler("GET", Headers({}), b"")
+            req_handler = handler._make_request_handler("GET", Headers({}), body=None)
+            route = MagicMock()
+            playwright_request = MagicMock()
+            playwright_request.url = "https//example.org"
 
             # safe error, only warn
             exc = Exception("Target page, context or browser has been closed")
-            route_safe = MagicMock()
-            route_safe.continue_.side_effect = exc
-            playwright_request = MagicMock()
-            await req_handler(route_safe, playwright_request)
+            route.continue_.side_effect = exc
+            await req_handler(route, playwright_request)
             logger.warning.assert_called_with(
                 f"{playwright_request}: failed processing Playwright request ({exc})"
             )
 
             # unknown error, re-raise
-            route_unknown = MagicMock()
-            route_unknown.continue_.side_effect = ZeroDivisionError("asdf")
+            route.continue_.side_effect = ZeroDivisionError("asdf")
             with pytest.raises(ZeroDivisionError):
-                await req_handler(route_unknown, playwright_request=MagicMock())
+                await req_handler(route, playwright_request)
 
     @pytest.mark.asyncio
     async def test_context_kwargs(self):
