@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import warnings
-from collections import defaultdict
 from contextlib import suppress
 from inspect import isawaitable
 from ipaddress import ip_address
@@ -90,23 +89,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         else:
             self.process_request_headers = use_scrapy_headers
 
-        default_context_kwargs: dict = {}
-        if "PLAYWRIGHT_CONTEXT_ARGS" in crawler.settings:
-            default_context_kwargs = crawler.settings.getdict("PLAYWRIGHT_CONTEXT_ARGS")
-            warnings.warn(
-                "The PLAYWRIGHT_CONTEXT_ARGS setting is deprecated, please use"
-                " PLAYWRIGHT_CONTEXTS instead. Keyword arguments defined in"
-                " PLAYWRIGHT_CONTEXT_ARGS will be used when creating the 'default' context",
-                category=ScrapyDeprecationWarning,
-                stacklevel=2,
-            )
-        self.context_kwargs: defaultdict = defaultdict(dict)
-        for name, kwargs in (crawler.settings.getdict("PLAYWRIGHT_CONTEXTS") or {}).items():
-            if name == "default":
-                self.context_kwargs[name] = default_context_kwargs
-            self.context_kwargs[name].update(kwargs)
-        if "default" not in self.context_kwargs and default_context_kwargs:
-            self.context_kwargs["default"] = default_context_kwargs
+        self.context_kwargs: dict = crawler.settings.getdict("PLAYWRIGHT_CONTEXTS")
         self.contexts: Dict[str, BrowserContext] = {}
         self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
 

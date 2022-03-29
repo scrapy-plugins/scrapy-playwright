@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### v0.0.15 (2022-NN-NN)
+
+* Remove deprecated `PLAYWRIGHT_CONTEXT_ARGS` setting
+
+
 ### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
 
 * Renamed `PageCoroutine` to `PageMethod` (`PageCoroutine` is now deprecated)
