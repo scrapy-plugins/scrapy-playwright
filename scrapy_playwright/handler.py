@@ -223,10 +223,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         try:
             result = await self._download_request_with_page(request, page)
         except Exception as ex:
-            if not page.is_closed():
-                logger.warning(
-                    f"{request}: failed processing Scrapy request ({type(ex)}), closing page"
-                )
+            if not request.meta.get("playwright_include_page") and not page.is_closed():
+                logger.warning(f"Closing page due to failed request: {request} ({type(ex)})")
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise

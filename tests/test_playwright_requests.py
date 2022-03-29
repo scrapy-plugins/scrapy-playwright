@@ -179,8 +179,7 @@ class MixinTestCase:
                 assert (
                     "scrapy-playwright",
                     logging.WARNING,
-                    f"{req}: failed processing Scrapy request"
-                    f" ({type(excinfo.value)}), closing page",
+                    f"Closing page due to failed request: {req} ({type(excinfo.value)})",
                 ) in caplog.record_tuples
 
     @pytest.mark.skipif(sys.version_info < (3, 8), reason="Fails on py37")
