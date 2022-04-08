@@ -509,7 +509,7 @@ For more examples, please see the scripts in the [examples](examples) directory.
   Refer to the [Proxy support](#proxy-support) section for more information.
 
 
-## Deprecation policy
+## Deprecation policy
 
 Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
