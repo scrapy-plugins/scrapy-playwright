@@ -2,8 +2,10 @@ import json
 import logging
 import platform
 import subprocess
+import sys
 from ipaddress import ip_address
 from tempfile import NamedTemporaryFile
+from unittest.mock import MagicMock, patch
 
 import pytest
 from playwright.async_api import (
@@ -12,6 +14,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
+from scrapy.http.headers import Headers
 from scrapy.http.response.html import HtmlResponse
 
 from scrapy_playwright.page import PageMethod
@@ -64,7 +67,7 @@ class MixinTestCase:
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
                 req = FormRequest(
-                    server.urljoin("/delay/2"), meta={"playwright": True}, formdata={"foo": "bar"}
+                    server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
@@ -163,16 +166,47 @@ class MixinTestCase:
             assert handler.default_navigation_timeout == 0.5
 
     @pytest.mark.asyncio
-    async def test_timeout(self):
+    async def test_timeout_error(self, caplog):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/delay/2"), meta={"playwright": True})
-                with pytest.raises(PlaywrightTimeoutError):
+                req = Request(server.urljoin("/delay/1"), meta={"playwright": True})
+                with pytest.raises(PlaywrightTimeoutError) as excinfo:
                     await handler._download_request(req, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Closing page due to failed request: {req} ({type(excinfo.value)})",
+                ) in caplog.record_tuples
+
+    @pytest.mark.skipif(sys.version_info < (3, 8), reason="Fails on py37")
+    @patch("scrapy_playwright.handler.logger")
+    @pytest.mark.asyncio
+    async def test_route_continue_exception(self, logger):
+        """This test fails on Python 3.7 in the "logger.warning.assert_called_with" assertion,
+        but the "Captured log call" section shows the exact message that is expected :shrug:
+        """
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            req_handler = handler._make_request_handler("GET", Headers({}), body=None)
+            route = MagicMock()
+            playwright_request = MagicMock()
+            playwright_request.url = "https//example.org"
+
+            # safe error, only warn
+            exc = Exception("Target page, context or browser has been closed")
+            route.continue_.side_effect = exc
+            await req_handler(route, playwright_request)
+            logger.warning.assert_called_with(
+                f"{playwright_request}: failed processing Playwright request ({exc})"
+            )
+
+            # unknown error, re-raise
+            route.continue_.side_effect = ZeroDivisionError("asdf")
+            with pytest.raises(ZeroDivisionError):
+                await req_handler(route, playwright_request)
 
     @pytest.mark.asyncio
     async def test_context_kwargs(self):
