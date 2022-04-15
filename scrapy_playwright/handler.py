@@ -384,6 +384,7 @@ def _encode_body(headers: Headers, text: str) -> Tuple[bytes, str]:
 
 def _is_safe_close_error(error: Exception) -> bool:
     """
+    Taken verbatim from
     https://github.com/microsoft/playwright-python/blob/v1.20.0/playwright/_impl/_helper.py#L234-L238
     """
     message = str(error)
