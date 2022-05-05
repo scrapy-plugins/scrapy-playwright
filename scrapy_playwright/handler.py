@@ -2,10 +2,9 @@ import asyncio
 import logging
 import warnings
 from contextlib import suppress
-from inspect import isawaitable
 from ipaddress import ip_address
 from time import time
-from typing import Callable, Dict, Generator, Optional, Tuple, Type, TypeVar
+from typing import Awaitable, Callable, Dict, Generator, Optional, Tuple, Type, TypeVar, Union
 
 from playwright.async_api import (
     BrowserContext,
@@ -93,7 +92,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.contexts: Dict[str, BrowserContext] = {}
         self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
 
-        self.abort_request: Optional[Callable[[PlaywrightRequest], bool]] = None
+        self.abort_request: Optional[Callable[[PlaywrightRequest], Union[Awaitable, bool]]] = None
         if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
             self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
 
@@ -290,8 +289,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 except AttributeError:
                     logger.warning(f"Ignoring {repr(pm)}: could not find method")
                 else:
-                    result = method(*pm.args, **pm.kwargs)
-                    pm.result = await result if isawaitable(result) else result
+                    pm.result = method(*pm.args, **pm.kwargs)
+                    if isinstance(pm.result, Awaitable):
+                        pm.result = await pm.result
                     await page.wait_for_load_state(timeout=self.default_navigation_timeout)
             else:
                 logger.warning(f"Ignoring {repr(pm)}: expected PageMethod, got {repr(type(pm))}")
@@ -332,10 +332,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
-            if self.abort_request and self.abort_request(playwright_request):
-                await route.abort()
-                self.stats.inc_value("playwright/request_count/aborted")
-                return None
+            if self.abort_request:
+                should_abort = self.abort_request(playwright_request)
+                if isinstance(should_abort, Awaitable):
+                    should_abort = await should_abort
+                if should_abort:
+                    await route.abort()
+                    self.stats.inc_value("playwright/request_count/aborted")
+                    return None
 
             processed_headers = await self.process_request_headers(
                 self.browser_type, playwright_request, scrapy_headers

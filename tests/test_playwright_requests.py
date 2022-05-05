@@ -453,6 +453,31 @@ class MixinTestCase:
                 assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
                 assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
+    @pytest.mark.asyncio
+    async def test_abort_requests_coroutine(self):
+        async def should_abort_request(request):
+            return request.resource_type == "image"
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_ABORT_REQUEST": should_abort_request,
+        }
+        async with make_handler(settings_dict) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/gallery.html"),
+                    meta={"playwright": True},
+                )
+                await handler._download_request(req, Spider("foo"))
+
+                req_prefix = "playwright/request_count"
+                resp_prefix = "playwright/response_count"
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/image") == 3
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
+                assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
+
 
 class TestCaseChromium(MixinTestCase):
     browser_type = "chromium"
