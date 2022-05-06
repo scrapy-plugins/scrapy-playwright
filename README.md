@@ -116,8 +116,11 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is another function available: `scrapy_playwright.headers.use_playwright_headers`,
-    which will return the headers from the Playwright request without any changes.
+    There is another built-in function available: `scrapy_playwright.headers.use_playwright_headers`,
+    which will return the headers from the Playwright request unmodified.
+    When using this alternative, please keep in mind that headers passed via the `Request.headers`
+    attribute or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
+    attribute).
 
 * `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
 
