@@ -41,26 +41,6 @@ PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownload
 logger = logging.getLogger("scrapy-playwright")
 
 
-def _make_request_logger(context_name: str) -> Callable:
-    def _log_request(request: PlaywrightRequest) -> None:
-        logger.debug(
-            f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
-            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
-        )
-
-    return _log_request
-
-
-def _make_response_logger(context_name: str) -> Callable:
-    def _log_request(response: PlaywrightResponse) -> None:
-        logger.debug(
-            f"[Context={context_name}] Response: <{response.status} {response.url}> "
-            f"(referrer: {response.headers.get('referer')})"
-        )
-
-    return _log_request
-
-
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
@@ -289,9 +269,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 except AttributeError:
                     logger.warning(f"Ignoring {repr(pm)}: could not find method")
                 else:
-                    pm.result = method(*pm.args, **pm.kwargs)
-                    if isinstance(pm.result, Awaitable):
-                        pm.result = await pm.result
+                    pm.result = await _await_if_necessary(method(*pm.args, **pm.kwargs))
                     await page.wait_for_load_state(timeout=self.default_navigation_timeout)
             else:
                 logger.warning(f"Ignoring {repr(pm)}: expected PageMethod, got {repr(type(pm))}")
@@ -333,16 +311,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
             if self.abort_request:
-                should_abort = self.abort_request(playwright_request)
-                if isinstance(should_abort, Awaitable):
-                    should_abort = await should_abort
+                should_abort = await _await_if_necessary(self.abort_request(playwright_request))
                 if should_abort:
                     await route.abort()
                     self.stats.inc_value("playwright/request_count/aborted")
                     return None
 
-            processed_headers = await self.process_request_headers(
-                self.browser_type, playwright_request, scrapy_headers
+            processed_headers = await _await_if_necessary(
+                self.process_request_headers(self.browser_type, playwright_request, scrapy_headers)
             )
 
             # the request that reaches the callback should contain the headers that were sent
@@ -366,6 +342,32 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     raise
 
         return _request_handler
+
+
+async def _await_if_necessary(obj):
+    if isinstance(obj, Awaitable):
+        return await obj
+    return obj
+
+
+def _make_request_logger(context_name: str) -> Callable:
+    def _log_request(request: PlaywrightRequest) -> None:
+        logger.debug(
+            f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
+            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
+        )
+
+    return _log_request
+
+
+def _make_response_logger(context_name: str) -> Callable:
+    def _log_request(response: PlaywrightResponse) -> None:
+        logger.debug(
+            f"[Context={context_name}] Response: <{response.status} {response.url}> "
+            f"(referrer: {response.headers.get('referer')})"
+        )
+
+    return _log_request
 
 
 def _possible_encodings(headers: Headers, text: str) -> Generator[str, None, None]:
