@@ -128,16 +128,38 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     A predicate function (or the path to a function) that receives a
     `playwright.async_api.Request` object and must return `True` if the
-    request should be aborted, `False` otherwise.
+    request should be aborted, `False` otherwise. Coroutine functions
+    (`async def`) are supported.
 
-    For instance, the following prevents the download of images:
+    For instance, the following are all equivalent, and prevent the download of images:
     ```python
     PLAYWRIGHT_ABORT_REQUEST = lambda req: req.resource_type == "image"
     ```
 
-    Note that all requests will appear in the DEBUG level logs, however there will
-    be no corresponding response log lines for aborted requests. Aborted requests
-    are counted in the `playwright/request_count/aborted` job stats item.
+    ```python
+    def should_abort_request(req):
+        return req.resource_type == "image"
+
+    PLAYWRIGHT_ABORT_REQUEST = should_abort_request
+    ```
+
+    ```python
+    # project/utils.py
+    def should_abort_request(req):
+        return req.resource_type == "image"
+
+    # settings.py
+    PLAYWRIGHT_ABORT_REQUEST = "project.utils.should_abort_request"
+
+    ```
+
+    Please note:
+
+    * All requests will appear in the DEBUG level logs, however there will
+      be no corresponding response log lines for aborted requests. Aborted requests
+      are counted in the `playwright/request_count/aborted` job stats item.
+    * Passing callable objects is only supported when using Scrapy>=2.4. With prior
+      versions, only strings containing object paths are supported.
 
 
 ## Basic usage
