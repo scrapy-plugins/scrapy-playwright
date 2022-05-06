@@ -38,9 +38,9 @@ $ pip install scrapy-playwright
 Please see the [changelog.md](changelog.md) file.
 
 
-## Configuration
+## Activation
 
-Replace the default `http` and `https` Download Handlers through
+Replace the default `http` and/or `https` Download Handlers through
 [`DOWNLOAD_HANDLERS`](https://docs.scrapy.org/en/latest/topics/settings.html):
 
 ```python
@@ -60,7 +60,7 @@ Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scra
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-### Settings
+## Settings
 
 `scrapy-playwright` accepts the following settings:
 
@@ -99,9 +99,10 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
 * `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
-    The path to a coroutine function (`async def`) that processes headers for a given request
+    A function (or the path to a function) that processes headers for a given request
     and returns a dictionary with the headers to be used (note that, depending on the browser,
-    additional default headers will be sent as well).
+    additional default headers will be sent as well). Coroutine functions (`async def`) are
+    supported.
 
     The function must return a `dict` object, and receives the following keyword arguments:
 
@@ -156,13 +157,14 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     ```
 
-    Please note:
+    Please note that all requests will appear in the DEBUG level logs, however there will
+    be no corresponding response log lines for aborted requests. Aborted requests
+    are counted in the `playwright/request_count/aborted` job stats item.
 
-    * All requests will appear in the DEBUG level logs, however there will
-      be no corresponding response log lines for aborted requests. Aborted requests
-      are counted in the `playwright/request_count/aborted` job stats item.
-    * Passing callable objects is only supported when using Scrapy>=2.4. With prior
-      versions, only strings containing object paths are supported.
+    ### General note about settings
+
+    For the settings which accept object paths as strings, passing callable objects is
+    only supported when using Scrapy>=2.4. With prior versions, only strings are supported.
 
 
 ## Basic usage
