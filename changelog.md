@@ -1,8 +1,12 @@
 # scrapy-playwright changelog
 
-### v0.0.15 (2022-NN-NN)
+### [v0.0.15](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.15) (2022-05-08)
 
 * Remove deprecated `PLAYWRIGHT_CONTEXT_ARGS` setting
+* Warn on failed requests
+* `PLAYWRIGHT_ABORT_REQUEST` setting: accept coroutine functions
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` setting: accept sync functions to process headers
+* Set `playwright_page` request meta key early
 
 
 ### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
