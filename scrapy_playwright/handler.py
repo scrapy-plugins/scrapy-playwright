@@ -211,17 +211,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             return result
 
     async def _download_request_with_page(self, request: Request, page: Page) -> Response:
+        # set this early to make it available in errbacks even if something fails
+        if request.meta.get("playwright_include_page"):
+            request.meta["playwright_page"] = page
+
         start_time = time()
         response = await page.goto(request.url)
-
         await self._apply_page_methods(page, request)
-
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
 
-        if request.meta.get("playwright_include_page"):
-            request.meta["playwright_page"] = page
-        else:
+        if not request.meta.get("playwright_include_page"):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 

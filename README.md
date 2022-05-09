@@ -239,8 +239,10 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 * In order to avoid memory issues, it is recommended to manually close the page
   by awaiting the `Page.close` coroutine.
 * Be careful about leaving pages unclosed, as they count towards the limit set by
-  `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. It's recommended to set a Request errback to
-  make sure pages are closed even if a request fails.
+  `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. When passing `playwright_include_page=True`,
+  it's recommended to set a Request errback to make sure pages are closed even
+  if a request fails (if `playwright_include_page=False` or unset, pages are
+  automatically closed upon encountering an exception).
 * Any network operations resulting from awaiting a coroutine on a `Page` object
   (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
