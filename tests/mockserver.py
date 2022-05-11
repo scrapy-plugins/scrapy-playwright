@@ -27,7 +27,7 @@ class StaticMockServer:
         self.proc.communicate()
 
     def urljoin(self, url):
-        return urljoin("http://{}:{}".format(self.address, self.port), url)
+        return urljoin(f"http://{self.address}:{self.port}", url)
 
 
 class _RequestHandler(BaseHTTPRequestHandler):
@@ -70,7 +70,7 @@ class MockServer:
         self.thread.join()
 
     def urljoin(self, url: str) -> str:
-        return urljoin("http://{}:{}".format(self.address, self.port), url)
+        return urljoin(f"http://{self.address}:{self.port}", url)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from scrapy import Spider, FormRequest
 from scrapy.crawler import CrawlerProcess
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 class PostSpider(Spider):
@@ -18,8 +18,8 @@ class PostSpider(Spider):
             formdata={"foo": "bar"},
             meta={
                 "playwright": True,
-                "playwright_page_coroutines": [
-                    PageCoroutine(
+                "playwright_page_methods": [
+                    PageMethod(
                         "screenshot", path=Path(__file__).parent / "post.png", full_page=True
                     ),
                 ],

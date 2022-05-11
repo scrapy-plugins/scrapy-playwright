@@ -26,4 +26,11 @@ jobs:
       run: tox -e py
 
     - name: Upload coverage report
-      run: bash <(curl -s https://codecov.io/bash)
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+        else
+          curl -Os https://uploader.codecov.io/latest/macos/codecov
+        fi
+        chmod +x codecov
+        ./codecov

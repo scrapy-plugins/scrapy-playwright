@@ -2,7 +2,7 @@ from pathlib import Path
 
 from scrapy import Spider, Request
 from scrapy.crawler import CrawlerProcess
-from scrapy_playwright.page import PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 
 class ScrollSpider(Spider):
@@ -18,11 +18,11 @@ class ScrollSpider(Spider):
             cookies={"foo": "bar", "asdf": "qwerty"},
             meta={
                 "playwright": True,
-                "playwright_page_coroutines": [
-                    PageCoroutine("wait_for_selector", "div.quote"),
-                    PageCoroutine("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
-                    PageCoroutine("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
-                    PageCoroutine(
+                "playwright_page_methods": [
+                    PageMethod("wait_for_selector", "div.quote"),
+                    PageMethod("evaluate", "window.scrollBy(0, document.body.scrollHeight)"),
+                    PageMethod("wait_for_selector", "div.quote:nth-child(11)"),  # 10 per page
+                    PageMethod(
                         "screenshot", path=Path(__file__).parent / "scroll.png", full_page=True
                     ),
                 ],
@@ -41,6 +41,7 @@ if __name__ == "__main__":
                 # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
                 "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             },
+            "LOG_LEVEL": "INFO",
         }
     )
     process.crawl(ScrollSpider)

@@ -1,5 +1,44 @@
 # scrapy-playwright changelog
 
+### [v0.0.15](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.15) (2022-05-08)
+
+* Remove deprecated `PLAYWRIGHT_CONTEXT_ARGS` setting
+* Warn on failed requests
+* `PLAYWRIGHT_ABORT_REQUEST` setting: accept coroutine functions
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` setting: accept sync functions to process headers
+* Set `playwright_page` request meta key early
+
+
+### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
+
+* Renamed `PageCoroutine` to `PageMethod` (`PageCoroutine` is now deprecated)
+
+
+### [v0.0.13](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13) (2022-03-24)
+
+* PageCoroutine checks
+* Fix encoding detection
+* Ability to abort requests via setting
+
+
+### [v0.0.12](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.12) (2022-03-15)
+
+* Avoid exceptions during cleanup when the browser could not start
+* Warn when non PageCoroutine objects are passed to Request.meta.playwright_page_coroutines
+
+
+### [v0.0.11](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.11) (2022-03-12)
+
+* Set the maximum amount of pages per context
+* Response.ip_address attribute
+* Response security details
+
+
+### [v0.0.10](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.10) (2022-03-02)
+
+* Fix response encoding detection
+
+
 ### [v0.0.9](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.9) (2022-01-27)
 
 * Ability to process request headers

@@ -21,6 +21,9 @@ jobs:
         - python-version: 3.8
           env:
             TOXENV: typing
+        - python-version: 3.8
+          env:
+            TOXENV: pylint
 
     steps:
     - uses: actions/checkout@v2
