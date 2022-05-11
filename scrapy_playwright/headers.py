@@ -17,24 +17,22 @@ async def use_scrapy_headers(
     """Scrapy headers take precedence over Playwright headers for navigation requests.
     For non-navigation requests, only User-Agent is taken from the Scrapy headers."""
 
-    headers = scrapy_headers.to_unicode_dict()
+    scrapy_headers_str = scrapy_headers.to_unicode_dict()
+    playwright_headers = await playwright_request.all_headers()
 
     # Scrapy's user agent has priority over Playwright's
-    headers.setdefault("user-agent", playwright_request.headers.get("user-agent"))
+    scrapy_headers_str.setdefault("user-agent", playwright_headers.get("user-agent"))
 
     if playwright_request.is_navigation_request():
         if browser_type == "firefox":
             # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
-            headers["host"] = urlparse(playwright_request.url).netloc
-        return headers
+            scrapy_headers_str["host"] = urlparse(playwright_request.url).netloc
+        return scrapy_headers_str
 
     # override user agent, for consistency with other requests
-    if headers.get("user-agent"):
-        return {
-            **playwright_request.headers,
-            "user-agent": headers["user-agent"],
-        }
-    return playwright_request.headers
+    if scrapy_headers_str.get("user-agent"):
+        playwright_headers["user-agent"] = scrapy_headers_str["user-agent"]
+    return playwright_headers
 
 
 async def use_playwright_headers(
@@ -43,4 +41,4 @@ async def use_playwright_headers(
     scrapy_headers: Headers,
 ) -> dict:
     """Return headers from the Playwright request, unaltered"""
-    return playwright_request.headers
+    return await playwright_request.all_headers()

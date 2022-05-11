@@ -35,6 +35,6 @@ setuptools.setup(
     python_requires=">=3.7",
     install_requires=[
         "scrapy>=2.0,!=2.4.0",
-        "playwright>=1.8.0a1",
+        "playwright>=1.15",
     ],
 )

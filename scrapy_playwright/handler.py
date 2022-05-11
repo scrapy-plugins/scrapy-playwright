@@ -233,7 +233,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         with suppress(AttributeError):
             request.meta["playwright_security_details"] = await response.security_details()
 
-        headers = Headers(response.headers)
+        headers = Headers(await response.all_headers())
         headers.pop("Content-Encoding", None)
         body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
@@ -351,20 +351,22 @@ async def _await_if_necessary(obj):
 
 
 def _make_request_logger(context_name: str) -> Callable:
-    def _log_request(request: PlaywrightRequest) -> None:
+    async def _log_request(request: PlaywrightRequest) -> None:
+        referrer = await request.header_value("referer")
         logger.debug(
             f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
-            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
+            f"(resource type: {request.resource_type}, referrer: {referrer})"
         )
 
     return _log_request
 
 
 def _make_response_logger(context_name: str) -> Callable:
-    def _log_request(response: PlaywrightResponse) -> None:
+    async def _log_request(response: PlaywrightResponse) -> None:
+        referrer = await response.header_value("referer")
         logger.debug(
             f"[Context={context_name}] Response: <{response.status} {response.url}> "
-            f"(referrer: {response.headers.get('referer')})"
+            f"(referrer: {referrer})"
         )
 
     return _log_request
