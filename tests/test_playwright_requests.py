@@ -188,12 +188,16 @@ class MixinTestCase:
     async def test_route_continue_exception(self, logger):
         """This test fails on Python 3.7 in the "logger.warning.assert_called_with" assertion,
         but the "Captured log call" section shows the exact message that is expected :shrug:
+        Also, AsyncMock is Python 3.8+
         """
+        from unittest.mock import AsyncMock
+
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             req_handler = handler._make_request_handler("GET", Headers({}), body=None)
             route = MagicMock()
-            playwright_request = MagicMock()
+            playwright_request = AsyncMock()
             playwright_request.url = "https//example.org"
+            playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
             exc = Exception("Target page, context or browser has been closed")
