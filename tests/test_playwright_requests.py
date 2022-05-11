@@ -182,14 +182,10 @@ class MixinTestCase:
                     f"Closing page due to failed request: {req} ({type(excinfo.value)})",
                 ) in caplog.record_tuples
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="Fails on py37")
+    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
     async def test_route_continue_exception(self, logger):
-        """This test fails on Python 3.7 in the "logger.warning.assert_called_with" assertion,
-        but the "Captured log call" section shows the exact message that is expected :shrug:
-        Also, AsyncMock is Python 3.8+
-        """
         from unittest.mock import AsyncMock
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
