@@ -119,7 +119,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     There is another alternative available: `scrapy_playwright.headers.use_playwright_headers`.
     Use this if you want the headers from the Playwright request to be used without changes.
-    When using this, please keep in mind that headers passed via the `Request.headers` attribute
+    When doing so, please keep in mind that headers passed via the `Request.headers` attribute
     or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
     attribute).
 
