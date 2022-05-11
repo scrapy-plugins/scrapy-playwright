@@ -35,10 +35,8 @@ async def use_scrapy_headers(
     return playwright_headers
 
 
-async def use_playwright_headers(
-    browser_type: str,
-    playwright_request: PlaywrightRequest,
-    scrapy_headers: Headers,
-) -> dict:
-    """Return headers from the Playwright request, unaltered"""
-    return await playwright_request.all_headers()
+def use_playwright_headers(*args, **kwargs) -> None:
+    """Used to signal that the default browser headers should be used unmodified.
+    The fact that this is a function is a hack, otherwise `scrapy.utils.misc.load_object`
+    would fail when loading it."""
+    return None

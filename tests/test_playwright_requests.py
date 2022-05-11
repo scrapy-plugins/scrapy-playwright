@@ -316,6 +316,7 @@ class MixinTestCase:
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
             "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
             "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": use_playwright_headers,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 2000,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:

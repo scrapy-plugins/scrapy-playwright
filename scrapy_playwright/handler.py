@@ -28,7 +28,7 @@ from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
-from scrapy_playwright.headers import use_scrapy_headers
+from scrapy_playwright.headers import use_scrapy_headers, use_playwright_headers
 from scrapy_playwright.page import PageMethod
 
 
@@ -65,6 +65,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.process_request_headers = load_object(
                 crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
             )
+            if self.process_request_headers is use_playwright_headers:
+                self.process_request_headers = None
         else:
             self.process_request_headers = use_scrapy_headers
 
@@ -317,15 +319,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.stats.inc_value("playwright/request_count/aborted")
                     return None
 
-            processed_headers = await _await_if_necessary(
-                self.process_request_headers(self.browser_type, playwright_request, scrapy_headers)
-            )
+            overrides: dict = {}
 
-            # the request that reaches the callback should contain the headers that were sent
-            scrapy_headers.clear()
-            scrapy_headers.update(processed_headers)
+            if self.process_request_headers is not None:
+                overrides["headers"] = await _await_if_necessary(
+                    self.process_request_headers(
+                        self.browser_type, playwright_request, scrapy_headers
+                    )
+                )
+                # the request that reaches the callback should contain the final headers
+                scrapy_headers.clear()
+                scrapy_headers.update(overrides["headers"])
 
-            overrides: dict = {"headers": processed_headers}
             if playwright_request.is_navigation_request():
                 overrides["method"] = method
                 if body is not None:
