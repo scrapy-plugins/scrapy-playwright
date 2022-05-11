@@ -36,7 +36,7 @@ async def use_scrapy_headers(
 
 
 def use_playwright_headers(*args, **kwargs) -> None:
-    """Used to signal that the default browser headers should be used unmodified.
-    The fact that this is a function is a hack, otherwise `scrapy.utils.misc.load_object`
+    """Indicate that the headers from the Playwright request should be used, unmodified.
+    This being a callable is an ugly hack, otherwise `scrapy.utils.misc.load_object`
     would fail when loading it."""
     return None
