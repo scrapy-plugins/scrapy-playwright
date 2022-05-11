@@ -30,7 +30,10 @@ async def use_scrapy_headers(
 
     # override user agent, for consistency with other requests
     if headers.get("user-agent"):
-        playwright_request.headers["user-agent"] = headers["user-agent"]
+        return {
+            **playwright_request.headers,
+            "user-agent": headers["user-agent"],
+        }
     return playwright_request.headers
 
 
