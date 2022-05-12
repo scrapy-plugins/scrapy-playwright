@@ -1,14 +1,34 @@
 import json
 import platform
+import sys
 import warnings
 
 import pytest
 from scrapy import Spider, Request
+from scrapy.http.headers import Headers
 
 from tests import make_handler
 from tests.mockserver import MockServer
 
 from scrapy_playwright.headers import use_playwright_headers
+
+
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
+@pytest.mark.asyncio
+async def test_use_playwright_headers_deprecated():
+    from unittest.mock import AsyncMock
+
+    headers = {"foo": "bar", "a": "b"}
+    playwright_request = AsyncMock()
+    playwright_request.all_headers.return_value = headers
+    with warnings.catch_warnings(record=True) as warning_list:
+        processed_headers = await use_playwright_headers("foobar", playwright_request, Headers({}))
+    assert processed_headers == headers
+    assert str(warning_list[0].message) == (
+        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
+        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
+        " instead."
+    )
 
 
 class MixinProcessHeadersTestCase:
