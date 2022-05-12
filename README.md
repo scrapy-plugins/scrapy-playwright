@@ -97,12 +97,16 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
 
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
     A function (or the path to a function) that processes headers for a given request
     and returns a dictionary with the headers to be used (note that, depending on the browser,
-    additional default headers will be sent as well). Coroutine functions (`async def`) are
+    additional default headers could be sent as well). Coroutine functions (`async def`) are
     supported.
+
+    This will be called at least once for each Scrapy request (receiving said request and the
+    corresponding Playwright request), but it could be called additional times if the given
+    resource generates more requests (e.g. to retrieve assets like images or scripts).
 
     The function must return a `dict` object, and receives the following keyword arguments:
 
@@ -117,9 +121,10 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is another alternative available: `scrapy_playwright.headers.use_playwright_headers`.
-    Use this if you want the headers from the Playwright request to be used without changes.
-    When doing so, please keep in mind that headers passed via the `Request.headers` attribute
+    Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control of the headers to
+    Playwright, i.e. headers from Scrapy requests will be ignored and only headers set by
+    Playwright will be sent.
+    When doing this, please keep in mind that headers passed via the `Request.headers` attribute
     or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
     attribute).
 
@@ -561,6 +566,12 @@ may be removed at any time. See the [changelog](changelog.md)
 for more information about deprecations and removals.
 
 ### Currently deprecated features
+
+* `scrapy_playwright.headers.use_playwright_headers` function
+
+    Deprecated since
+    [`v0.0.16`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16),
+    set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
 
 * `scrapy_playwright.page.PageCoroutine` class
 

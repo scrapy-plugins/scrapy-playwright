@@ -2,10 +2,11 @@
 This module includes functions to process request headers.
 Refer to the PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting for more information.
 """
-
+import warnings
 from urllib.parse import urlparse
 
 from playwright.async_api import Request as PlaywrightRequest
+from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.http.headers import Headers
 
 
@@ -35,8 +36,16 @@ async def use_scrapy_headers(
     return playwright_headers
 
 
-def use_playwright_headers(*args, **kwargs) -> None:
-    """Indicate that the headers from the Playwright request should be used, unmodified.
-    This being a callable is an ugly hack, otherwise `scrapy.utils.misc.load_object`
-    would fail when loading it."""
-    return None
+async def use_playwright_headers(
+    browser_type: str,
+    playwright_request: PlaywrightRequest,
+    scrapy_headers: Headers,
+) -> dict:
+    warnings.warn(
+        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
+        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
+        " instead.",
+        category=ScrapyDeprecationWarning,
+        stacklevel=1,
+    )
+    return await playwright_request.all_headers()

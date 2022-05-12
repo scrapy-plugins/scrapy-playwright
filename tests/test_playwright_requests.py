@@ -1,4 +1,3 @@
-import json
 import logging
 import platform
 import subprocess
@@ -193,6 +192,7 @@ class MixinTestCase:
             route = MagicMock()
             playwright_request = AsyncMock()
             playwright_request.url = "https//example.org"
+            playwright_request.is_navigation_request = MagicMock(return_value=True)
             playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
@@ -272,86 +272,6 @@ class MixinTestCase:
                 pdf_file.file.seek(0)
                 assert pdf_file.file.read() == req.meta["playwright_page_methods"]["pdf"].result
                 assert get_mimetype(pdf_file) == "application/pdf"
-
-    @pytest.mark.asyncio
-    async def test_user_agent(self):
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
-            "USER_AGENT": None,
-        }
-        async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                # if Scrapy's user agent is None, use the one from the Browser
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                )
-                resp = await handler._download_request(req, Spider("foo"))
-                headers = json.loads(resp.css("pre::text").get())
-                headers = {key.lower(): value for key, value in headers.items()}
-                assert headers["user-agent"] == self.browser_type
-
-                # if Scrapy's user agent is set to some value, use it
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                    headers={"User-Agent": "foobar"},
-                )
-                resp = await handler._download_request(req, Spider("foo"))
-                headers = json.loads(resp.css("pre::text").get())
-                headers = {key.lower(): value for key, value in headers.items()}
-                assert headers["user-agent"] == "foobar"
-
-    @pytest.mark.asyncio
-    async def test_use_playwright_headers(self):
-        """Ignore Scrapy headers"""
-        from scrapy_playwright.headers import use_playwright_headers
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
-            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": use_playwright_headers,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 2000,
-        }
-        async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
-                )
-                resp = await handler._download_request(req, Spider("foo"))
-                headers = json.loads(resp.css("pre::text").get())
-                headers = {key.lower(): value for key, value in headers.items()}
-                assert headers["user-agent"] == self.browser_type
-                assert "asdf" not in headers
-
-    @pytest.mark.asyncio
-    async def test_use_custom_headers(self):
-        """Custom header processing function"""
-
-        async def important_headers(*args, **kwargs) -> dict:
-            return {"foo": "bar"}
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
-            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": important_headers,
-        }
-        async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
-                )
-                resp = await handler._download_request(req, Spider("foo"))
-                headers = json.loads(resp.css("pre::text").get())
-                headers = {key.lower(): value for key, value in headers.items()}
-                assert headers["foo"] == "bar"
-                assert headers.get("user-agent") not in (self.browser_type, "foobar")
-                assert "asdf" not in headers
 
     @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):

@@ -61,12 +61,22 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     crawler.settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
                 )
 
-        if crawler.settings.get("PLAYWRIGHT_PROCESS_REQUEST_HEADERS"):
-            self.process_request_headers = load_object(
-                crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
-            )
-            if self.process_request_headers is use_playwright_headers:
-                self.process_request_headers = None
+        if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in crawler.settings:
+            if crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"] is None:
+                self.process_request_headers = None  # use headers from the Playwright request
+            else:
+                self.process_request_headers = load_object(
+                    crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
+                )
+                if self.process_request_headers is use_playwright_headers:
+                    warnings.warn(
+                        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
+                        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
+                        " instead.",
+                        category=ScrapyDeprecationWarning,
+                        stacklevel=1,
+                    )
+                    self.process_request_headers = None
         else:
             self.process_request_headers = use_scrapy_headers
 
