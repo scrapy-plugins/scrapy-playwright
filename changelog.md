@@ -1,5 +1,12 @@
 # scrapy-playwright changelog
 
+
+### [v0.0.16](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16) (2022-NN-NN)
+
+* Use new headers API introduced in Playwright 1.15 (bump required Playwright version)
+* Deprecate `scrapy_playwright.headers.use_playwright_headers`, set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
+
+
 ### [v0.0.15](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.15) (2022-05-08)
 
 * Remove deprecated `PLAYWRIGHT_CONTEXT_ARGS` setting

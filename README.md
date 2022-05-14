@@ -24,7 +24,7 @@ to integrate `asyncio`-based projects such as `Playwright`.
 
 * Python >= 3.7
 * Scrapy >= 2.0 (!= 2.4.0)
-* Playwright >= 1.8.0a1
+* Playwright >= 1.15
 
 
 ## Installation
@@ -97,12 +97,16 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
 
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
     A function (or the path to a function) that processes headers for a given request
     and returns a dictionary with the headers to be used (note that, depending on the browser,
-    additional default headers will be sent as well). Coroutine functions (`async def`) are
+    additional default headers could be sent as well). Coroutine functions (`async def`) are
     supported.
+
+    This will be called at least once for each Scrapy request (receiving said request and the
+    corresponding Playwright request), but it could be called additional times if the given
+    resource generates more requests (e.g. to retrieve assets like images or scripts).
 
     The function must return a `dict` object, and receives the following keyword arguments:
 
@@ -117,10 +121,11 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is another built-in function available: `scrapy_playwright.headers.use_playwright_headers`,
-    which will return the headers from the Playwright request unmodified.
-    When using this alternative, please keep in mind that headers passed via the `Request.headers`
-    attribute or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
+    Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control of the headers to
+    Playwright, i.e. headers from Scrapy requests will be ignored and only headers set by
+    Playwright will be sent.
+    When doing this, please keep in mind that headers passed via the `Request.headers` attribute
+    or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
     attribute).
 
 * `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
@@ -561,6 +566,12 @@ may be removed at any time. See the [changelog](changelog.md)
 for more information about deprecations and removals.
 
 ### Currently deprecated features
+
+* `scrapy_playwright.headers.use_playwright_headers` function
+
+    Deprecated since
+    [`v0.0.16`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16),
+    set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
 
 * `scrapy_playwright.page.PageCoroutine` class
 

@@ -28,7 +28,7 @@ from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
-from scrapy_playwright.headers import use_scrapy_headers
+from scrapy_playwright.headers import use_scrapy_headers, use_playwright_headers
 from scrapy_playwright.page import PageMethod
 
 
@@ -61,10 +61,22 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     crawler.settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
                 )
 
-        if crawler.settings.get("PLAYWRIGHT_PROCESS_REQUEST_HEADERS"):
-            self.process_request_headers = load_object(
-                crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
-            )
+        if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in crawler.settings:
+            if crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"] is None:
+                self.process_request_headers = None  # use headers from the Playwright request
+            else:
+                self.process_request_headers = load_object(
+                    crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
+                )
+                if self.process_request_headers is use_playwright_headers:
+                    warnings.warn(
+                        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
+                        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
+                        " instead.",
+                        category=ScrapyDeprecationWarning,
+                        stacklevel=1,
+                    )
+                    self.process_request_headers = None
         else:
             self.process_request_headers = use_scrapy_headers
 
@@ -233,7 +245,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         with suppress(AttributeError):
             request.meta["playwright_security_details"] = await response.security_details()
 
-        headers = Headers(response.headers)
+        headers = Headers(await response.all_headers())
         headers.pop("Content-Encoding", None)
         body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
@@ -317,15 +329,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.stats.inc_value("playwright/request_count/aborted")
                     return None
 
-            processed_headers = await _await_if_necessary(
-                self.process_request_headers(self.browser_type, playwright_request, scrapy_headers)
-            )
+            overrides: dict = {}
 
-            # the request that reaches the callback should contain the headers that were sent
-            scrapy_headers.clear()
-            scrapy_headers.update(processed_headers)
+            if self.process_request_headers is not None:
+                overrides["headers"] = await _await_if_necessary(
+                    self.process_request_headers(
+                        self.browser_type, playwright_request, scrapy_headers
+                    )
+                )
+                # the request that reaches the callback should contain the final headers
+                scrapy_headers.clear()
+                scrapy_headers.update(overrides["headers"])
 
-            overrides: dict = {"headers": processed_headers}
             if playwright_request.is_navigation_request():
                 overrides["method"] = method
                 if body is not None:
@@ -351,20 +366,22 @@ async def _await_if_necessary(obj):
 
 
 def _make_request_logger(context_name: str) -> Callable:
-    def _log_request(request: PlaywrightRequest) -> None:
+    async def _log_request(request: PlaywrightRequest) -> None:
+        referrer = await request.header_value("referer")
         logger.debug(
             f"[Context={context_name}] Request: <{request.method.upper()} {request.url}> "
-            f"(resource type: {request.resource_type}, referrer: {request.headers.get('referer')})"
+            f"(resource type: {request.resource_type}, referrer: {referrer})"
         )
 
     return _log_request
 
 
 def _make_response_logger(context_name: str) -> Callable:
-    def _log_request(response: PlaywrightResponse) -> None:
+    async def _log_request(response: PlaywrightResponse) -> None:
+        referrer = await response.header_value("referer")
         logger.debug(
             f"[Context={context_name}] Response: <{response.status} {response.url}> "
-            f"(referrer: {response.headers.get('referer')})"
+            f"(referrer: {referrer})"
         )
 
     return _log_request
