@@ -41,6 +41,10 @@ PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownload
 logger = logging.getLogger("scrapy-playwright")
 
 
+DEFAULT_CONTEXT_NAME = "default"
+PERSISTENT_CONTEXT_NAME = "persistent"
+
+
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
@@ -80,9 +84,22 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         else:
             self.process_request_headers = use_scrapy_headers
 
-        self.context_kwargs: dict = crawler.settings.getdict("PLAYWRIGHT_CONTEXTS")
+        # if PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS is present we only launch one context
         self.contexts: Dict[str, BrowserContext] = {}
+        self.persistent_context: bool = False
         self.context_semaphores: Dict[str, asyncio.Semaphore] = {}
+        self.context_kwargs: dict = {}
+        if crawler.settings.get("PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS"):
+            self.persistent_context = True
+            ctx_kwargs = crawler.settings.getdict("PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS")
+            self.context_kwargs[PERSISTENT_CONTEXT_NAME] = ctx_kwargs
+            if crawler.settings.getdict("PLAYWRIGHT_CONTEXTS"):
+                logger.info(
+                    "Both PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS and PLAYWRIGHT_CONTEXTS"
+                    " are set, ignoring PLAYWRIGHT_CONTEXTS"
+                )
+        else:
+            self.context_kwargs = crawler.settings.getdict("PLAYWRIGHT_CONTEXTS")
 
         self.abort_request: Optional[Callable[[PlaywrightRequest], Union[Awaitable, bool]]] = None
         if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
@@ -99,20 +116,32 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _launch_browser(self) -> None:
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
-        logger.info("Launching browser")
-        browser_launcher = getattr(self.playwright, self.browser_type).launch
-        self.browser = await browser_launcher(**self.launch_options)
-        logger.info(f"Browser {self.browser_type} launched")
-        contexts = await asyncio.gather(
-            *[
-                self._create_browser_context(name, kwargs)
-                for name, kwargs in self.context_kwargs.items()
-            ]
+        browser_type = getattr(self.playwright, self.browser_type)
+        if self.persistent_context:
+            logger.info("Launching single persistent context")
+            self.contexts[PERSISTENT_CONTEXT_NAME] = await browser_type.launch_persistent_context(
+                **self.context_kwargs[PERSISTENT_CONTEXT_NAME]
+            )
+            if self.default_navigation_timeout is not None:
+                self.contexts[PERSISTENT_CONTEXT_NAME].set_default_navigation_timeout(
+                    self.default_navigation_timeout
+                )
+            logger.info("Persistent context launched")
+        else:
+            logger.info(f"Launching browser {self.browser_type}")
+            self.browser = await browser_type.launch(**self.launch_options)
+            logger.info("Launching startup context(s)")
+            contexts = await asyncio.gather(
+                *[
+                    self._create_browser_context(name, kwargs)
+                    for name, kwargs in self.context_kwargs.items()
+                ]
+            )
+            self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
+        self.context_semaphores.update(
+            {name: asyncio.Semaphore(value=self.max_pages_per_context) for name in self.contexts}
         )
-        self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
-        self.context_semaphores = {
-            name: asyncio.Semaphore(value=self.max_pages_per_context) for name in self.contexts
-        }
+        logger.info(f"Browser {self.browser_type} launched")
 
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
         context = await self.browser.new_context(**context_kwargs)
@@ -125,7 +154,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _create_page(self, request: Request) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
-        context_name = request.meta.setdefault("playwright_context", "default")
+        if self.persistent_context:
+            context_name = request.meta["playwright_context"] = PERSISTENT_CONTEXT_NAME
+        else:
+            context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
+
         context = self.contexts.get(context_name)
         if context is None:
             context_kwargs = request.meta.get("playwright_context_kwargs") or {}
