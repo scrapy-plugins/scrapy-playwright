@@ -91,6 +91,14 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     this will be used by all requests which do not explicitly specify a context.
     See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
 
+* `PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS` (type `Optional[dict]`, default `None`)
+
+    A dictionary of keyword arguments to be passed to
+    [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context).
+    Use this setting to launch a **single** persistent context.
+    This setting takes precedence over `PLAYWRIGHT_CONTEXTS`,
+    i.e. `PLAYWRIGHT_CONTEXTS` is ignored if both are passed.
+
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,
@@ -257,6 +265,10 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
+
+**Note:** this section doesn not apply if using the
+`PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS` setting. In that case,
+only one context is used for all operations.
 
 ### Choosing a specific context for a request
 
