@@ -93,8 +93,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.persistent_context = True
             ctx_kwargs = crawler.settings.getdict("PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS")
             self.context_kwargs[PERSISTENT_CONTEXT_NAME] = ctx_kwargs
-            if crawler.settings.getdict("PLAYWRIGHT_CONTEXTS"):
-                logger.info(
+            if crawler.settings.get("PLAYWRIGHT_CONTEXTS"):
+                logger.warning(
                     "Both PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS and PLAYWRIGHT_CONTEXTS"
                     " are set, ignoring PLAYWRIGHT_CONTEXTS"
                 )

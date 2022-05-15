@@ -99,6 +99,15 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     This setting takes precedence over `PLAYWRIGHT_CONTEXTS`,
     i.e. `PLAYWRIGHT_CONTEXTS` is ignored if both are passed.
 
+    Example:
+    ```python
+    PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS = {
+        "user_data_dir": "/path/to/dir",  # mandatory
+        "java_script_enabled": False,
+        "headless": False,
+    }
+    ```
+
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
     The timeout used when requesting pages by Playwright. If `None` or unset,

@@ -1,8 +1,14 @@
 import asyncio
+import logging
 import platform
+import tempfile
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from scrapy import Spider, Request
+
+from scrapy_playwright.handler import PERSISTENT_CONTEXT_NAME
 
 from tests import make_handler
 from tests.mockserver import StaticMockServer
@@ -96,6 +102,44 @@ class MixinTestCaseMultipleContexts:
             assert cookie["name"] == "foo"
             assert cookie["value"] == "bar"
             assert cookie["domain"] == "example.org"
+
+    @pytest.mark.asyncio
+    async def test_persistent_context(self, caplog):
+        temp_dir = f"{tempfile.gettempdir()}/{uuid4()}"
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 3000,
+            "PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS": {
+                "user_data_dir": temp_dir,
+            },
+            "PLAYWRIGHT_CONTEXTS": {
+                "foo": {},
+            },
+        }
+        assert not Path(temp_dir).exists()
+        async with make_handler(settings) as handler:
+            assert handler.persistent_context
+            assert Path(temp_dir).is_dir()
+            assert PERSISTENT_CONTEXT_NAME in handler.contexts
+            assert len(handler.contexts) == 1
+            assert len(handler.context_semaphores) == 1
+            assert getattr(handler, "browser", None) is None
+
+            with StaticMockServer() as server:
+                meta = {
+                    "playwright": True,
+                    "playwright_context": "will-be-ignored",
+                }
+                req = Request(server.urljoin("/index.html"), meta=meta)
+                resp = await handler._download_request(req, Spider("foo"))
+                assert resp.meta["playwright_context"] == PERSISTENT_CONTEXT_NAME
+
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    "Both PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS and PLAYWRIGHT_CONTEXTS"
+                    " are set, ignoring PLAYWRIGHT_CONTEXTS",
+                ) in caplog.record_tuples
 
     @pytest.mark.asyncio
     async def test_contexts_dynamic(self):
