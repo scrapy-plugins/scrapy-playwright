@@ -83,7 +83,6 @@ class MixinTestCaseMultipleContexts:
         }
         async with make_handler(settings) as handler:
             assert len(handler.contexts) == 1
-            assert len(handler.context_semaphores) == 1
 
             with StaticMockServer() as server:
                 meta = {
@@ -122,7 +121,6 @@ class MixinTestCaseMultipleContexts:
             assert Path(temp_dir).is_dir()
             assert PERSISTENT_CONTEXT_NAME in handler.contexts
             assert len(handler.contexts) == 1
-            assert len(handler.context_semaphores) == 1
             assert getattr(handler, "browser", None) is None
 
             with StaticMockServer() as server:
@@ -145,7 +143,6 @@ class MixinTestCaseMultipleContexts:
     async def test_contexts_dynamic(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             assert len(handler.contexts) == 0
-            assert len(handler.context_semaphores) == 0
 
             with StaticMockServer() as server:
                 meta = {
@@ -168,7 +165,6 @@ class MixinTestCaseMultipleContexts:
                 resp = await handler._download_request(req, Spider("foo"))
 
             assert len(handler.contexts) == 1
-            assert len(handler.context_semaphores) == 1
 
             page = resp.meta["playwright_page"]
             storage_state = await page.context.storage_state()
