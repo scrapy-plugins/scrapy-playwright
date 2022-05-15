@@ -548,11 +548,14 @@ For more examples, please see the scripts in the [examples](examples) directory.
 
 ## Known limitations
 
-* This package does not work natively on Windows. See
-  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121)
-  for more infomation. Additionally, please see
-  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494)
-  for a possible workaround.
+* This package does not work out-of-the-box on Windows. See
+  [#7](https://github.com/scrapy-plugins/scrapy-playwright/issues/7)
+  (specifically [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121))
+  for an explanation. Note that it seems to be possible to
+  [run under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
+
+  See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
+  for information about working in headful mode under WSL.
 
 * Specifying a proxy via the `proxy` Request meta key is not supported.
   Refer to the [Proxy support](#proxy-support) section for more information.
