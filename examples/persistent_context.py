@@ -13,7 +13,6 @@ class PersistentContextSpider(Spider):
             "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
             # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
         },
-        ""
         "PLAYWRIGHT_CONTEXTS": {
             "foobar": {
                 "user_data_dir": str(Path.home() / "playwright-persistent-context"),

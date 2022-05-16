@@ -66,7 +66,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         self.browser_launch_lock = asyncio.Lock()
         self.context_launch_lock = asyncio.Lock()
-        self.browser: Optional[Browser] = None
         self.browser_type_name = settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE
         self.max_pages_per_context: int = settings.getint(
             "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"
@@ -83,7 +82,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         # header-related settings
         if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in settings:
             if settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"] is None:
-                self.process_request_headers = None  # use headers from the Playwright request
+                self.process_request_headers = None
             else:
                 self.process_request_headers = load_object(
                     settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
@@ -118,25 +117,27 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
+        logger.info("Starting download handler")
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
         self.browser_type: BrowserType = getattr(self.playwright, self.browser_type_name)
-        logger.info("Launching startup context(s)")
-        contexts = await asyncio.gather(
-            *[
-                self._create_browser_context(name=name, context_kwargs=kwargs)
-                for name, kwargs in self.context_kwargs.items()
-            ]
-        )
-        self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
-        logger.info("Startup context(s) launched")
-        self.stats.set_value("playwright/page_count", self._get_total_page_count())
+        if self.context_kwargs:
+            logger.info(f"Launching {len(self.context_kwargs)} startup context(s)")
+            contexts = await asyncio.gather(
+                *[
+                    self._create_browser_context(name=name, context_kwargs=kwargs)
+                    for name, kwargs in self.context_kwargs.items()
+                ]
+            )
+            self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
+            logger.info("Startup context(s) launched")
+            self.stats.set_value("playwright/page_count", self._get_total_page_count())
 
     async def _maybe_launch_browser(self) -> None:
         async with self.browser_launch_lock:
-            if self.browser is None:
+            if not hasattr(self, "browser"):
                 logger.info(f"Launching browser {self.browser_type.name}")
-                self.browser = await self.browser_type.launch(**self.launch_options)
+                self.browser: Browser = await self.browser_type.launch(**self.launch_options)
                 logger.info(f"Browser {self.browser_type.name} launched")
 
     async def _create_browser_context(
@@ -150,7 +151,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.stats.inc_value("playwright/context_count/persistent")
         else:
             await self._maybe_launch_browser()
-            assert self.browser  # nosec[assert_used] (typing)
             context = await self.browser.new_context(**context_kwargs)
             persistent = False
             self.stats.inc_value("playwright/context_count/non-persistent")
@@ -210,13 +210,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     @inlineCallbacks
     def close(self) -> Deferred:
+        logger.info("Closing download handler")
         yield super().close()
         yield deferred_from_coro(self._close())
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.contexts.values()])
         self.contexts.clear()
-        if self.browser is not None:
+        if hasattr(self, "browser"):
             logger.info("Closing browser")
             await self.browser.close()
         await self.playwright_context_manager.__aexit__()

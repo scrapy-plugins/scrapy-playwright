@@ -123,7 +123,7 @@ class MixinTestCaseMultipleContexts:
             assert len(handler.contexts) == 2
             assert handler.contexts["foo"].persistent
             assert handler.contexts["bar"].persistent
-            assert handler.browser is None
+            assert not hasattr(handler, "browser")
 
     @pytest.mark.asyncio
     async def test_contexts_dynamic(self):
