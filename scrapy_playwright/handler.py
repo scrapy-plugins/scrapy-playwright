@@ -281,7 +281,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 except AttributeError:
                     logger.warning(f"Ignoring {repr(pm)}: could not find method")
                 else:
-                    pm.result = await _await_if_necessary(method(*pm.args, **pm.kwargs))
+                    pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
                     await page.wait_for_load_state(timeout=self.default_navigation_timeout)
             else:
                 logger.warning(f"Ignoring {repr(pm)}: expected PageMethod, got {repr(type(pm))}")
@@ -323,7 +323,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
             if self.abort_request:
-                should_abort = await _await_if_necessary(self.abort_request(playwright_request))
+                should_abort = await _maybe_await(self.abort_request(playwright_request))
                 if should_abort:
                     await route.abort()
                     self.stats.inc_value("playwright/request_count/aborted")
@@ -332,7 +332,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             overrides: dict = {}
 
             if self.process_request_headers is not None:
-                overrides["headers"] = await _await_if_necessary(
+                overrides["headers"] = await _maybe_await(
                     self.process_request_headers(
                         self.browser_type, playwright_request, scrapy_headers
                     )
@@ -359,7 +359,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return _request_handler
 
 
-async def _await_if_necessary(obj):
+async def _maybe_await(obj):
     if isinstance(obj, Awaitable):
         return await obj
     return obj
