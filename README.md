@@ -265,10 +265,6 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
 
-**Note:** this section doesn not apply if using the
-`PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS` setting. In that case,
-only one context is used for all operations.
-
 ### Choosing a specific context for a request
 
 Pass the name of the desired context in the `playwright_context` meta key:
