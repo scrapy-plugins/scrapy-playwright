@@ -8,6 +8,7 @@ from time import time
 from typing import Awaitable, Callable, Dict, Generator, Optional, Tuple, Type, TypeVar, Union
 
 from playwright.async_api import (
+    Browser,
     BrowserContext,
     BrowserType,
     Page,
@@ -45,13 +46,14 @@ logger = logging.getLogger("scrapy-playwright")
 
 DEFAULT_BROWSER_TYPE = "chromium"
 DEFAULT_CONTEXT_NAME = "default"
-PERSISTENT_CONTEXT_NAME = "persistent"
+PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
 
 
 @dataclass
 class BrowserContextWrapper:
     context: BrowserContext
     semaphore: asyncio.Semaphore
+    persistent: bool
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -62,6 +64,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
 
+        self.browser_launch_lock = asyncio.Lock()
+        self.context_launch_lock = asyncio.Lock()
+        self.browser: Optional[Browser] = None
         self.browser_type_name = settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE
         self.max_pages_per_context: int = settings.getint(
             "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"
@@ -97,19 +102,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         # context-related settings
         self.contexts: Dict[str, BrowserContextWrapper] = {}
-        self.persistent_context: bool = False
-        self.context_kwargs: dict = {}
-        if settings.get("PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS"):
-            self.persistent_context = True
-            ctx_kwargs = settings.getdict("PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS")
-            self.context_kwargs[PERSISTENT_CONTEXT_NAME] = ctx_kwargs
-            if settings.get("PLAYWRIGHT_CONTEXTS"):
-                logger.warning(
-                    "Both PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS and PLAYWRIGHT_CONTEXTS"
-                    " are set, ignoring PLAYWRIGHT_CONTEXTS"
-                )
-        else:
-            self.context_kwargs = settings.getdict("PLAYWRIGHT_CONTEXTS")
+        self.context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
 
         self.abort_request: Optional[Callable[[PlaywrightRequest], Union[Awaitable, bool]]] = None
         if settings.get("PLAYWRIGHT_ABORT_REQUEST"):
@@ -124,65 +117,63 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return deferred_from_coro(self._launch())
 
     async def _launch(self) -> None:
-        """Start a browser instance and configured contexts.
-        Start only one persistent context if PLAYWRIGHT_PERSISTENT_CONTEXT_KWARGS was set.
-        """
-        logger.info(f"Launching browser {self.browser_type_name}")
+        """Launch Playwright manager and configured startup context(s)."""
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
         self.browser_type: BrowserType = getattr(self.playwright, self.browser_type_name)
-        if self.persistent_context:
-            logger.info("Launching single persistent context")
-            self.contexts[PERSISTENT_CONTEXT_NAME] = await self._create_browser_context(
-                name=PERSISTENT_CONTEXT_NAME,
-                context_kwargs=self.context_kwargs[PERSISTENT_CONTEXT_NAME],
-                persistent=True,
-            )
-            logger.info("Persistent context launched")
-        else:
-            self.browser = await self.browser_type.launch(**self.launch_options)
-            logger.info("Launching startup context(s)")
-            contexts = await asyncio.gather(
-                *[
-                    self._create_browser_context(name=name, context_kwargs=kwargs)
-                    for name, kwargs in self.context_kwargs.items()
-                ]
-            )
-            self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
-            logger.info("Startup context(s) launched")
-        logger.info(f"Browser {self.browser_type_name} launched")
+        logger.info("Launching startup context(s)")
+        contexts = await asyncio.gather(
+            *[
+                self._create_browser_context(name=name, context_kwargs=kwargs)
+                for name, kwargs in self.context_kwargs.items()
+            ]
+        )
+        self.contexts = dict(zip(self.context_kwargs.keys(), contexts))
+        logger.info("Startup context(s) launched")
         self.stats.set_value("playwright/page_count", self._get_total_page_count())
 
+    async def _maybe_launch_browser(self) -> None:
+        async with self.browser_launch_lock:
+            if self.browser is None:
+                logger.info(f"Launching browser {self.browser_type.name}")
+                self.browser = await self.browser_type.launch(**self.launch_options)
+                logger.info(f"Browser {self.browser_type.name} launched")
+
     async def _create_browser_context(
-        self, name: str, context_kwargs: dict, persistent: bool = False
+        self, name: str, context_kwargs: Optional[dict]
     ) -> BrowserContextWrapper:
-        if persistent:
+        """Create a new context, also launching a browser if necessary."""
+        context_kwargs = context_kwargs or {}
+        if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
             context = await self.browser_type.launch_persistent_context(**context_kwargs)
+            persistent = True
         else:
+            await self._maybe_launch_browser()
+            assert self.browser  # nosec[assert_used] (typing)
             context = await self.browser.new_context(**context_kwargs)
-        context.on("close", self._make_close_browser_context_callback(name))
-        logger.debug("Browser context started: '%s'", name)
+            persistent = False
+        context.on("close", self._make_close_browser_context_callback(name, persistent))
+        logger.debug(f"Browser context started: '{name}' (persistent={persistent})")
         self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout is not None:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         return BrowserContextWrapper(
             context=context,
             semaphore=asyncio.Semaphore(value=self.max_pages_per_context),
+            persistent=persistent,
         )
 
     async def _create_page(self, request: Request) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
-        if self.persistent_context:
-            context_name = request.meta["playwright_context"] = PERSISTENT_CONTEXT_NAME
-        else:
-            context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
-
-        context = self.contexts.get(context_name)
-        if context is None:
-            context_kwargs = request.meta.get("playwright_context_kwargs") or {}
-            context = self.contexts[context_name] = await self._create_browser_context(
-                name=context_name, context_kwargs=context_kwargs, persistent=False
-            )
+        context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
+        # this block needs to be locked because several attempts to launch a context
+        # with the same name could happen at the same time from different requests
+        async with self.context_launch_lock:
+            context = self.contexts.get(context_name)
+            if context is None:
+                context = self.contexts[context_name] = await self._create_browser_context(
+                    name=context_name, context_kwargs=request.meta.get("playwright_context_kwargs")
+                )
 
         await context.semaphore.acquire()
         page = await context.context.new_page()
@@ -223,7 +214,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.contexts.values()])
         self.contexts.clear()
-        if getattr(self, "browser", None):
+        if self.browser is not None:
             logger.info("Closing browser")
             await self.browser.close()
         await self.playwright_context_manager.__aexit__()
@@ -359,9 +350,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         return close_page_callback
 
-    def _make_close_browser_context_callback(self, name: str) -> Callable:
+    def _make_close_browser_context_callback(self, name: str, persistent: bool) -> Callable:
         def close_browser_context_callback() -> None:
-            logger.debug("Browser context closed: '%s'", name)
+            logger.debug(f"Browser context closed: '{name}' (persistent={persistent})")
             if name in self.contexts:
                 self.contexts.pop(name)
 
