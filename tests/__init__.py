@@ -11,7 +11,7 @@ async def make_handler(settings_dict: dict):
     crawler = get_crawler(settings_dict=settings_dict)
     handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
     try:
-        await handler._launch_browser()
+        await handler._launch()
     except:  # noqa (E722), pylint: disable=bare-except
         pass
     else:

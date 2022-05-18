@@ -78,18 +78,25 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     It should be a mapping of (name, keyword arguments). For instance:
     ```python
     {
-        "first": {
+        "foobar": {
             "context_arg1": "value",
             "context_arg2": "value",
         },
-        "second": {
+        "default": {
+            "context_arg1": "value",
+            "context_arg2": "value",
+        },
+        "persistent": {
+            "user_data_dir": "/path/to/dir",  # will be a persistent context
             "context_arg1": "value",
         },
     }
     ```
-    A default context (called `default`) is created if no contexts are defined,
-    this will be used by all requests which do not explicitly specify a context.
-    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+
+    See the section on [Multiple browser contexts](#multiple-browser-contexts)
+    for more information.
+
+    See also the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
@@ -268,6 +275,17 @@ yield scrapy.Request(
     meta={"playwright": True, "playwright_context": "first"},
 )
 ```
+
+### Default context
+
+If a request does not explicitly indicate a context via the `playwright_context`
+meta key, it falls back to using a general context called `default`. This `default`
+context can also be customized on startup via the `PLAYWRIGHT_CONTEXTS` setting.
+
+### Persistent contexts
+
+Pass a value for the `user_data_dir` keyword argument to launch a context as
+**persistent** (see [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)).
 
 ### Creating a context during a crawl
 
