@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from scrapy import Spider, Request
 
 
@@ -17,7 +19,7 @@ class MultipleContextsSpider(Spider):
                 "storage_state": {
                     "cookies": [
                         {
-                            "url": "https://httpbin.org/headers",
+                            "url": "https://example.org",
                             "name": "context",
                             "value": "first",
                         },
@@ -28,39 +30,35 @@ class MultipleContextsSpider(Spider):
                 "storage_state": {
                     "cookies": [
                         {
-                            "url": "https://httpbin.org/headers",
+                            "url": "https://example.org",
                             "name": "context",
                             "value": "second",
                         },
                     ],
                 },
             },
+            "persistent": {
+                "user_data_dir": str(Path.home() / "playwright-persistent-context"),
+                "java_script_enabled": False,
+            },
         },
     }
 
     def start_requests(self):
         # using existing contexts
-        yield Request(
-            url="https://httpbin.org/headers",
-            meta={
-                "playwright": True,
-                "playwright_context": "first",
-                "playwright_include_page": True,
-            },
-            dont_filter=True,
-        )
-        yield Request(
-            url="https://httpbin.org/headers",
-            meta={
-                "playwright": True,
-                "playwright_context": "second",
-                "playwright_include_page": True,
-            },
-            dont_filter=True,
-        )
+        for ctx_name in self.custom_settings["PLAYWRIGHT_CONTEXTS"].keys():
+            yield Request(
+                url="https://example.org",
+                meta={
+                    "playwright": True,
+                    "playwright_context": ctx_name,
+                    "playwright_include_page": True,
+                },
+                dont_filter=True,
+            )
         # create a new context
         yield Request(
-            url="https://httpbin.org/headers",
+            url="https://example.org",
             meta={
                 "playwright": True,
                 "playwright_context": "third",
@@ -68,7 +66,7 @@ class MultipleContextsSpider(Spider):
                     "storage_state": {
                         "cookies": [
                             {
-                                "url": "https://httpbin.org/headers",
+                                "url": "https://example.org",
                                 "name": "context",
                                 "value": "third",
                             },
@@ -81,7 +79,7 @@ class MultipleContextsSpider(Spider):
         )
         # default context
         yield Request(
-            url="https://httpbin.org/headers",
+            url="https://example.org",
             meta={"playwright": True, "playwright_include_page": True},
             dont_filter=True,
         )
