@@ -209,28 +209,6 @@ class MixinTestCase:
                 await req_handler(route, playwright_request)
 
     @pytest.mark.asyncio
-    async def test_context_kwargs(self):
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_CONTEXTS": {
-                "default": {"java_script_enabled": False},
-            },
-        }
-        async with make_handler(settings_dict) as handler:
-            with StaticMockServer() as server:
-                req = Request(
-                    url=server.urljoin("/scroll.html"),
-                    meta={
-                        "playwright": True,
-                        "playwright_page_methods": [
-                            PageMethod("wait_for_selector", selector="div.quote", timeout=1000),
-                        ],
-                    },
-                )
-                with pytest.raises(PlaywrightTimeoutError):
-                    await handler._download_request(req, Spider("foo"))
-
-    @pytest.mark.asyncio
     async def test_page_method_screenshot(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with NamedTemporaryFile(mode="w+b") as png_file:

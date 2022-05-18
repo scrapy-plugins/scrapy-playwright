@@ -18,7 +18,9 @@
 
 ### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
 
-* Renamed `PageCoroutine` to `PageMethod` (`PageCoroutine` is now deprecated)
+* Renamed `scrapy_playwright.page.PageCoroutine` to `scrapy_playwright.page.PageMethod`
+  (`PageCoroutine` is now deprecated). Also deprecated the `playwright_page_coroutines`
+  Request meta key in favor of `playwright_page_methods`.
 
 
 ### [v0.0.13](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13) (2022-03-24)

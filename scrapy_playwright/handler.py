@@ -77,8 +77,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.context_launch_lock = asyncio.Lock()
         self.contexts: Dict[str, BrowserContextWrapper] = {}
         self.context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
-        max_contexts: int = settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or DEFAULT_MAX_CONTEXTS
-        self.context_semaphore = asyncio.Semaphore(value=max_contexts)
+        self.context_semaphore = asyncio.Semaphore(
+            value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or DEFAULT_MAX_CONTEXTS
+        )
 
         self.default_navigation_timeout: Optional[float] = None
         if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
