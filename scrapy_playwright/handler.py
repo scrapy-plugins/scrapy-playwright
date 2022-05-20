@@ -76,7 +76,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.context_launch_lock = asyncio.Lock()
         self.contexts: Dict[str, BrowserContextWrapper] = {}
         self.context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
-        if "PLAYWRIGHT_MAX_CONTEXTS" in settings:
+        if settings.getint("PLAYWRIGHT_MAX_CONTEXTS"):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
             )
