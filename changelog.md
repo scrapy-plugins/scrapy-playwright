@@ -1,6 +1,12 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.17](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.17) (2022-05-22)
+
+* Support for persistent contexts
+* Limit concurrent context count (`PLAYWRIGHT_MAX_CONTEXTS` setting)
+
+
 ### [v0.0.16](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16) (2022-05-14)
 
 * Use new headers API introduced in Playwright 1.15 (bump required Playwright version)
