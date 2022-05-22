@@ -581,14 +581,25 @@ class ScrollSpider(scrapy.Spider):
 For more examples, please see the scripts in the [examples](examples) directory.
 
 
-## Known limitations
+## Known issues
 
-* This package does not work out-of-the-box on Windows. See
-  [#7](https://github.com/scrapy-plugins/scrapy-playwright/issues/7)
-  (specifically [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121))
-  for an explanation. Note that it seems to be possible to
-  [run under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
+* `scrapy-playwright` does not work out-of-the-box on Windows. From the
+  [playwright docs](https://playwright.dev/python/docs/intro#incompatible-with-selectoreventloop-of-asyncio-on-windows):
 
+  > Playwright runs the driver in a subprocess, so it requires
+  > ProactorEventLoop of asyncio on Windows because SelectorEventLoop
+  > does not supports async subprocesses.
+
+  Also, from the [Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess):
+
+  > On Windows, the default event loop ProactorEventLoop supports subprocesses,
+  > whereas SelectorEventLoop does not.
+
+  However, Twisted's `asyncio` reactor runs on top of `SelectorEventLoop`
+  ([source](https://github.com/twisted/twisted/blob/twisted-22.4.0/src/twisted/internet/asyncioreactor.py#L31)).
+
+  Some users have reported having success
+  [running under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
   See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
   for information about working in headful mode under WSL.
 
