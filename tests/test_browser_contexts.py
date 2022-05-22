@@ -15,7 +15,7 @@ from tests.mockserver import StaticMockServer
 
 class MixinTestCaseMultipleContexts:
     @pytest.mark.asyncio
-    async def test_contexts_max_pages_setting(self):
+    async def test_contexts_max_settings(self):
         settings = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
             "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1234,
@@ -26,6 +26,14 @@ class MixinTestCaseMultipleContexts:
         settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "CONCURRENT_REQUESTS": 9876}
         async with make_handler(settings) as handler:
             assert handler.max_pages_per_context == 9876
+
+        settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "PLAYWRIGHT_MAX_CONTEXTS": None}
+        async with make_handler(settings) as handler:
+            assert not hasattr(handler, "context_semaphore")
+
+        settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "PLAYWRIGHT_MAX_CONTEXTS": 1234}
+        async with make_handler(settings) as handler:
+            assert handler.context_semaphore._value == 1234
 
     @pytest.mark.asyncio
     async def test_context_kwargs(self):
@@ -83,6 +91,41 @@ class MixinTestCaseMultipleContexts:
                 await asyncio.gather(*requests)
 
             assert handler.stats.get_value("playwright/page_count/max_concurrent") == 4
+
+    @pytest.mark.asyncio
+    async def test_max_contexts(self):
+        def cb_close_context(task):
+            response = task.result()
+            asyncio.create_task(response.meta["playwright_page"].context.close())
+
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_MAX_CONTEXTS": 4,
+        }
+        async with make_handler(settings) as handler:
+            with StaticMockServer() as server:
+                tasks = []
+                for i in range(20):
+                    request = Request(
+                        url=server.urljoin(f"/index.html?a={i}"),
+                        callback=cb_close_context,
+                        meta={
+                            "playwright": True,
+                            "playwright_include_page": True,
+                            "playwright_context": f"ctx-{i}",
+                        },
+                    )
+                    coro = handler._download_request(
+                        request=request,
+                        spider=Spider("foo"),
+                    )
+                    # callbacks are not invoked at the download handler, call them explicitly
+                    task = asyncio.create_task(coro)
+                    task.add_done_callback(request.callback)
+                    tasks.append(task)
+                await asyncio.gather(*tasks)
+
+            assert handler.stats.get_value("playwright/context_count/max_concurrent") == 4
 
     @pytest.mark.asyncio
     async def test_contexts_startup(self):

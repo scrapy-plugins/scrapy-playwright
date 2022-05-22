@@ -60,9 +60,7 @@ Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scra
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-## Settings
-
-`scrapy-playwright` accepts the following settings:
+## Supported settings
 
 * `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
     The browser type to be launched, e.g. `chromium`, `firefox`, `webkit`.
@@ -93,10 +91,15 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     }
     ```
 
-    See the section on [Multiple browser contexts](#multiple-browser-contexts)
-    for more information.
+    See the section on [browser contexts](#browser-contexts) for more information.
 
     See also the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+
+* `PLAYWRIGHT_MAX_CONTEXTS` (type `Optional[int]`, default `None`)
+
+    Maximum amount of allowed concurrent Playwright contexts. If unset or `None`,
+    no limit is enforced. See the [Maximum concurrent context count](#maximum-concurrent-context-count)
+    section for more information.
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
@@ -260,7 +263,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
 
-## Multiple browser contexts
+## Browser contexts
 
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
@@ -327,6 +330,7 @@ def parse(self, response):
     yield scrapy.Request(
         url="https://example.org",
         callback=self.parse_in_new_context,
+        errback=self.close_context_on_error,
         meta={"playwright": True, "playwright_context": "new", "playwright_include_page": True},
     )
 
@@ -336,7 +340,20 @@ async def parse_in_new_context(self, response):
     await page.context.close()  # close the context
     await page.close()
     return {"title": title}
+
+async def close_context_on_error(self, failure):
+    page = failure.request.meta["playwright_page"]
+    await page.context.close()
 ```
+
+### Maximum concurrent context count
+
+Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
+of concurent contexts. This setting should be used with caution: it's possible
+to block the whole crawl if contexts are not closed after they are no longer
+used (refer to the above section to dinamically close contexts). Make sure to
+define an errback to still be able to close the context even if there are
+errors with a request.
 
 
 ## Proxy support
