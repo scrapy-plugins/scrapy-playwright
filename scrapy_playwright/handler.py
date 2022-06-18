@@ -390,15 +390,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             overrides: dict = {}
 
-            if self.process_request_headers is not None:
-                overrides["headers"] = await _maybe_await(
+            if self.process_request_headers is None:
+                final_headers = await playwright_request.all_headers()
+            else:
+                overrides["headers"] = final_headers = await _maybe_await(
                     self.process_request_headers(
                         self.browser_type_name, playwright_request, scrapy_headers
                     )
                 )
-                # the request that reaches the callback should contain the final headers
-                scrapy_headers.clear()
-                scrapy_headers.update(overrides["headers"])
+            # the request that reaches the callback should contain the final headers
+            scrapy_headers.clear()
+            scrapy_headers.update(final_headers)
+            del final_headers
 
             if playwright_request.is_navigation_request():
                 overrides["method"] = method
