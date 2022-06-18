@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.18](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.18) (2022-06-18)
+
+* Always override request headers
+
+
 ### [v0.0.17](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.17) (2022-05-22)
 
 * Support for persistent contexts
