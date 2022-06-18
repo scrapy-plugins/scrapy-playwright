@@ -82,7 +82,10 @@ class MixinProcessHeadersTestCase:
                 headers = json.loads(resp.css("pre::text").get())
                 headers = {key.lower(): value for key, value in headers.items()}
                 assert headers["user-agent"] == self.browser_type
+                assert req.headers["user-agent"].decode("utf-8") == self.browser_type
                 assert "asdf" not in headers
+                assert "asdf" not in req.headers
+                assert b"asdf" not in req.headers
 
     @pytest.mark.asyncio
     async def test_use_playwright_headers_deprecated(self):
