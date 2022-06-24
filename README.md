@@ -439,7 +439,7 @@ def start_requests(self):
         meta={
             "playwright": True,
             "playwright_page_methods": [
-                PageMethod("screenshot", path="example.png", fullPage=True),
+                PageMethod("screenshot", path="example.png", full_page=True),
             ],
         },
     )
@@ -572,7 +572,7 @@ class ScrollSpider(scrapy.Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        await page.screenshot(path="quotes.png", fullPage=True)
+        await page.screenshot(path="quotes.png", full_page=True)
         await page.close()
         return {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
 ```
