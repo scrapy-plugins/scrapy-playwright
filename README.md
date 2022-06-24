@@ -141,7 +141,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 * `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
 
     Maximum amount of allowed concurrent Playwright pages for each context.
-    See the [notes about leaving unclosed pages](#receiving-the-page-object-in-the-callback).
+    See the [notes about leaving unclosed pages](#receiving-page-objects-in-callbacks).
 
 * `PLAYWRIGHT_ABORT_REQUEST` (type `Optional[Union[Callable, str]]`, default `None`)
 
