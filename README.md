@@ -225,6 +225,13 @@ being available in the `playwright_page` meta key in the request callback.
 In order to be able to `await` coroutines on the provided `Page` object,
 the callback needs to be defined as a coroutine function (`async def`).
 
+**Caution**
+
+Use this carefully, and only if you really need to do things with the Page
+object in the callback. If pages are not properly closed after they are no longer
+necessary the spider job could get stuck because of the limit set by the
+`PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` setting.
+
 ```python
 import scrapy
 
@@ -255,7 +262,8 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   by awaiting the `Page.close` coroutine.
 * Be careful about leaving pages unclosed, as they count towards the limit set by
   `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. When passing `playwright_include_page=True`,
-  it's recommended to set a Request errback to make sure pages are closed even
+  make sure you always close pages in callbacks, as said in the previous point.
+  It's also recommended to set a Request errback to make sure pages are closed even
   if a request fails (if `playwright_include_page=False` or unset, pages are
   automatically closed upon encountering an exception).
 * Any network operations resulting from awaiting a coroutine on a `Page` object
