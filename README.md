@@ -414,8 +414,12 @@ PLAYWRIGHT_CONTEXTS = {
 
 Or passing a `proxy` key when [creating a context during a crawl](#creating-a-context-during-a-crawl).
 
-See also the [upstream Playwright section](https://playwright.dev/python/docs/network#http-proxy)
-on HTTP Proxies.
+See also:
+* [`zyte-smartproxy-playwright`](https://github.com/zytedata/zyte-smartproxy-playwright):
+  seamless support for [Zyte Smart Proxy Manager](https://www.zyte.com/smart-proxy-manager/)
+  in the Node.js version of Playwright.
+* the [upstream Playwright for Python section](https://playwright.dev/python/docs/network#http-proxy)
+  on HTTP Proxies.
 
 
 ## Executing actions on pages
