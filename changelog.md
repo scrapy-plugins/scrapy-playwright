@@ -1,5 +1,23 @@
 # scrapy-playwright changelog
 
+
+### [v0.0.18](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.18) (2022-06-18)
+
+* Always override request headers
+
+
+### [v0.0.17](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.17) (2022-05-22)
+
+* Support for persistent contexts
+* Limit concurrent context count (`PLAYWRIGHT_MAX_CONTEXTS` setting)
+
+
+### [v0.0.16](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16) (2022-05-14)
+
+* Use new headers API introduced in Playwright 1.15 (bump required Playwright version)
+* Deprecate `scrapy_playwright.headers.use_playwright_headers`, set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
+
+
 ### [v0.0.15](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.15) (2022-05-08)
 
 * Remove deprecated `PLAYWRIGHT_CONTEXT_ARGS` setting
@@ -11,7 +29,9 @@
 
 ### [v0.0.14](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14) (2022-03-26)
 
-* Renamed `PageCoroutine` to `PageMethod` (`PageCoroutine` is now deprecated)
+* Renamed `scrapy_playwright.page.PageCoroutine` to `scrapy_playwright.page.PageMethod`
+  (`PageCoroutine` is now deprecated). Also deprecated the `playwright_page_coroutines`
+  Request meta key in favor of `playwright_page_methods`.
 
 
 ### [v0.0.13](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.13) (2022-03-24)

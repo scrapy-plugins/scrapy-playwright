@@ -24,7 +24,7 @@ to integrate `asyncio`-based projects such as `Playwright`.
 
 * Python >= 3.7
 * Scrapy >= 2.0 (!= 2.4.0)
-* Playwright >= 1.8.0a1
+* Playwright >= 1.15
 
 
 ## Installation
@@ -60,9 +60,7 @@ Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scra
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-## Settings
-
-`scrapy-playwright` accepts the following settings:
+## Supported settings
 
 * `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
     The browser type to be launched, e.g. `chromium`, `firefox`, `webkit`.
@@ -78,18 +76,30 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     It should be a mapping of (name, keyword arguments). For instance:
     ```python
     {
-        "first": {
+        "foobar": {
             "context_arg1": "value",
             "context_arg2": "value",
         },
-        "second": {
+        "default": {
+            "context_arg1": "value",
+            "context_arg2": "value",
+        },
+        "persistent": {
+            "user_data_dir": "/path/to/dir",  # will be a persistent context
             "context_arg1": "value",
         },
     }
     ```
-    A default context (called `default`) is created if no contexts are defined,
-    this will be used by all requests which do not explicitly specify a context.
-    See the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+
+    See the section on [browser contexts](#browser-contexts) for more information.
+
+    See also the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+
+* `PLAYWRIGHT_MAX_CONTEXTS` (type `Optional[int]`, default `None`)
+
+    Maximum amount of allowed concurrent Playwright contexts. If unset or `None`,
+    no limit is enforced. See the [Maximum concurrent context count](#maximum-concurrent-context-count)
+    section for more information.
 
 * `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
 
@@ -97,12 +107,16 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     the default value will be used (30000 ms at the time of writing this).
     See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
 
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Union[Callable, str]`, default `scrapy_playwright.headers.use_scrapy_headers`)
+* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`)
 
     A function (or the path to a function) that processes headers for a given request
     and returns a dictionary with the headers to be used (note that, depending on the browser,
-    additional default headers will be sent as well). Coroutine functions (`async def`) are
+    additional default headers could be sent as well). Coroutine functions (`async def`) are
     supported.
+
+    This will be called at least once for each Scrapy request (receiving said request and the
+    corresponding Playwright request), but it could be called additional times if the given
+    resource generates more requests (e.g. to retrieve assets like images or scripts).
 
     The function must return a `dict` object, and receives the following keyword arguments:
 
@@ -117,16 +131,17 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
     is overriden, for consistency.
 
-    There is another built-in function available: `scrapy_playwright.headers.use_playwright_headers`,
-    which will return the headers from the Playwright request unmodified.
-    When using this alternative, please keep in mind that headers passed via the `Request.headers`
-    attribute or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
+    Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control of the headers to
+    Playwright, i.e. headers from Scrapy requests will be ignored and only headers set by
+    Playwright will be sent.
+    When doing this, please keep in mind that headers passed via the `Request.headers` attribute
+    or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
     attribute).
 
 * `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
 
     Maximum amount of allowed concurrent Playwright pages for each context.
-    See the [notes about leaving unclosed pages](#receiving-the-page-object-in-the-callback).
+    See the [notes about leaving unclosed pages](#receiving-page-objects-in-callbacks).
 
 * `PLAYWRIGHT_ABORT_REQUEST` (type `Optional[Union[Callable, str]]`, default `None`)
 
@@ -210,6 +225,13 @@ being available in the `playwright_page` meta key in the request callback.
 In order to be able to `await` coroutines on the provided `Page` object,
 the callback needs to be defined as a coroutine function (`async def`).
 
+**Caution**
+
+Use this carefully, and only if you really need to do things with the Page
+object in the callback. If pages are not properly closed after they are no longer
+necessary the spider job could get stuck because of the limit set by the
+`PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` setting.
+
 ```python
 import scrapy
 
@@ -240,7 +262,8 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   by awaiting the `Page.close` coroutine.
 * Be careful about leaving pages unclosed, as they count towards the limit set by
   `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. When passing `playwright_include_page=True`,
-  it's recommended to set a Request errback to make sure pages are closed even
+  make sure you always close pages in callbacks, as said in the previous point.
+  It's also recommended to set a Request errback to make sure pages are closed even
   if a request fails (if `playwright_include_page=False` or unset, pages are
   automatically closed upon encountering an exception).
 * Any network operations resulting from awaiting a coroutine on a `Page` object
@@ -248,7 +271,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
 
-## Multiple browser contexts
+## Browser contexts
 
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
@@ -263,6 +286,17 @@ yield scrapy.Request(
     meta={"playwright": True, "playwright_context": "first"},
 )
 ```
+
+### Default context
+
+If a request does not explicitly indicate a context via the `playwright_context`
+meta key, it falls back to using a general context called `default`. This `default`
+context can also be customized on startup via the `PLAYWRIGHT_CONTEXTS` setting.
+
+### Persistent contexts
+
+Pass a value for the `user_data_dir` keyword argument to launch a context as
+**persistent** (see [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)).
 
 ### Creating a context during a crawl
 
@@ -304,6 +338,7 @@ def parse(self, response):
     yield scrapy.Request(
         url="https://example.org",
         callback=self.parse_in_new_context,
+        errback=self.close_context_on_error,
         meta={"playwright": True, "playwright_context": "new", "playwright_include_page": True},
     )
 
@@ -313,7 +348,20 @@ async def parse_in_new_context(self, response):
     await page.context.close()  # close the context
     await page.close()
     return {"title": title}
+
+async def close_context_on_error(self, failure):
+    page = failure.request.meta["playwright_page"]
+    await page.context.close()
 ```
+
+### Maximum concurrent context count
+
+Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
+of concurent contexts. This setting should be used with caution: it's possible
+to block the whole crawl if contexts are not closed after they are no longer
+used (refer to the above section to dinamically close contexts). Make sure to
+define an errback to still be able to close the context even if there are
+errors with a request.
 
 
 ## Proxy support
@@ -366,8 +414,12 @@ PLAYWRIGHT_CONTEXTS = {
 
 Or passing a `proxy` key when [creating a context during a crawl](#creating-a-context-during-a-crawl).
 
-See also the [upstream Playwright section](https://playwright.dev/python/docs/network#http-proxy)
-on HTTP Proxies.
+See also:
+* [`zyte-smartproxy-playwright`](https://github.com/zytedata/zyte-smartproxy-playwright):
+  seamless support for [Zyte Smart Proxy Manager](https://www.zyte.com/smart-proxy-manager/)
+  in the Node.js version of Playwright.
+* the [upstream Playwright for Python section](https://playwright.dev/python/docs/network#http-proxy)
+  on HTTP Proxies.
 
 
 ## Executing actions on pages
@@ -399,7 +451,7 @@ def start_requests(self):
         meta={
             "playwright": True,
             "playwright_page_methods": [
-                PageMethod("screenshot", path="example.png", fullPage=True),
+                PageMethod("screenshot", path="example.png", full_page=True),
             ],
         },
     )
@@ -532,7 +584,7 @@ class ScrollSpider(scrapy.Spider):
 
     async def parse(self, response):
         page = response.meta["playwright_page"]
-        await page.screenshot(path="quotes.png", fullPage=True)
+        await page.screenshot(path="quotes.png", full_page=True)
         await page.close()
         return {"quote_count": len(response.css("div.quote"))}  # quotes from several pages
 ```
@@ -541,13 +593,27 @@ class ScrollSpider(scrapy.Spider):
 For more examples, please see the scripts in the [examples](examples) directory.
 
 
-## Known limitations
+## Known issues
 
-* This package does not work natively on Windows. See
-  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-808824121)
-  for more infomation. Additionally, please see
-  [this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494)
-  for a possible workaround.
+* `scrapy-playwright` does not work out-of-the-box on Windows. From the
+  [playwright docs](https://playwright.dev/python/docs/intro#incompatible-with-selectoreventloop-of-asyncio-on-windows):
+
+  > Playwright runs the driver in a subprocess, so it requires
+  > ProactorEventLoop of asyncio on Windows because SelectorEventLoop
+  > does not supports async subprocesses.
+
+  Also, from the [Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess):
+
+  > On Windows, the default event loop ProactorEventLoop supports subprocesses,
+  > whereas SelectorEventLoop does not.
+
+  However, Twisted's `asyncio` reactor runs on top of `SelectorEventLoop`
+  ([source](https://github.com/twisted/twisted/blob/twisted-22.4.0/src/twisted/internet/asyncioreactor.py#L31)).
+
+  Some users have reported having success
+  [running under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
+  See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
+  for information about working in headful mode under WSL.
 
 * Specifying a proxy via the `proxy` Request meta key is not supported.
   Refer to the [Proxy support](#proxy-support) section for more information.
@@ -561,6 +627,12 @@ may be removed at any time. See the [changelog](changelog.md)
 for more information about deprecations and removals.
 
 ### Currently deprecated features
+
+* `scrapy_playwright.headers.use_playwright_headers` function
+
+    Deprecated since
+    [`v0.0.16`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16),
+    set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
 
 * `scrapy_playwright.page.PageCoroutine` class
 
