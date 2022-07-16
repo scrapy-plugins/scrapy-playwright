@@ -289,7 +289,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         start_time = time()
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
-        response = await page.goto(request.url, **page_goto_kwargs)
+        page_goto_kwargs.pop("url", None)
+        response = await page.goto(url=request.url, **page_goto_kwargs)
         await self._apply_page_methods(page, request)
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
