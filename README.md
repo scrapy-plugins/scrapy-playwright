@@ -182,6 +182,67 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     only supported when using Scrapy>=2.4. With prior versions, only strings are supported.
 
 
+## Supported request meta keys
+
+* `playwright` (type `bool`, default `False`)
+
+    If set to a value that evaluates to `True` the request will be processed by Playwright.
+
+* `playwright_context` (type `str`, default `"default"`)
+
+    Name of the context to be used to downloaad the request.
+    See the section on [browser contexts](#browser-contexts) for more information.
+
+* `playwright_context_kwargs` (type `dict`, default `{}`)
+
+    A dictionary with keyword arguments to be used when creating a new context, if a context
+    with the name specified in the `playwright_context` meta key does not exist already.
+    See the section on [browser contexts](#browser-contexts) for more information.
+
+* `playwright_include_page` (type `bool`, default `False`)
+
+    If `True`, the [Playwright page](https://playwright.dev/python/docs/api/class-page)
+    that was used to download the request will be available in the callback via
+    `response.meta['playwright_page']`. For more information and important notes see
+    [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
+
+* `playwright_page_methods` (type `Iterable`, default `()`)
+
+    An iterable of `scrapy_playwright.page.PageMethod` objects to indicate
+    actions to be performed on the page before returning the final response.
+    For more information see [Executing actions on pages](#executing-actions-on-pages).
+
+* `playwright_page` (type `Optional[playwright.async_api._generated.Page]`, default `None`)
+
+    A [Playwright page](https://playwright.dev/python/docs/api/class-page) to be used to
+    download the request. If unspecified, a new page is created for each request.
+    This key could be used in conjunction with `playwright_include_page` to make a chain of
+    requests using the same page. For instance:
+
+    ```python
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://httpbin.org/get",
+            meta={"playwright": True, "playwright_include_page": True},
+        )
+
+    def parse(self, response):
+        page = response.meta["playwright_page"]
+        yield scrapy.Request(
+            url="https://httpbin.org/headers",
+            callback=self.parse_headers,
+            meta={"playwright": True, "playwright_page": page},
+        )
+
+    ```
+
+* `playwright_security_details` (type `Optional[dict]`, read only)
+
+    A dictionary with [security information](https://playwright.dev/python/docs/api/class-response#response-security-details)
+    about the give response. Only available for HTTPS requests. Could be accessed
+    in the callback via `response.meta['playwright_security_details']`
+
+
 ## Basic usage
 
 Set the `playwright` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
