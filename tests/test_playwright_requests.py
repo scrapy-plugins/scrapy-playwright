@@ -332,8 +332,8 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_goto_kwargs_referer(self):
-        if self.browser_type == "firefox":
-            pytest.skip("Doesn't work on Firefox, don't know why :shrug:")
+        if self.browser_type != "chromium":
+            pytest.skip("referer as goto kwarg seems to work only with chromium :shrug:")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
                 fake_referer = server.urljoin("/fake/referer")
