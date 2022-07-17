@@ -233,8 +233,14 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
             callback=self.parse_headers,
             meta={"playwright": True, "playwright_page": page},
         )
-
     ```
+
+* `playwright_page_goto_kwargs` (type `dict`, default `{}`)
+
+    A dictionary with keyword arguments to be passed to the page's
+    [`goto` method](https://playwright.dev/python/docs/api/class-page#page-goto)
+    when navigating to an URL. The `url` key is ignored if present, the request's
+    URL is used instead.
 
 * `playwright_security_details` (type `Optional[dict]`, read only)
 

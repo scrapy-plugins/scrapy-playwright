@@ -1,3 +1,4 @@
+import json
 import logging
 import platform
 import subprocess
@@ -321,14 +322,32 @@ class MixinTestCase:
     async def test_response_attributes(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
-                spider = DialogSpider()
                 req = Request(
-                    url=server.urljoin("/index.html"),
+                    url=server.urljoin(),
                     meta={"playwright": True},
                 )
-                response = await handler._download_request(req, spider)
+                response = await handler._download_request(req, Spider("spider_name"))
 
         assert response.ip_address == ip_address(server.address)
+
+    @pytest.mark.asyncio
+    async def test_page_goto_kwargs_referer(self):
+        if self.browser_type != "chromium":
+            pytest.skip("referer as goto kwarg seems to work only with chromium :shrug:")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                fake_referer = server.urljoin("/fake/referer")
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_goto_kwargs": {"referer": fake_referer},
+                    },
+                )
+                response = await handler._download_request(req, Spider("spider_name"))
+
+        headers = json.loads(response.css("pre::text").get())
+        assert headers["Referer"] == fake_referer
 
     @pytest.mark.asyncio
     async def test_abort_requests(self):
