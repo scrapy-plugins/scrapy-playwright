@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.19](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.19) (2022-07-17)
+
+* Add support for `Page.goto` keyword arguments (`playwright_page_goto_kwargs` request meta key)
+
+
 ### [v0.0.18](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.18) (2022-06-18)
 
 * Always override request headers
