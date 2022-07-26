@@ -198,7 +198,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = await context.context.new_page()
         
         if self.enable_stealth is True:
-            page = stealth_async(page)
+            await stealth_async(page)
         
         self.stats.inc_value("playwright/page_count")
         logger.debug(
