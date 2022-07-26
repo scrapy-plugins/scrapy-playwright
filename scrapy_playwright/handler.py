@@ -34,6 +34,8 @@ from w3lib.encoding import html_body_declared_encoding, http_content_type_encodi
 from scrapy_playwright.headers import use_scrapy_headers, use_playwright_headers
 from scrapy_playwright.page import PageMethod
 
+from playwright_stealth import stealth_async
+
 
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
 
@@ -111,7 +113,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.abort_request: Optional[Callable[[PlaywrightRequest], Union[Awaitable, bool]]] = None
         if settings.get("PLAYWRIGHT_ABORT_REQUEST"):
             self.abort_request = load_object(settings["PLAYWRIGHT_ABORT_REQUEST"])
-
+            
+        # stealth
+        if settings.get("PLAYWRIGHT_STEALTH_ENABLED"):
+            self.enable_stealth = True
+        else:
+            self.enable_stealth = False
+        
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
         return cls(crawler)
@@ -188,6 +196,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         await context.semaphore.acquire()
         page = await context.context.new_page()
+        
+        if self.enable_stealth is True:
+            page = stealth_async(page)
+        
         self.stats.inc_value("playwright/page_count")
         logger.debug(
             "[Context=%s] New page created, page count is %i (%i for all contexts)",
