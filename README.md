@@ -203,7 +203,15 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     If `True`, the [Playwright page](https://playwright.dev/python/docs/api/class-page)
     that was used to download the request will be available in the callback via
-    `response.meta['playwright_page']`. For more information and important notes see
+    `response.meta['playwright_page']`.
+
+    **Important!**
+
+    This meta key is entirely optional, it's NOT necessary for the page to load or for any
+    asynchronous operation to be performed. Use it only if you need access to the Page
+    object in the callback that handles the request.
+
+    For more information and important notes see
     [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
 
 * `playwright_page_methods` (type `Iterable`, default `()`)
@@ -303,37 +311,49 @@ necessary the spider job could get stuck because of the limit set by the
 import scrapy
 
 class AwesomeSpiderWithPage(scrapy.Spider):
-    name = "page"
+    name = "page_spider"
 
     def start_requests(self):
         yield scrapy.Request(
             url="https://example.org",
+            callback=self.parse_first,
             meta={"playwright": True, "playwright_include_page": True},
-            errback=self.errback,
+            errback=self.errback_close_page,
         )
 
-    async def parse(self, response):
+    def parse_first(self, response):
+        page = response.meta["playwright_page"]
+        return scrapy.Request(
+            url="https://example.com",
+            callback=self.parse_second,
+            meta={"playwright": True, "playwright_page": page},
+            errback=self.errback_close_page,
+        )
+
+    async def parse_second(self, response):
         page = response.meta["playwright_page"]
         title = await page.title()  # "Example Domain"
         await page.close()
         return {"title": title}
 
-    async def errback(self, failure):
+    async def errback_close_page(self, failure):
         page = failure.request.meta["playwright_page"]
         await page.close()
 ```
 
 **Notes:**
 
-* In order to avoid memory issues, it is recommended to manually close the page
-  by awaiting the `Page.close` coroutine.
-* Be careful about leaving pages unclosed, as they count towards the limit set by
-  `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`. When passing `playwright_include_page=True`,
-  make sure you always close pages in callbacks, as said in the previous point.
-  It's also recommended to set a Request errback to make sure pages are closed even
-  if a request fails (if `playwright_include_page=False` or unset, pages are
-  automatically closed upon encountering an exception).
-* Any network operations resulting from awaiting a coroutine on a `Page` object
+* When passing `playwright_include_page=True`, make sure pages are always closed
+  when they are no longer used. It's recommended to set a Request errback to make
+  sure pages are closed even if a request fails (if `playwright_include_page=False`
+  or unset, pages are automatically closed upon encountering an exception).
+  This is important, as open pages count towards the limit set by
+  `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` and crawls could freeze if the limit is reached
+  and pages remain open indefinitely.
+* Defining callbacks as `async def` is only necessary if you need to `await` things.
+  If you just need to pass over the Page object from one callback to another, this
+  is not necessary.
+* Any network operations resulting from awaiting a coroutine on a Page object
   (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
 
