@@ -208,8 +208,9 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     **Important!**
 
     This meta key is entirely optional, it's NOT necessary for the page to load or for any
-    asynchronous operation to be performed. Use it only if you need access to the Page
-    object in the callback that handles the request.
+    asynchronous operation to be performed (specifically, it's NOT necessary for `PageMethod`
+    objects to be applied). Use it only if you need access to the Page object in the callback
+    that handles the request.
 
     For more information and important notes see
     [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
@@ -326,7 +327,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         return scrapy.Request(
             url="https://example.com",
             callback=self.parse_second,
-            meta={"playwright": True, "playwright_page": page},
+            meta={"playwright": True, "playwright_include_page": True, "playwright_page": page},
             errback=self.errback_close_page,
         )
 
