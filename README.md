@@ -350,9 +350,9 @@ class AwesomeSpiderWithPage(scrapy.Spider):
   This is important, as open pages count towards the limit set by
   `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` and crawls could freeze if the limit is reached
   and pages remain open indefinitely.
-* Defining callbacks as `async def` is only necessary if you need to `await` things.
-  If you just need to pass over the Page object from one callback to another, this
-  is not necessary.
+* Defining callbacks as `async def` is only necessary if you need to `await` things,
+  it's NOT necessary if you just need to pass over the Page object from one callback
+  to another (see the example above).
 * Any network operations resulting from awaiting a coroutine on a Page object
   (`goto`, `go_back`, etc) will be executed directly by Playwright, bypassing the
   Scrapy request workflow (Scheduler, Middlewares, etc).
