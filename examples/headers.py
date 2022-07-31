@@ -6,7 +6,7 @@ from scrapy_playwright.page import PageMethod
 
 
 class HeadersSpider(Spider):
-    """Control how requests headers are handled with the PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting.
+    """Control how requests headers are handled via the PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting.
 
     If PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None, neither USER_AGENT nor cookies will be sent to the
     website, comment out PLAYWRIGHT_PROCESS_REQUEST_HEADERS to sent them.
