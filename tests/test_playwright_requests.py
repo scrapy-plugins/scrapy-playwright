@@ -350,6 +350,22 @@ class MixinTestCase:
         assert headers["Referer"] == fake_referer
 
     @pytest.mark.asyncio
+    async def test_navigation_returns_none(self, caplog):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer():
+                req = Request(url="about:blank", meta={"playwright": True})
+                response = await handler._download_request(req, Spider("spider_name"))
+
+        assert (
+            "scrapy-playwright",
+            logging.WARNING,
+            f"Navigating to {req!r} returned None, the response"
+            " will have empty headers and status 200",
+        ) in caplog.record_tuples
+        assert not response.headers
+        assert response.status == 200
+
+    @pytest.mark.asyncio
     async def test_abort_requests(self):
         async def should_abort_request_async(request):
             return request.resource_type == "image"

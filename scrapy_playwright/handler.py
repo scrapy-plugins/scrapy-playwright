@@ -291,6 +291,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
         page_goto_kwargs.pop("url", None)
         response = await page.goto(url=request.url, **page_goto_kwargs)
+        if response is None:
+            logger.warning(
+                f"Navigating to {request} returned None, the response"
+                " will have empty headers and status 200"
+            )
+            headers = Headers()
+        else:
+            headers = Headers(await response.all_headers())
+            headers.pop("Content-Encoding", None)
         await self._apply_page_methods(page, request)
         body_str = await page.content()
         request.meta["download_latency"] = time() - start_time
@@ -307,13 +316,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         with suppress(AttributeError):
             request.meta["playwright_security_details"] = await response.security_details()
 
-        headers = Headers(await response.all_headers())
-        headers.pop("Content-Encoding", None)
         body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
         return respcls(
             url=page.url,
-            status=response.status,
+            status=response.status if response is not None else 200,
             headers=headers,
             body=body,
             request=request,
