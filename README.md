@@ -5,7 +5,7 @@
 [![codecov](https://codecov.io/gh/scrapy-plugins/scrapy-playwright/branch/master/graph/badge.svg)](https://codecov.io/gh/scrapy-plugins/scrapy-playwright)
 
 
-A Scrapy Download Handler which performs requests using
+A [Scrapy](https://github.com/scrapy/scrapy) Download Handler which performs requests using
 [Playwright for Python](https://github.com/microsoft/playwright-python).
 It can be used to handle pages that require JavaScript (among other things),
 while adhering to the regular Scrapy workflow (i.e. without interfering
