@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.20](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.20) (2022-08-03)
+
+* Don't raise exceptions if `Page.goto` returns `None`
+
+
 ### [v0.0.19](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.19) (2022-07-17)
 
 * Add support for `Page.goto` keyword arguments (`playwright_page_goto_kwargs` request meta key)
