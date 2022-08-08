@@ -51,7 +51,7 @@ DOWNLOAD_HANDLERS = {
 ```
 
 Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
-`http/https` handler. Unless explicitly marked (see the "Basic usage"),
+`http/https` handler. Unless explicitly marked (see [Basic usage](#basic-usage)),
 requests will be processed by the regular Scrapy download handler.
 
 Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
