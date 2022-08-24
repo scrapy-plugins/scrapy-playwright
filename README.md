@@ -29,8 +29,24 @@ to integrate `asyncio`-based projects such as `Playwright`.
 
 ## Installation
 
+`scrapy-playwright` is available on PyPI and can be installed with `pip`:
+
 ```
-$ pip install scrapy-playwright
+pip install scrapy-playwright
+```
+
+`playwright` is defined as a dependency so it gets installed automatically,
+however it might be necessary to install the specific browser(s) that will be
+used:
+
+```
+playwright install
+```
+
+It's also possible to install only a subset of the available browsers:
+
+```
+playwright install firefox chromium
 ```
 
 ## Changelog
