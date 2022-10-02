@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
@@ -20,7 +19,6 @@ from playwright.async_api import (
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
-from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
@@ -31,7 +29,7 @@ from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
-from scrapy_playwright.headers import use_scrapy_headers, use_playwright_headers
+from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 
 
@@ -96,15 +94,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 self.process_request_headers = load_object(
                     settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
                 )
-                if self.process_request_headers is use_playwright_headers:
-                    warnings.warn(
-                        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
-                        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
-                        " instead.",
-                        category=ScrapyDeprecationWarning,
-                        stacklevel=1,
-                    )
-                    self.process_request_headers = None
         else:
             self.process_request_headers = use_scrapy_headers
 
@@ -331,16 +320,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _apply_page_methods(self, page: Page, request: Request) -> None:
         page_methods = request.meta.get("playwright_page_methods") or ()
-
-        if not page_methods and "playwright_page_coroutines" in request.meta:
-            page_methods = request.meta["playwright_page_coroutines"]
-            warnings.warn(
-                "The 'playwright_page_coroutines' request meta key is deprecated,"
-                " please use 'playwright_page_methods' instead.",
-                category=ScrapyDeprecationWarning,
-                stacklevel=1,
-            )
-
         if isinstance(page_methods, dict):
             page_methods = page_methods.values()
         for pm in page_methods:

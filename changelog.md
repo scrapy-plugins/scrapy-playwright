@@ -1,6 +1,12 @@
 # scrapy-playwright changelog
 
 
+### v0.0.22 (to be released) (2022-xx-xx)
+
+* Remove deprecated code (`PageCoroutine` class, `playwright_page_coroutines` request meta key,
+  `use_playwright_headers` function).
+
+
 ### [v0.0.21](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.21) (2022-08-08)
 
 * Fixed TypeError exception when getting server IP address
