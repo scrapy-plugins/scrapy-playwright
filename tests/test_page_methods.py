@@ -1,6 +1,5 @@
 import logging
 import platform
-import warnings
 
 import pytest
 from scrapy import Spider, Request

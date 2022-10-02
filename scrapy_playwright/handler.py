@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
@@ -20,7 +19,6 @@ from playwright.async_api import (
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
-from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes

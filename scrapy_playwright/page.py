@@ -1,7 +1,3 @@
-import warnings
-
-from scrapy.exceptions import ScrapyDeprecationWarning
-
 __all__ = ["PageMethod"]
 
 

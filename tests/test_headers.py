@@ -1,11 +1,8 @@
 import json
 import platform
-import sys
-import warnings
 
 import pytest
 from scrapy import Spider, Request
-from scrapy.http.headers import Headers
 
 from tests import make_handler
 from tests.mockserver import MockServer
