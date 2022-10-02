@@ -188,6 +188,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
         init_page_function = request.meta.get("playwright_init_page")
+        init_page_function = load_object(init_page_function)
         if init_page_function:
             try:
                 await init_page_function(page)

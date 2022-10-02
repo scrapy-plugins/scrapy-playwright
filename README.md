@@ -231,6 +231,31 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For more information and important notes see
     [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
 
+* `playwright_init_page` (type `Optional[Union[Callable, str]]`, default `None`)
+
+    A coroutine function (`async def`) to be invoked immediately after creating
+    a page for the request. It receives the page as its only positional
+    argument. Useful for initialization code. Invoked only for newly created
+    pages, ignored if the page for the request already exists (e.g. by passing
+    `playwright_page`).
+
+    ```python
+    async def init_page(page):
+        await page.add_init_script(path="./custom_init_script.js")
+
+    class AwesomeSpider(scrapy.Spider):
+        def start_requests(self):
+            yield scrapy.Request(
+                url="https://httpbin.org/headers",
+                meta={"playwright": True, "playwright_init_page": init_page},
+            )
+    ```
+
+    **Important!**
+
+    `scrapy-playwright` uses `Page.route` & `Page.unroute` internally, please
+    avoid using these methods unless you know exactly what you're doing.
+
 * `playwright_page_methods` (type `Iterable`, default `()`)
 
     An iterable of `scrapy_playwright.page.PageMethod` objects to indicate
