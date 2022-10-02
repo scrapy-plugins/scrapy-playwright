@@ -6,7 +6,7 @@ import pytest
 from scrapy import Spider, Request
 from scrapy.http.response.html import HtmlResponse
 
-from scrapy_playwright.page import PageMethod, PageCoroutine
+from scrapy_playwright.page import PageMethod
 
 from tests import make_handler
 from tests.mockserver import StaticMockServer
@@ -20,16 +20,6 @@ async def test_page_methods():
     assert screenshot.kwargs == {"path": "/tmp/file", "type": "png"}
     assert screenshot.result is None
     assert str(screenshot) == "<PageMethod for method 'screenshot'>"
-
-
-@pytest.mark.asyncio
-async def test_deprecated_class():
-    with warnings.catch_warnings(record=True) as warning_list:
-        PageCoroutine("screenshot", "foo", 123, path="/tmp/file", type="png")
-        assert str(warning_list[0].message) == (
-            "The scrapy_playwright.page.PageCoroutine class is deprecated, "
-            "please use scrapy_playwright.page.PageMethod instead."
-        )
 
 
 def assert_correct_response(response: HtmlResponse, request: Request) -> None:
@@ -92,28 +82,6 @@ class MixinPageMethodTestCase:
         ) in caplog.record_tuples
         assert not req.meta["playwright_page_methods"]["is_closed"].result
         assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
-
-    @pytest.mark.asyncio
-    async def test_deprecated_request_meta_key(self, caplog):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                req = Request(
-                    url=server.urljoin("/index.html"),
-                    meta={
-                        "playwright": True,
-                        "playwright_page_coroutines": [
-                            PageMethod("is_closed"),
-                        ],
-                    },
-                )
-                with warnings.catch_warnings(record=True) as warning_list:
-                    resp = await handler._download_request(req, Spider("foo"))
-
-        assert_correct_response(resp, req)
-        assert str(warning_list[0].message) == (
-            "The 'playwright_page_coroutines' request meta key is deprecated,"
-            " please use 'playwright_page_methods' instead."
-        )
 
 
 class TestPageMethodChromium(MixinPageMethodTestCase):

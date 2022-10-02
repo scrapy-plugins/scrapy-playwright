@@ -737,15 +737,3 @@ for more information about deprecations and removals.
     Deprecated since
     [`v0.0.16`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16),
     set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
-
-* `scrapy_playwright.page.PageCoroutine` class
-
-    Deprecated since
-    [`v0.0.14`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14),
-    use `scrapy_playwright.page.PageMethod` instead
-
-* `playwright_page_coroutines` Request meta key
-
-    Deprecated since
-    [`v0.0.14`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.14),
-    use `playwright_page_methods` instead

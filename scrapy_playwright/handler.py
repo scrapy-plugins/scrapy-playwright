@@ -331,16 +331,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _apply_page_methods(self, page: Page, request: Request) -> None:
         page_methods = request.meta.get("playwright_page_methods") or ()
-
-        if not page_methods and "playwright_page_coroutines" in request.meta:
-            page_methods = request.meta["playwright_page_coroutines"]
-            warnings.warn(
-                "The 'playwright_page_coroutines' request meta key is deprecated,"
-                " please use 'playwright_page_methods' instead.",
-                category=ScrapyDeprecationWarning,
-                stacklevel=1,
-            )
-
         if isinstance(page_methods, dict):
             page_methods = page_methods.values()
         for pm in page_methods:
