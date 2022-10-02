@@ -31,7 +31,7 @@ from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
-from scrapy_playwright.headers import use_scrapy_headers, use_playwright_headers
+from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 
 
@@ -96,15 +96,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 self.process_request_headers = load_object(
                     settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
                 )
-                if self.process_request_headers is use_playwright_headers:
-                    warnings.warn(
-                        "The 'scrapy_playwright.headers.use_playwright_headers' function is"
-                        " deprecated, please set 'PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None'"
-                        " instead.",
-                        category=ScrapyDeprecationWarning,
-                        stacklevel=1,
-                    )
-                    self.process_request_headers = None
         else:
             self.process_request_headers = use_scrapy_headers
 

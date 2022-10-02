@@ -729,11 +729,3 @@ Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
 may be removed at any time. See the [changelog](changelog.md)
 for more information about deprecations and removals.
-
-### Currently deprecated features
-
-* `scrapy_playwright.headers.use_playwright_headers` function
-
-    Deprecated since
-    [`v0.0.16`](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.16),
-    set `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` instead
