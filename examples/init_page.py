@@ -31,6 +31,4 @@ class InitPageSpider(scrapy.Spider):
     def parse(self, response):
         json_str = response.css("pre::text").get()
         print(json_str)
-        data = json.loads(json_str)
-        assert data["headers"]["Asdf"] == "Qwerty"
-        return {"data": data}
+        return {"data": json.loads(json_str)}

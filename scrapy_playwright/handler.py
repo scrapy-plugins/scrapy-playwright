@@ -410,7 +410,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             try:
                 await route.continue_(**overrides)
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:
                 if _is_safe_close_error(ex):
                     logger.warning(
                         f"{playwright_request}: failed processing Playwright request ({ex})"

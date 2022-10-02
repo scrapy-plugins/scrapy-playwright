@@ -1,6 +1,7 @@
 [MESSAGES CONTROL]
 disable=
     attribute-defined-outside-init,
+    broad-except,
     import-error,
     invalid-name,
     logging-fstring-interpolation,
