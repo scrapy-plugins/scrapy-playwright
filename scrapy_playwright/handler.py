@@ -187,6 +187,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self._set_max_concurrent_page_count()
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
+        init_page_function = request.meta.get("playwright_init_page")
+        if init_page_function:
+            try:
+                await init_page_function(page)
+            except Exception as ex:
+                logger.warning(
+                    "[Context=%s] Exception when initializing page for %s (%s)",
+                    context_name,
+                    repr(request),
+                    repr(ex),
+                )
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
