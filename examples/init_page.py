@@ -24,7 +24,7 @@ class InitPageSpider(scrapy.Spider):
             url="https://httpbin.org/headers",
             meta={
                 "playwright": True,
-                "playwright_init_page": init_page,
+                "playwright_page_init_callback": init_page,
             },
         )
 

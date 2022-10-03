@@ -231,7 +231,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For more information and important notes see
     [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
 
-* `playwright_init_page` (type `Optional[Union[Callable, str]]`, default `None`)
+* `playwright_page_init_callback` (type `Optional[Union[Callable, str]]`, default `None`)
 
     A coroutine function (`async def`) to be invoked immediately after creating
     a page for the request. It receives the page as its only positional
@@ -241,13 +241,16 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
     ```python
     async def init_page(page):
-        await page.add_init_script(path="./custom_init_script.js")
+        await page.add_init_script(path="./custom_script.js")
 
     class AwesomeSpider(scrapy.Spider):
         def start_requests(self):
             yield scrapy.Request(
                 url="https://httpbin.org/headers",
-                meta={"playwright": True, "playwright_init_page": init_page},
+                meta={
+                    "playwright": True,
+                    "playwright_page_init_callback": init_page,
+                },
             )
     ```
 

@@ -398,6 +398,54 @@ class MixinTestCase:
                     assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
                     assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
+    @pytest.mark.asyncio
+    async def test_page_initialization_ok(self, caplog):
+        async def init_page(page):
+            await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True, "playwright_page_init_callback": init_page},
+                )
+                response = await handler._download_request(req, Spider("spider_name"))
+        assert response.status == 200
+        headers = json.loads(response.css("pre::text").get())
+        headers = {key.lower(): value for key, value in headers.items()}
+        assert headers["extra-header"] == "Qwerty"
+
+    @pytest.mark.asyncio
+    async def test_page_initialization_fail(self, caplog):
+        async def init_page(page, unused_arg):
+            await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
+
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True, "playwright_page_init_callback": init_page},
+                )
+                response = await handler._download_request(req, Spider("spider_name"))
+        assert response.status == 200
+        headers = json.loads(response.css("pre::text").get())
+        headers = {key.lower(): value for key, value in headers.items()}
+        assert "extra-header" not in headers
+        assert (
+            "scrapy-playwright",
+            logging.WARNING,
+            f"[Context=default] Page init callback exception for {req!r}"
+            " (TypeError(\"init_page() missing 1 required positional argument: 'unused_arg'\"))",
+        ) in caplog.record_tuples
+
 
 class TestCaseChromium(MixinTestCase):
     browser_type = "chromium"
