@@ -3,7 +3,7 @@ import json
 import scrapy
 
 
-async def init_page(page):
+async def init_page(page, request):
     await page.set_extra_http_headers({"Asdf": "Qwerty"})
 
 

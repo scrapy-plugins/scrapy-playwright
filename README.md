@@ -234,13 +234,13 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 * `playwright_page_init_callback` (type `Optional[Union[Callable, str]]`, default `None`)
 
     A coroutine function (`async def`) to be invoked immediately after creating
-    a page for the request. It receives the page as its only positional
-    argument. Useful for initialization code. Invoked only for newly created
+    a page for the request. It receives the page and the request as positional
+    arguments. Useful for initialization code. Invoked only for newly created
     pages, ignored if the page for the request already exists (e.g. by passing
     `playwright_page`).
 
     ```python
-    async def init_page(page):
+    async def init_page(page, request):
         await page.add_init_script(path="./custom_script.js")
 
     class AwesomeSpider(scrapy.Spider):

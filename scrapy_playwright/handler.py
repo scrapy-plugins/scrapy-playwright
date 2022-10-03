@@ -191,7 +191,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if page_init_callback:
             try:
                 page_init_callback = load_object(page_init_callback)
-                await page_init_callback(page)
+                await page_init_callback(page, request)
             except Exception as ex:
                 logger.warning(
                     "[Context=%s] Page init callback exception for %s (%s)",

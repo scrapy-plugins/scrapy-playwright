@@ -5,6 +5,7 @@
 
 * Remove deprecated code (`PageCoroutine` class, `playwright_page_coroutines` request meta key,
   `use_playwright_headers` function).
+* `playwright_page_init_callback` meta key (page initialization callback)
 
 
 ### [v0.0.21](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.21) (2022-08-08)

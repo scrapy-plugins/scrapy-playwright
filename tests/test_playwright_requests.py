@@ -400,7 +400,7 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_initialization_ok(self, caplog):
-        async def init_page(page):
+        async def init_page(page, request):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
         settings_dict = {
@@ -421,7 +421,7 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_initialization_fail(self, caplog):
-        async def init_page(page, unused_arg):
+        async def init_page(page, request, unused_arg):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
         settings_dict = {
