@@ -187,6 +187,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self._set_max_concurrent_page_count()
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
+        page_init_callback = request.meta.get("playwright_page_init_callback")
+        if page_init_callback:
+            try:
+                page_init_callback = load_object(page_init_callback)
+                await page_init_callback(page, request)
+            except Exception as ex:
+                logger.warning(
+                    "[Context=%s] Page init callback exception for %s (%s)",
+                    context_name,
+                    repr(request),
+                    repr(ex),
+                )
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
@@ -398,7 +410,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             try:
                 await route.continue_(**overrides)
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:
                 if _is_safe_close_error(ex):
                     logger.warning(
                         f"{playwright_request}: failed processing Playwright request ({ex})"
