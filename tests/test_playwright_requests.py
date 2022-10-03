@@ -439,12 +439,12 @@ class MixinTestCase:
         headers = json.loads(response.css("pre::text").get())
         headers = {key.lower(): value for key, value in headers.items()}
         assert "extra-header" not in headers
-        assert (
-            "scrapy-playwright",
-            logging.WARNING,
-            f"[Context=default] Page init callback exception for {req!r}"
-            " (TypeError(\"init_page() missing 1 required positional argument: 'unused_arg'\"))",
-        ) in caplog.record_tuples
+
+        log_entry = caplog.record_tuples[0]
+        assert log_entry[0] == "scrapy-playwright"
+        assert log_entry[1] == logging.WARNING
+        assert f"[Context=default] Page init callback exception for {req!r}" in log_entry[2]
+        assert "init_page() missing 1 required positional argument: 'unused_arg'" in log_entry[2]
 
 
 class TestCaseChromium(MixinTestCase):
