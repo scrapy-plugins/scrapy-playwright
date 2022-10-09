@@ -1,7 +1,7 @@
 # scrapy-playwright changelog
 
 
-### v0.0.22 (to be released) (2022-xx-xx)
+### [v0.0.22](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.22) (2022-10-09)
 
 * Remove deprecated code (`PageCoroutine` class, `playwright_page_coroutines` request meta key,
   `use_playwright_headers` function).
