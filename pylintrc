@@ -3,7 +3,6 @@ disable=
     attribute-defined-outside-init,
     broad-except,
     invalid-name,
-    logging-fstring-interpolation,
     missing-class-docstring,
     missing-function-docstring,
     missing-module-docstring,
