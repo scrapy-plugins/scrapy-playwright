@@ -1,15 +1,19 @@
 from playwright.async_api import Dialog, Response as PlaywrightResponse
 from scrapy import Spider, Request
-from scrapy.crawler import CrawlerProcess
 from scrapy_playwright.page import PageMethod
 
 
 class EventsSpider(Spider):
-    """
-    Handle page events
-    """
+    """Handle page events."""
 
     name = "events"
+    custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+    }
 
     def start_requests(self):
         yield Request(
@@ -35,17 +39,3 @@ class EventsSpider(Spider):
 
     def parse(self, response):
         return {"url": response.url}
-
-
-if __name__ == "__main__":
-    process = CrawlerProcess(
-        settings={
-            "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-            "DOWNLOAD_HANDLERS": {
-                "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-                # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            },
-        }
-    )
-    process.crawl(EventsSpider)
-    process.start()

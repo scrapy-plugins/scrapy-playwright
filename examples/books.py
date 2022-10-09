@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Generator, Optional
 
 from scrapy import Spider
-from scrapy.crawler import CrawlerProcess
 from scrapy.http.response import Response
 
 
@@ -12,7 +11,25 @@ class BooksSpider(Spider):
     """Extract all books, save screenshots."""
 
     name = "books"
+    custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+        "CONCURRENT_REQUESTS": 32,
+        "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 4,
+        "CLOSESPIDER_ITEMCOUNT": 100,
+        "FEEDS": {
+            "books.json": {"format": "json", "encoding": "utf-8", "indent": 4},
+        },
+    }
     start_urls = ["http://books.toscrape.com"]
+
+    def __init__(self, name=None, **kwargs):
+        super().__init__(name, **kwargs)
+        logging.getLogger("scrapy.core.engine").setLevel(logging.WARNING)
+        logging.getLogger("scrapy.core.scraper").setLevel(logging.WARNING)
 
     def parse(self, response: Response, current_page: Optional[int] = None) -> Generator:
         page_count = response.css(".pager .current::text").re_first(r"Page \d+ of (\d+)")
@@ -46,25 +63,3 @@ class BooksSpider(Spider):
             "breadcrumbs": response.css(".breadcrumb a::text").getall(),
             "image": f"books/{url_sha256}.png",
         }
-
-
-if __name__ == "__main__":
-    process = CrawlerProcess(
-        settings={
-            "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-            "DOWNLOAD_HANDLERS": {
-                # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-                "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            },
-            "CONCURRENT_REQUESTS": 32,
-            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 4,
-            "CLOSESPIDER_ITEMCOUNT": 100,
-            "FEEDS": {
-                "books.json": {"format": "json", "encoding": "utf-8", "indent": 4},
-            },
-        }
-    )
-    process.crawl(BooksSpider)
-    logging.getLogger("scrapy.core.engine").setLevel(logging.WARNING)
-    logging.getLogger("scrapy.core.scraper").setLevel(logging.WARNING)
-    process.start()

@@ -1,5 +1,4 @@
 from scrapy import Spider, Request
-from scrapy.crawler import CrawlerProcess
 
 
 class MaxPagesPerContextContextsSpider(Spider):
@@ -7,6 +6,11 @@ class MaxPagesPerContextContextsSpider(Spider):
 
     name = "contexts"
     custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
         "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 2,
         "PLAYWRIGHT_CONTEXTS": {
             "a": {"java_script_enabled": True},
@@ -43,17 +47,3 @@ class MaxPagesPerContextContextsSpider(Spider):
     async def errback(self, failure):
         page = failure.request.meta["playwright_page"]
         await page.close()
-
-
-if __name__ == "__main__":
-    process = CrawlerProcess(
-        settings={
-            "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-            "DOWNLOAD_HANDLERS": {
-                "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-                # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            },
-        }
-    )
-    process.crawl(MaxPagesPerContextContextsSpider)
-    process.start()

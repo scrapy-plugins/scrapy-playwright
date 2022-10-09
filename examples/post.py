@@ -1,16 +1,20 @@
 from pathlib import Path
 
 from scrapy import Spider, FormRequest
-from scrapy.crawler import CrawlerProcess
 from scrapy_playwright.page import PageMethod
 
 
 class PostSpider(Spider):
-    """
-    Send data using the POST verb
-    """
+    """Send data using the POST verb."""
 
     name = "post"
+    custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+    }
 
     def start_requests(self):
         yield FormRequest(
@@ -28,17 +32,3 @@ class PostSpider(Spider):
 
     def parse(self, response):
         yield {"url": response.url}
-
-
-if __name__ == "__main__":
-    process = CrawlerProcess(
-        settings={
-            "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-            "DOWNLOAD_HANDLERS": {
-                "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-                # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            },
-        }
-    )
-    process.crawl(PostSpider)
-    process.start()

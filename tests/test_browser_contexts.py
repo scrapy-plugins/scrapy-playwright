@@ -50,6 +50,7 @@ class MixinTestCaseMultipleContexts:
                     meta={
                         "playwright": True,
                         "playwright_page_methods": [
+                            # cause a timeout by waiting on an element that is rendered with js
                             PageMethod("wait_for_selector", selector="div.quote", timeout=1000),
                         ],
                     },

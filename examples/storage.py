@@ -1,14 +1,18 @@
 from scrapy import Spider, Request
-from scrapy.crawler import CrawlerProcess
 from scrapy_playwright.page import PageMethod
 
 
 class StorageSpider(Spider):
-    """
-    Set and get storage state. Also get the server's IP address.
-    """
+    """Set and get storage state, get the server's IP address."""
 
     name = "storage"
+    custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+    }
 
     def start_requests(self):
         yield Request(
@@ -31,17 +35,3 @@ class StorageSpider(Spider):
             "storage_state": storage_state,
             "ip_address": response.ip_address,
         }
-
-
-if __name__ == "__main__":
-    process = CrawlerProcess(
-        settings={
-            "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-            "DOWNLOAD_HANDLERS": {
-                "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-                # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            },
-        }
-    )
-    process.crawl(StorageSpider)
-    process.start()
