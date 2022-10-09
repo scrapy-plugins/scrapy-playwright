@@ -137,7 +137,7 @@ class MixinTestCase:
             route.continue_.side_effect = exc
             await req_handler(route, playwright_request)
             logger.warning.assert_called_with(
-                f"{playwright_request}: failed processing Playwright request ({exc})"
+                "%s: failed processing Playwright request (%s)", playwright_request, exc
             )
 
             # unknown error, re-raise
