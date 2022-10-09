@@ -2,7 +2,6 @@
 disable=
     attribute-defined-outside-init,
     broad-except,
-    import-error,
     invalid-name,
     logging-fstring-interpolation,
     missing-class-docstring,
@@ -18,6 +17,7 @@ disable=
     import-outside-toplevel,
     inconsistent-return-statements,
     protected-access,
+    unnecessary-dunder-call,
 
 
 [FORMAT]

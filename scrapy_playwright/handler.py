@@ -210,7 +210,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return page
 
     def _get_total_page_count(self):
-        return sum([len(ctx.context.pages) for ctx in self.contexts.values()])
+        return sum(len(ctx.context.pages) for ctx in self.contexts.values())
 
     def _set_max_concurrent_page_count(self):
         count = self._get_total_page_count()
@@ -268,7 +268,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 method=request.method,
                 scrapy_headers=request.headers,
                 body=request.body,
-                encoding=getattr(request, "encoding", None),
+                encoding=request.encoding,
             ),
         )
 
