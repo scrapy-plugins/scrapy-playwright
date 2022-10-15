@@ -481,6 +481,7 @@ async def parse_in_new_context(self, response):
     return {"title": title}
 
 async def close_context_on_error(self, failure):
+    self.logger.warning("There was an error when processing %s: %s", failure.request, failure.value)
     page = failure.request.meta["playwright_page"]
     await page.context.close()
 ```
