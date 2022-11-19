@@ -231,6 +231,11 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
     For more information and important notes see
     [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
 
+* `playwright_page_event_handlers` (type `Optional[Dict[Str, Callable]]`, default `None`)
+
+    A dictionary of handlers to be attached to page events.
+    See [Handling page events](#handling-page-events).
+
 * `playwright_page_init_callback` (type `Optional[Union[Callable, str]]`, default `None`)
 
     A coroutine function (`async def`) to be invoked immediately after creating
