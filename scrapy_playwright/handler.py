@@ -303,6 +303,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
             headers = Headers()
         else:
+            await self._set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
         await self._apply_page_methods(page, request)
@@ -333,6 +334,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             encoding=encoding,
             ip_address=server_ip_address,
         )
+
+    async def _set_redirect_meta(self, request: Request, response: PlaywrightResponse) -> None:
+        redirect_times: int = 0
+        redirect_urls: list = []
+        redirect_reasons: list = []
+        redirected = response.request.redirected_from
+        while redirected is not None:
+            redirect_times += 1
+            redirect_urls.append(redirected.url)
+            redirected_response = await redirected.response()
+            reason = None if redirected_response is None else redirected_response.status
+            redirect_reasons.append(reason)
+            redirected = redirected.redirected_from
+        if redirect_times:
+            request.meta["redirect_times"] = redirect_times
+            request.meta["redirect_urls"] = list(reversed(redirect_urls))
+            request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
 
     async def _apply_page_methods(self, page: Page, request: Request) -> None:
         page_methods = request.meta.get("playwright_page_methods") or ()

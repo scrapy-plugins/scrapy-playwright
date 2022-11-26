@@ -341,6 +341,24 @@ class MixinTestCase:
         assert f"[Context=default] Page init callback exception for {req!r}" in log_entry[2]
         assert "init_page() missing 1 required positional argument: 'unused_arg'" in log_entry[2]
 
+    @pytest.mark.asyncio
+    async def test_redirect(self):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                req = Request(
+                    url=server.urljoin("/redirect2"),
+                    meta={"playwright": True},
+                )
+                response = await handler._download_request(req, Spider("spider_name"))
+
+        assert response.url == server.urljoin("/headers")
+        assert response.meta["redirect_times"] == 2
+        assert response.meta["redirect_reasons"] == [302, 301]
+        assert response.meta["redirect_urls"] == [
+            server.urljoin("/redirect2"),
+            server.urljoin("/redirect"),
+        ]
+
 
 class TestCaseChromium(MixinTestCase):
     browser_type = "chromium"
