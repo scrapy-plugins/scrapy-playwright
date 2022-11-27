@@ -732,28 +732,30 @@ For more examples, please see the scripts in the [examples](examples) directory.
 
 ## Known issues
 
-* `scrapy-playwright` does not work out-of-the-box on Windows. From the
-  [playwright docs](https://playwright.dev/python/docs/intro#incompatible-with-selectoreventloop-of-asyncio-on-windows):
+### Lack of native support for Windows
 
-  > Playwright runs the driver in a subprocess, so it requires
-  > ProactorEventLoop of asyncio on Windows because SelectorEventLoop
-  > does not supports async subprocesses.
+This package does not work natively on Windows. This is because:
 
-  Also, from the [Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess):
+* Playwright runs the driver in a subprocess. Source:
+[Playwright repository](https://github.com/microsoft/playwright-python/blob/v1.28.0/playwright/_impl/_transport.py#L120-L129).
+* "On Windows, the default event loop `ProactorEventLoop` supports subprocesses,
+whereas `SelectorEventLoop` does not". Source:
+[Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess).
+* Twisted's `asyncio` reactor requires the `SelectorEventLoop`. Source:
+[Twisted repository](https://github.com/twisted/twisted/blob/twisted-22.4.0/src/twisted/internet/asyncioreactor.py#L31).
 
-  > On Windows, the default event loop ProactorEventLoop supports subprocesses,
-  > whereas SelectorEventLoop does not.
+Some users have reported having success
+[running under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
+See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
+for information about working in headful mode under WSL.
 
-  However, Twisted's `asyncio` reactor runs on top of `SelectorEventLoop`
-  ([source](https://github.com/twisted/twisted/blob/twisted-22.4.0/src/twisted/internet/asyncioreactor.py#L31)).
+### No per-request proxy support
+Specifying a proxy via the `proxy` Request meta key is not supported.
+Refer to the [Proxy support](#proxy-support) section for more information.
 
-  Some users have reported having success
-  [running under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
-  See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
-  for information about working in headful mode under WSL.
-
-* Specifying a proxy via the `proxy` Request meta key is not supported.
-  Refer to the [Proxy support](#proxy-support) section for more information.
+### Unsopported signals
+The `headers_received` and `bytes_received` signals are not fired by the
+scrapy-playwright download handler.
 
 
 ## Deprecation policy
