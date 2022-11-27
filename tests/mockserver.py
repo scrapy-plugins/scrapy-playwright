@@ -40,7 +40,7 @@ class StaticMockServer:
 
 
 class _RequestHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
+    def do_POST(self) -> None:
         """Echo back the request body"""
         content_length = int(self.headers["Content-Length"])
         body = self.rfile.read(content_length)
@@ -49,21 +49,33 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Request body: ")
         self.wfile.write(body)
 
-    def do_GET(self):
-        body = "{}"
+    def do_GET(self) -> None:
         if self.path == "/headers":
-            body = json.dumps(dict(self.headers), indent=4)
+            self._send_json(dict(self.headers))
+        elif self.path == "/redirect2":
+            self.send_response(302)
+            self.send_header("Location", "/redirect")
+            self.end_headers()
+        elif self.path == "/redirect":
+            self.send_response(301)
+            self.send_header("Location", "/headers")
+            self.end_headers()
         else:
             delay_match = re.match(r"^/delay/(\d+)$", self.path)
             if delay_match:
                 delay = int(delay_match.group(1))
                 print(f"Sleeping {delay} seconds...")
                 time.sleep(delay)
-                body = json.dumps({"delay": delay})
-        self.send_response(200)
+                self._send_json({"delay": delay})
+            else:
+                self._send_json({"error": "unknown path"}, status=400)
+
+    def _send_json(self, body: dict, status: int = 200) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(body.encode())
+        body_bytes = json.dumps(body, indent=4).encode("utf8")
+        self.wfile.write(body_bytes)
 
 
 class MockServer:
