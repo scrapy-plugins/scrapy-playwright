@@ -269,7 +269,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             "**",
             self._make_request_handler(
                 method=request.method,
-                scrapy_headers=request.headers,
+                url=request.url,
+                headers=request.headers,
                 body=request.body,
                 encoding=request.encoding,
             ),
@@ -399,7 +400,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return close_browser_context_callback
 
     def _make_request_handler(
-        self, method: str, scrapy_headers: Headers, body: Optional[bytes], encoding: str = "utf8"
+        self,
+        method: str,
+        url: str,
+        headers: Headers,
+        body: Optional[bytes],
+        encoding: str = "utf8",
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
@@ -417,17 +423,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             else:
                 overrides["headers"] = final_headers = await _maybe_await(
                     self.process_request_headers(
-                        self.browser_type_name, playwright_request, scrapy_headers
+                        self.browser_type_name, playwright_request, headers
                     )
                 )
             # the request that reaches the callback should contain the final headers
-            scrapy_headers.clear()
-            scrapy_headers.update(final_headers)
+            headers.clear()
+            headers.update(final_headers)
             del final_headers
 
-            if playwright_request.is_navigation_request():
+            # if the request is triggered by scrapy, not playwright
+            if playwright_request.url == url:
                 overrides["method"] = method
-                if body is not None:
+                if body:
                     overrides["post_data"] = body.decode(encoding)
 
             try:

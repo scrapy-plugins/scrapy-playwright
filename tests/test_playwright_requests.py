@@ -125,10 +125,11 @@ class MixinTestCase:
         from unittest.mock import AsyncMock
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req_handler = handler._make_request_handler("GET", Headers({}), body=None)
+            example_url = "https//example.org"
+            req_handler = handler._make_request_handler("GET", example_url, Headers({}), body=None)
             route = MagicMock()
             playwright_request = AsyncMock()
-            playwright_request.url = "https//example.org"
+            playwright_request.url = example_url
             playwright_request.is_navigation_request = MagicMock(return_value=True)
             playwright_request.all_headers.return_value = {}
 
