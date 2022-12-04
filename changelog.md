@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.24](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.24) (2022-12-04)
+
+* Fix request method override
+
+
 ### [v0.0.23](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.23) (2022-11-27)
 
 * Set redirect request metadata
