@@ -51,7 +51,7 @@ playwright install firefox chromium
 
 ## Changelog
 
-Please see the [changelog.md](changelog.md) file.
+See the [changelog.md](changelog.md) file.
 
 
 ## Activation
@@ -76,240 +76,10 @@ Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scra
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-## Supported settings
-
-* `PLAYWRIGHT_BROWSER_TYPE` (type `str`, default `chromium`)
-    The browser type to be launched, e.g. `chromium`, `firefox`, `webkit`.
-
-* `PLAYWRIGHT_LAUNCH_OPTIONS` (type `dict`, default `{}`)
-
-    A dictionary with options to be passed when launching the Browser.
-    See the docs for [`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
-
-* `PLAYWRIGHT_CONTEXTS` (type `dict[str, dict]`, default `{}`)
-
-    A dictionary which defines Browser contexts to be created on startup.
-    It should be a mapping of (name, keyword arguments). For instance:
-    ```python
-    {
-        "foobar": {
-            "context_arg1": "value",
-            "context_arg2": "value",
-        },
-        "default": {
-            "context_arg1": "value",
-            "context_arg2": "value",
-        },
-        "persistent": {
-            "user_data_dir": "/path/to/dir",  # will be a persistent context
-            "context_arg1": "value",
-        },
-    }
-    ```
-
-    See the section on [browser contexts](#browser-contexts) for more information.
-
-    See also the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
-
-* `PLAYWRIGHT_MAX_CONTEXTS` (type `Optional[int]`, default `None`)
-
-    Maximum amount of allowed concurrent Playwright contexts. If unset or `None`,
-    no limit is enforced. See the [Maximum concurrent context count](#maximum-concurrent-context-count)
-    section for more information.
-
-* `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT` (type `Optional[float]`, default `None`)
-
-    The timeout used when requesting pages by Playwright. If `None` or unset,
-    the default value will be used (30000 ms at the time of writing this).
-    See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
-
-* `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`)
-
-    A function (or the path to a function) that processes headers for a given request
-    and returns a dictionary with the headers to be used (note that, depending on the browser,
-    additional default headers could be sent as well). Coroutine functions (`async def`) are
-    supported.
-
-    This will be called at least once for each Scrapy request (receiving said request and the
-    corresponding Playwright request), but it could be called additional times if the given
-    resource generates more requests (e.g. to retrieve assets like images or scripts).
-
-    The function must return a `dict` object, and receives the following keyword arguments:
-
-    ```python
-    - browser_type: str
-    - playwright_request: playwright.async_api.Request
-    - scrapy_headers: scrapy.http.headers.Headers
-    ```
-
-    The default value (`scrapy_playwright.headers.use_scrapy_headers`) tries to emulate Scrapy's
-    behaviour for navigation requests, i.e. overriding headers with their values from the Scrapy request.
-    For non-navigation requests (e.g. images, stylesheets, scripts, etc), only the `User-Agent` header
-    is overriden, for consistency.
-
-    Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control of the headers to
-    Playwright, i.e. headers from Scrapy requests will be ignored and only headers set by
-    Playwright will be sent.
-    When doing this, please keep in mind that headers passed via the `Request.headers` attribute
-    or set by Scrapy components are ignored (including cookies set via the `Request.cookies`
-    attribute).
-
-* `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` (type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting)
-
-    Maximum amount of allowed concurrent Playwright pages for each context.
-    See the [notes about leaving unclosed pages](#receiving-page-objects-in-callbacks).
-
-* `PLAYWRIGHT_ABORT_REQUEST` (type `Optional[Union[Callable, str]]`, default `None`)
-
-    A predicate function (or the path to a function) that receives a
-    `playwright.async_api.Request` object and must return `True` if the
-    request should be aborted, `False` otherwise. Coroutine functions
-    (`async def`) are supported.
-
-    For instance, the following are all equivalent, and prevent the download of images:
-    ```python
-    PLAYWRIGHT_ABORT_REQUEST = lambda req: req.resource_type == "image"
-    ```
-
-    ```python
-    def should_abort_request(req):
-        return req.resource_type == "image"
-
-    PLAYWRIGHT_ABORT_REQUEST = should_abort_request
-    ```
-
-    ```python
-    # project/utils.py
-    def should_abort_request(req):
-        return req.resource_type == "image"
-
-    # settings.py
-    PLAYWRIGHT_ABORT_REQUEST = "project.utils.should_abort_request"
-
-    ```
-
-    Please note that all requests will appear in the DEBUG level logs, however there will
-    be no corresponding response log lines for aborted requests. Aborted requests
-    are counted in the `playwright/request_count/aborted` job stats item.
-
-    ### General note about settings
-
-    For the settings which accept object paths as strings, passing callable objects is
-    only supported when using Scrapy>=2.4. With prior versions, only strings are supported.
-
-
-## Supported request meta keys
-
-* `playwright` (type `bool`, default `False`)
-
-    If set to a value that evaluates to `True` the request will be processed by Playwright.
-
-* `playwright_context` (type `str`, default `"default"`)
-
-    Name of the context to be used to downloaad the request.
-    See the section on [browser contexts](#browser-contexts) for more information.
-
-* `playwright_context_kwargs` (type `dict`, default `{}`)
-
-    A dictionary with keyword arguments to be used when creating a new context, if a context
-    with the name specified in the `playwright_context` meta key does not exist already.
-    See the section on [browser contexts](#browser-contexts) for more information.
-
-* `playwright_include_page` (type `bool`, default `False`)
-
-    If `True`, the [Playwright page](https://playwright.dev/python/docs/api/class-page)
-    that was used to download the request will be available in the callback via
-    `response.meta['playwright_page']`.
-
-    **Important!**
-
-    This meta key is entirely optional, it's NOT necessary for the page to load or for any
-    asynchronous operation to be performed (specifically, it's NOT necessary for `PageMethod`
-    objects to be applied). Use it only if you need access to the Page object in the callback
-    that handles the request.
-
-    For more information and important notes see
-    [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
-
-* `playwright_page_event_handlers` (type `Optional[Dict[Str, Callable]]`, default `None`)
-
-    A dictionary of handlers to be attached to page events.
-    See [Handling page events](#handling-page-events).
-
-* `playwright_page_init_callback` (type `Optional[Union[Callable, str]]`, default `None`)
-
-    A coroutine function (`async def`) to be invoked immediately after creating
-    a page for the request. It receives the page and the request as positional
-    arguments. Useful for initialization code. Invoked only for newly created
-    pages, ignored if the page for the request already exists (e.g. by passing
-    `playwright_page`).
-
-    ```python
-    async def init_page(page, request):
-        await page.add_init_script(path="./custom_script.js")
-
-    class AwesomeSpider(scrapy.Spider):
-        def start_requests(self):
-            yield scrapy.Request(
-                url="https://httpbin.org/headers",
-                meta={
-                    "playwright": True,
-                    "playwright_page_init_callback": init_page,
-                },
-            )
-    ```
-
-    **Important!**
-
-    `scrapy-playwright` uses `Page.route` & `Page.unroute` internally, please
-    avoid using these methods unless you know exactly what you're doing.
-
-* `playwright_page_methods` (type `Iterable`, default `()`)
-
-    An iterable of `scrapy_playwright.page.PageMethod` objects to indicate
-    actions to be performed on the page before returning the final response.
-    For more information see [Executing actions on pages](#executing-actions-on-pages).
-
-* `playwright_page` (type `Optional[playwright.async_api._generated.Page]`, default `None`)
-
-    A [Playwright page](https://playwright.dev/python/docs/api/class-page) to be used to
-    download the request. If unspecified, a new page is created for each request.
-    This key could be used in conjunction with `playwright_include_page` to make a chain of
-    requests using the same page. For instance:
-
-    ```python
-    def start_requests(self):
-        yield scrapy.Request(
-            url="https://httpbin.org/get",
-            meta={"playwright": True, "playwright_include_page": True},
-        )
-
-    def parse(self, response):
-        page = response.meta["playwright_page"]
-        yield scrapy.Request(
-            url="https://httpbin.org/headers",
-            callback=self.parse_headers,
-            meta={"playwright": True, "playwright_page": page},
-        )
-    ```
-
-* `playwright_page_goto_kwargs` (type `dict`, default `{}`)
-
-    A dictionary with keyword arguments to be passed to the page's
-    [`goto` method](https://playwright.dev/python/docs/api/class-page#page-goto)
-    when navigating to an URL. The `url` key is ignored if present, the request's
-    URL is used instead.
-
-* `playwright_security_details` (type `Optional[dict]`, read only)
-
-    A dictionary with [security information](https://playwright.dev/python/docs/api/class-response#response-security-details)
-    about the give response. Only available for HTTPS requests. Could be accessed
-    in the callback via `response.meta['playwright_security_details']`
-
 
 ## Basic usage
 
-Set the `playwright` [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
+Set the [`playwright`](#playwright) [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
 key to download a request using Playwright:
 
 ```python
@@ -330,7 +100,7 @@ class AwesomeSpider(scrapy.Spider):
 
     def parse(self, response):
         # 'response' contains the page as seen by the browser
-        yield {"url": response.url}
+        return {"url": response.url}
 ```
 
 ### Notes about the User-Agent header
@@ -342,9 +112,333 @@ does not match the running Browser. If you prefer the `User-Agent` sent by
 default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
+## Supported settings
+
+### `PLAYWRIGHT_BROWSER_TYPE`
+Type `str`, default `"chromium"`.
+
+The browser type to be launched, e.g. `chromium`, `firefox`, `webkit`.
+
+```python
+PLAYWRIGHT_BROWSER_TYPE = "firefox"
+```
+
+### `PLAYWRIGHT_LAUNCH_OPTIONS`
+Type `dict`, default `{}`
+
+A dictionary with options to be passed as keyword arguments when launching the
+Browser. See the docs for
+[`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
+
+```python
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "headless": False,
+    "timeout": 20 * 1000,  # 20 seconds
+}
+```
+
+### `PLAYWRIGHT_CONTEXTS`
+Type `dict[str, dict]`, default `{}`
+
+A dictionary which defines Browser contexts to be created on startup.
+It should be a mapping of (name, keyword arguments).
+
+```python
+PLAYWRIGHT_CONTEXTS = {
+    "foobar": {
+        "context_arg1": "value",
+        "context_arg2": "value",
+    },
+    "default": {
+        "context_arg1": "value",
+        "context_arg2": "value",
+    },
+    "persistent": {
+        "user_data_dir": "/path/to/dir",  # will be a persistent context
+        "context_arg1": "value",
+    },
+}
+```
+
+See the section on [browser contexts](#browser-contexts) for more information.
+See also the docs for [`Browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+
+### `PLAYWRIGHT_MAX_CONTEXTS`
+Type `Optional[int]`, default `None`
+
+Maximum amount of allowed concurrent Playwright contexts. If unset or `None`,
+no limit is enforced. See the [Maximum concurrent context count](#maximum-concurrent-context-count)
+section for more information.
+
+```python
+PLAYWRIGHT_MAX_CONTEXTS = 8
+```
+
+### `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT`
+Type `Optional[float]`, default `None`
+
+Timeout to be used when requesting pages by Playwright. If `None` or unset,
+the default value will be used (30000 ms at the time of writing this).
+See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
+
+```python
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 10 * 1000  # 10 seconds
+```
+
+### `PLAYWRIGHT_PROCESS_REQUEST_HEADERS`
+Type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`
+
+A function (or the path to a function) that processes headers for a given request
+and returns a dictionary with the headers to be used (note that, depending on the browser,
+additional default headers could be sent as well). Coroutine functions (`async def`) are
+supported.
+
+This will be called at least once for each Scrapy request (receiving said request and the
+corresponding Playwright request), but it could be called additional times if the given
+resource generates more requests (e.g. to retrieve assets like images or scripts).
+
+The function must return a `dict` object, and receives the following positional arguments:
+
+```python
+- browser_type: str
+- playwright_request: playwright.async_api.Request
+- scrapy_headers: scrapy.http.headers.Headers
+```
+
+The default function (`scrapy_playwright.headers.use_scrapy_headers`) tries to
+emulate Scrapy's behaviour for navigation requests, i.e. overriding headers
+with their values from the Scrapy request. For non-navigation requests (e.g.
+images, stylesheets, scripts, etc), only the `User-Agent` header is overriden,
+for consistency.
+
+Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control to
+Playwright, i.e. headers from Scrapy requests will be ignored and only headers
+set by Playwright will be sent. Keep in mind that in this case, headers passed
+via the `Request.headers` attribute or set by Scrapy components are ignored
+(including cookies set via the `Request.cookies` attribute).
+
+```python
+def custom_headers(
+    browser_type: str,
+    playwright_request: playwright.async_api.Request,
+    scrapy_headers: scrapy.http.headers.Headers,
+) -> dict:
+    if browser_type == "firefox":
+        return {"User-Agent": "foo"}
+    return {"User-Agent": "bar"}
+
+PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
+```
+
+### `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`
+Type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting
+
+Maximum amount of allowed concurrent Playwright pages for each context.
+See the [notes about leaving unclosed pages](#receiving-page-objects-in-callbacks).
+
+```python
+PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
+```
+
+### `PLAYWRIGHT_ABORT_REQUEST`
+Type `Optional[Union[Callable, str]]`, default `None`
+
+A predicate function (or the path to a function) that receives a
+`playwright.async_api.Request` object and must return `True` if the
+request should be aborted, `False` otherwise. Coroutine functions
+(`async def`) are supported.
+
+Note that all requests will appear in the DEBUG level logs, however there will
+be no corresponding response log lines for aborted requests. Aborted requests
+are counted in the `playwright/request_count/aborted` job stats item.
+
+```python
+def should_abort_request(request):
+    return request.resource_type == "image"
+
+PLAYWRIGHT_ABORT_REQUEST = should_abort_request
+```
+
+### General note about settings
+For settings that accept object paths as strings, passing callable objects is
+only supported when using Scrapy>=2.4. With prior versions, only strings are
+supported.
+
+
+## Supported request meta keys
+
+### `playwright`
+Type `bool`, default `False`
+
+If set to a value that evaluates to `True` the request will be processed by Playwright.
+
+```python
+return scrapy.Request("https://example.org", meta={"playwright": True})
+```
+
+### `playwright_context`
+Type `str`, default `"default"`
+
+Name of the context to be used to download the request.
+See the section on [browser contexts](#browser-contexts) for more information.
+
+```python
+return scrapy.Request(
+    url="https://example.org",
+    meta={
+        "playwright": True,
+        "playwright_context": "persistent",
+    },
+)
+```
+
+### `playwright_context_kwargs`
+Type `dict`, default `{}`
+
+A dictionary with keyword arguments to be used when creating a new context, if a context
+with the name specified in the `playwright_context` meta key does not exist already.
+See the section on [browser contexts](#browser-contexts) for more information.
+
+```python
+return scrapy.Request(
+    url="https://example.org",
+    meta={
+        "playwright": True,
+        "playwright_context": "new",
+        "playwright_context_kwargs": {
+            "ignore_https_errors": True,
+        },
+    },
+)
+```
+
+### `playwright_include_page`
+Type `bool`, default `False`
+
+If `True`, the [Playwright page](https://playwright.dev/python/docs/api/class-page)
+that was used to download the request will be available in the callback via
+`response.meta['playwright_page']`.
+
+**Important!**
+
+This meta key is entirely optional, it's NOT necessary for the page to load or for any
+asynchronous operation to be performed (specifically, it's NOT necessary for `PageMethod`
+objects to be applied). Use it only if you need access to the Page object in the callback
+that handles the request.
+
+For more information and important notes see
+[Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
+
+```python
+return scrapy.Request(
+    url="https://example.org",
+    meta={"playwright": True, "playwright_include_page": True},
+)
+```
+
+### `playwright_page_event_handlers`
+Type `Dict[Str, Callable]`, default `{}`
+
+A dictionary of handlers to be attached to page events.
+See [Handling page events](#handling-page-events).
+
+### `playwright_page_init_callback`
+Type `Optional[Union[Callable, str]]`, default `None`
+
+A coroutine function (`async def`) to be invoked immediately after creating
+a page for the request. It receives the page and the request as positional
+arguments. Useful for initialization code. Invoked only for newly created
+pages, ignored if the page for the request already exists (e.g. by passing
+`playwright_page`).
+
+```python
+async def init_page(page, request):
+    await page.add_init_script(path="./custom_script.js")
+
+class AwesomeSpider(scrapy.Spider):
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://httpbin.org/headers",
+            meta={
+                "playwright": True,
+                "playwright_page_init_callback": init_page,
+            },
+        )
+```
+
+**Important!**
+
+`scrapy-playwright` uses `Page.route` & `Page.unroute` internally, please
+avoid using these methods unless you know exactly what you're doing.
+
+### `playwright_page_methods`
+Type `Iterable`, default `()`
+
+An iterable of `scrapy_playwright.page.PageMethod` objects to indicate
+actions to be performed on the page before returning the final response.
+See [Executing actions on pages](#executing-actions-on-pages).
+
+### `playwright_page`
+Type `Optional[playwright.async_api._generated.Page]`, default `None`
+
+A [Playwright page](https://playwright.dev/python/docs/api/class-page) to be used to
+download the request. If unspecified, a new page is created for each request.
+This key could be used in conjunction with `playwright_include_page` to make a chain of
+requests using the same page. For instance:
+
+```python
+def start_requests(self):
+    yield scrapy.Request(
+        url="https://httpbin.org/get",
+        meta={"playwright": True, "playwright_include_page": True},
+    )
+
+def parse(self, response):
+    page = response.meta["playwright_page"]
+    yield scrapy.Request(
+        url="https://httpbin.org/headers",
+        callback=self.parse_headers,
+        meta={"playwright": True, "playwright_page": page},
+    )
+```
+
+### `playwright_page_goto_kwargs`
+Type `dict`, default `{}`
+
+A dictionary with keyword arguments to be passed to the page's
+[`goto` method](https://playwright.dev/python/docs/api/class-page#page-goto)
+when navigating to an URL. The `url` key is ignored if present, the request
+URL is used instead.
+
+```python
+return scrapy.Request(
+    url="https://example.org",
+    meta={
+        "playwright": True,
+        "playwright_page_goto_kwargs": {
+            "wait_until": "networkidle",
+        },
+    },
+)
+```
+
+### `playwright_security_details`
+Type `Optional[dict]`, read only
+
+A dictionary with [security information](https://playwright.dev/python/docs/api/class-response#response-security-details)
+about the give response. Only available for HTTPS requests. Could be accessed
+in the callback via `response.meta['playwright_security_details']`
+
+```python
+def parse(self, response):
+    print(response.meta["playwright_security_details"])
+    # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
+```
+
+
 ## Receiving Page objects in callbacks
 
-Specifying a non-False value for the `playwright_include_page` `meta` key for a
+Specifying a non-False value for the `playwright_include_page` meta key for a
 request will result in the corresponding `playwright.async_api.Page` object
 being available in the `playwright_page` meta key in the request callback.
 In order to be able to `await` coroutines on the provided `Page` object,
@@ -411,7 +505,8 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 ## Browser contexts
 
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
-to be launched at startup can be defined via the `PLAYWRIGHT_CONTEXTS` [setting](#settings).
+to be launched at startup can be defined via the
+[`PLAYWRIGHT_CONTEXTS`](#PLAYWRIGHT_CONTEXTS) setting.
 
 ### Choosing a specific context for a request
 
@@ -433,7 +528,7 @@ context can also be customized on startup via the `PLAYWRIGHT_CONTEXTS` setting.
 ### Persistent contexts
 
 Pass a value for the `user_data_dir` keyword argument to launch a context as
-**persistent** (see [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)).
+persistent. See also [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context).
 
 ### Creating a context during a crawl
 
@@ -649,13 +744,13 @@ class EventSpider(scrapy.Spider):
     def start_requests(self):
         yield scrapy.Request(
             url="https://example.org",
-            meta=dict(
-                playwright=True,
-                playwright_page_event_handlers={
+            meta={
+                "playwright": True,
+                "playwright_page_event_handlers": {
                     "dialog": handle_dialog,
                     "response": "handle_response",
                 },
-            ),
+            },
         )
 
     async def handle_response(self, response: PlaywrightResponse) -> None:
