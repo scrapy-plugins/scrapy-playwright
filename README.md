@@ -244,9 +244,9 @@ PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
 Type `Optional[Union[Callable, str]]`, default `None`
 
 A predicate function (or the path to a function) that receives a
-`playwright.async_api.Request` object and must return `True` if the
-request should be aborted, `False` otherwise. Coroutine functions
-(`async def`) are supported.
+[`playwright.async_api.Request`](https://playwright.dev/python/docs/api/class-request)
+object and must return `True` if the request should be aborted, `False` otherwise.
+Coroutine functions (`async def`) are supported.
 
 Note that all requests will appear in the DEBUG level logs, however there will
 be no corresponding response log lines for aborted requests. Aborted requests
@@ -254,7 +254,10 @@ are counted in the `playwright/request_count/aborted` job stats item.
 
 ```python
 def should_abort_request(request):
-    return request.resource_type == "image"
+    return (
+        request.resource_type == "image"
+        or ".jpg" in request.url
+    )
 
 PLAYWRIGHT_ABORT_REQUEST = should_abort_request
 ```
