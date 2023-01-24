@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.25](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.25) (2023-01-24)
+
+* Set spider attribute on log records
+
+
 ### [v0.0.24](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.24) (2022-12-04)
 
 * Fix request method override
