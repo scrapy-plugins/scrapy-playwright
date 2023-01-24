@@ -295,7 +295,7 @@ class MixinTestCase:
                     assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
     @pytest.mark.asyncio
-    async def test_page_initialization_ok(self, caplog):
+    async def test_page_initialization_ok(self):
         async def init_page(page, request):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
@@ -359,6 +359,21 @@ class MixinTestCase:
             server.urljoin("/redirect2"),
             server.urljoin("/redirect"),
         ]
+
+    @pytest.mark.asyncio
+    async def test_logging_record_spider(self, caplog):
+        """Make sure at least one log record has the spider as an attribute
+        (records sent before opening the spider will not have it).
+        """
+        caplog.set_level(logging.INFO)
+        spider = Spider("spider_name")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            handler._spider_opened(spider)
+            with MockServer() as server:
+                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
+                await handler._download_request(req, spider)
+
+        assert any(getattr(rec, "spider", None) is spider for rec in caplog.records)
 
 
 class TestCaseChromium(MixinTestCase):
