@@ -147,7 +147,7 @@ class MixinTestCaseMultipleContexts:
             },
         }
         async with make_handler(settings) as handler:
-            assert len(handler.contexts) == 1
+            assert len(handler.context_wrappers) == 1
 
             with StaticMockServer() as server:
                 meta = {
@@ -182,8 +182,8 @@ class MixinTestCaseMultipleContexts:
         assert not Path(temp_dir).exists()
         async with make_handler(settings) as handler:
             assert Path(temp_dir).is_dir()
-            assert len(handler.contexts) == 1
-            assert handler.contexts["persistent"].persistent
+            assert len(handler.context_wrappers) == 1
+            assert handler.context_wrappers["persistent"].persistent
             assert not hasattr(handler, "browser")
 
     @pytest.mark.asyncio
@@ -204,15 +204,15 @@ class MixinTestCaseMultipleContexts:
         assert not Path(temp_dir).exists()
         async with make_handler(settings) as handler:
             assert Path(temp_dir).is_dir()
-            assert len(handler.contexts) == 2
-            assert handler.contexts["persistent"].persistent
-            assert not handler.contexts["non-persistent"].persistent
+            assert len(handler.context_wrappers) == 2
+            assert handler.context_wrappers["persistent"].persistent
+            assert not handler.context_wrappers["non-persistent"].persistent
             assert isinstance(handler.browser, Browser)
 
     @pytest.mark.asyncio
     async def test_contexts_dynamic(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            assert len(handler.contexts) == 0
+            assert len(handler.context_wrappers) == 0
 
             with StaticMockServer() as server:
                 meta = {
@@ -234,7 +234,7 @@ class MixinTestCaseMultipleContexts:
                 req = Request(server.urljoin("/index.html"), meta=meta)
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert len(handler.contexts) == 1
+            assert len(handler.context_wrappers) == 1
 
             page = resp.meta["playwright_page"]
             storage_state = await page.context.storage_state()
