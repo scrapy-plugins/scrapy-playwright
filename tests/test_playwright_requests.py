@@ -126,7 +126,15 @@ class MixinTestCase:
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             example_url = "https//example.org"
-            req_handler = handler._make_request_handler("GET", example_url, Headers({}), body=None)
+            spider = Spider("foo")
+            req_handler = handler._make_request_handler(
+                method="GET",
+                url=example_url,
+                headers=Headers({}),
+                body=None,
+                encoding="utf-8",
+                spider=spider,
+            )
             route = MagicMock()
             playwright_request = AsyncMock()
             playwright_request.url = example_url
@@ -138,7 +146,10 @@ class MixinTestCase:
             route.continue_.side_effect = exc
             await req_handler(route, playwright_request)
             logger.warning.assert_called_with(
-                "%s: failed processing Playwright request (%s)", playwright_request, exc
+                "%s: failed processing Playwright request (%s)",
+                playwright_request,
+                exc,
+                extra={"spider": spider},
             )
 
             # unknown error, re-raise
@@ -365,10 +376,9 @@ class MixinTestCase:
         """Make sure at least one log record has the spider as an attribute
         (records sent before opening the spider will not have it).
         """
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
         spider = Spider("spider_name")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            handler._spider_opened(spider)
             with MockServer() as server:
                 req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
                 await handler._download_request(req, spider)
