@@ -39,8 +39,7 @@ __all__ = ["ScrapyPlaywrightDownloadHandler"]
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
-LOGGER_NAME = "scrapy-playwright"
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger("scrapy-playwright")
 
 
 DEFAULT_BROWSER_TYPE = "chromium"
@@ -61,7 +60,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         super().__init__(settings=settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
-        crawler.signals.connect(self._spider_opened, signals.spider_opened)
         self.stats = crawler.stats
 
         # browser
@@ -110,17 +108,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def _engine_started(self) -> Deferred:
         """Launch the browser. Use the engine_started signal as it supports returning deferreds."""
         return deferred_from_coro(self._launch())
-
-    def _spider_opened(self, spider: Spider) -> None:
-        old_factory = logging.getLogRecordFactory()
-
-        def record_factory(name: str, *args, **kwargs):
-            record = old_factory(name, *args, **kwargs)
-            if name == LOGGER_NAME:
-                record.spider = spider
-            return record
-
-        logging.setLogRecordFactory(record_factory)
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
