@@ -12,7 +12,6 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
-from scrapy.http.headers import Headers
 from scrapy.http.response.html import HtmlResponse
 
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
