@@ -186,12 +186,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         await context.semaphore.acquire()
         page = await context.context.new_page()
         self.stats.inc_value("playwright/page_count")
-        total_page_count = (self._get_total_page_count(),)
+        total_page_count = self._get_total_page_count()
         logger.debug(
             "[Context=%s] New page created, page count is %i (%i for all contexts)",
             context_name,
             len(context.context.pages),
-            self._get_total_page_count(),
+            total_page_count,
             extra={
                 "spider": spider,
                 "context_name": context_name,
