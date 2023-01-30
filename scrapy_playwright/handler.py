@@ -273,29 +273,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page = await self._create_page(request=request, spider=spider)
         context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
 
-        # attach event handlers
-        event_handlers = request.meta.get("playwright_page_event_handlers") or {}
-        for event, handler in event_handlers.items():
-            if callable(handler):
-                page.on(event, handler)
-            elif isinstance(handler, str):
-                try:
-                    page.on(event, getattr(spider, handler))
-                except AttributeError as ex:
-                    logger.warning(
-                        "Spider '%s' does not have a '%s' attribute,"
-                        " ignoring handler for event '%s'",
-                        spider.name,
-                        handler,
-                        event,
-                        extra={
-                            "spider": spider,
-                            "context_name": context_name,
-                            "scrapy_request_url": request.url,
-                            "scrapy_request_method": request.method,
-                            "exception": ex,
-                        },
-                    )
+        _attach_page_event_handlers(
+            page=page, request=request, spider=spider, context_name=context_name
+        )
 
         await page.unroute("**")
         await page.route(
@@ -361,7 +341,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
             headers = Headers()
         else:
-            await self._set_redirect_meta(request=request, response=response)
+            await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
         await self._apply_page_methods(page, request, spider)
@@ -392,23 +372,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             encoding=encoding,
             ip_address=server_ip_address,
         )
-
-    async def _set_redirect_meta(self, request: Request, response: PlaywrightResponse) -> None:
-        redirect_times: int = 0
-        redirect_urls: list = []
-        redirect_reasons: list = []
-        redirected = response.request.redirected_from
-        while redirected is not None:
-            redirect_times += 1
-            redirect_urls.append(redirected.url)
-            redirected_response = await redirected.response()
-            reason = None if redirected_response is None else redirected_response.status
-            redirect_reasons.append(reason)
-            redirected = redirected.redirected_from
-        if redirect_times:
-            request.meta["redirect_times"] = redirect_times
-            request.meta["redirect_urls"] = list(reversed(redirect_urls))
-            request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
 
     async def _apply_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
         context_name = request.meta.get("playwright_context")
@@ -554,6 +517,52 @@ async def _maybe_await(obj):
     if isinstance(obj, Awaitable):
         return await obj
     return obj
+
+
+def _attach_page_event_handlers(
+    page: Page, request: Request, spider: Spider, context_name: str
+) -> None:
+    event_handlers = request.meta.get("playwright_page_event_handlers") or {}
+    for event, handler in event_handlers.items():
+        if callable(handler):
+            page.on(event, handler)
+        elif isinstance(handler, str):
+            try:
+                page.on(event, getattr(spider, handler))
+            except AttributeError as ex:
+                logger.warning(
+                    "Spider '%s' does not have a '%s' attribute,"
+                    " ignoring handler for event '%s'",
+                    spider.name,
+                    handler,
+                    event,
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                        "exception": ex,
+                    },
+                )
+
+
+async def _set_redirect_meta(request: Request, response: PlaywrightResponse) -> None:
+    """Update a Scrapy request with metadata about redirects."""
+    redirect_times: int = 0
+    redirect_urls: list = []
+    redirect_reasons: list = []
+    redirected = response.request.redirected_from
+    while redirected is not None:
+        redirect_times += 1
+        redirect_urls.append(redirected.url)
+        redirected_response = await redirected.response()
+        reason = None if redirected_response is None else redirected_response.status
+        redirect_reasons.append(reason)
+        redirected = redirected.redirected_from
+    if redirect_times:
+        request.meta["redirect_times"] = redirect_times
+        request.meta["redirect_urls"] = list(reversed(redirect_urls))
+        request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
 
 
 def _make_request_logger(context_name: str, spider: Spider) -> Callable:
