@@ -463,6 +463,20 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 should_abort = await _maybe_await(self.abort_request(playwright_request))
                 if should_abort:
                     await route.abort()
+                    logger.debug(
+                        "[Context=%s] Aborted Playwright request <%s %s>",
+                        context_name,
+                        playwright_request.method.upper(),
+                        playwright_request.url,
+                        extra={
+                            "spider": spider,
+                            "context_name": context_name,
+                            "scrapy_request_url": url,
+                            "scrapy_request_method": method,
+                            "playwright_request_url": playwright_request.url,
+                            "playwright_request_method": playwright_request.method,
+                        },
+                    )
                     self.stats.inc_value("playwright/request_count/aborted")
                     return None
 
@@ -482,13 +496,33 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             del final_headers
 
             # if the request is triggered by scrapy, not playwright
+            original_playwright_method: str = playwright_request.method
             if playwright_request.url == url:
-                overrides["method"] = method
+                if method.upper() != playwright_request.method.upper():
+                    overrides["method"] = method
                 if body:
                     overrides["post_data"] = body.decode(encoding)
 
             try:
                 await route.continue_(**overrides)
+                if overrides.get("method"):
+                    logger.debug(
+                        "[Context=%s] Overridden method for Playwright request"
+                        " to %s: original=%s new=%s",
+                        context_name,
+                        playwright_request.url,
+                        original_playwright_method,
+                        overrides["method"],
+                        extra={
+                            "spider": spider,
+                            "context_name": context_name,
+                            "scrapy_request_url": url,
+                            "scrapy_request_method": method,
+                            "playwright_request_url": playwright_request.url,
+                            "playwright_request_method_original": original_playwright_method,
+                            "playwright_request_method_new": overrides["method"],
+                        },
+                    )
             except Exception as ex:
                 if _is_safe_close_error(ex):
                     logger.warning(
