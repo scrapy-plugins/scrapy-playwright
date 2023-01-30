@@ -256,6 +256,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = request.meta.get("playwright_page")
         if not isinstance(page, Page):
             page = await self._create_page(request=request, spider=spider)
+        context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
 
         # attach event handlers
         event_handlers = request.meta.get("playwright_page_event_handlers") or {}
@@ -272,13 +273,19 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         spider.name,
                         handler,
                         event,
-                        extra={"spider": spider},
+                        extra={
+                            "spider": spider,
+                            "context_name": context_name,
+                            "scrapy_request_url": request.url,
+                            "scrapy_request_method": request.method,
+                        },
                     )
 
         await page.unroute("**")
         await page.route(
             "**",
             self._make_request_handler(
+                context_name=context_name,
                 method=request.method,
                 url=request.url,
                 headers=request.headers,
@@ -293,10 +300,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         except Exception as ex:
             if not request.meta.get("playwright_include_page") and not page.is_closed():
                 logger.warning(
-                    "Closing page due to failed request: %s (%s)",
+                    "Closing page due to failed request: %s exc_type=%s exc_msg=%s",
                     request,
                     type(ex),
-                    extra={"spider": spider},
+                    str(ex),
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                    },
                 )
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
@@ -311,6 +324,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if request.meta.get("playwright_include_page"):
             request.meta["playwright_page"] = page
 
+        context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
+
         start_time = time()
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
         page_goto_kwargs.pop("url", None)
@@ -320,7 +335,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
                 request,
-                extra={"spider": spider, "request_url": request.url},
+                extra={
+                    "spider": spider,
+                    "context_name": context_name,
+                    "scrapy_request_url": request.url,
+                    "scrapy_request_method": request.method,
+                },
             )
             headers = Headers()
         else:
@@ -435,6 +455,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def _make_request_handler(
         self,
+        context_name: str,
         method: str,
         url: str,
         headers: Headers,
@@ -477,10 +498,19 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             except Exception as ex:
                 if _is_safe_close_error(ex):
                     logger.warning(
-                        "%s: failed processing Playwright request (%s)",
-                        playwright_request,
-                        ex,
-                        extra={"spider": spider},
+                        "Failed processing Playwright request: <%s %s> exc_type=%s exc_msg=%s",
+                        playwright_request.method,
+                        playwright_request.url,
+                        type(ex),
+                        str(ex),
+                        extra={
+                            "spider": spider,
+                            "context_name": context_name,
+                            "scrapy_request_url": url,
+                            "scrapy_request_method": method,
+                            "playwright_request_url": playwright_request.url,
+                            "playwright_request_method": playwright_request.method,
+                        },
                     )
                 else:
                     raise
@@ -507,8 +537,8 @@ def _make_request_logger(context_name: str, spider: Spider) -> Callable:
             extra={
                 "spider": spider,
                 "context_name": context_name,
-                "request_url": request.url,
-                "request_method": request.method,
+                "playwright_request_url": request.url,
+                "playwright_request_method": request.method,
             },
         )
 
@@ -531,8 +561,8 @@ def _make_response_logger(context_name: str, spider: Spider) -> Callable:
             extra={
                 "spider": spider,
                 "context_name": context_name,
-                "response_url": response.url,
-                "response_status": response.status,
+                "playwright_response_url": response.url,
+                "playwright_response_status": response.status,
             },
         )
 

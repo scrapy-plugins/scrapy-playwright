@@ -15,6 +15,7 @@ from scrapy import Spider, Request, FormRequest
 from scrapy.http.headers import Headers
 from scrapy.http.response.html import HtmlResponse
 
+from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
 from tests import make_handler
@@ -115,7 +116,8 @@ class MixinTestCase:
                 assert (
                     "scrapy-playwright",
                     logging.WARNING,
-                    f"Closing page due to failed request: {req} ({type(excinfo.value)})",
+                    f"Closing page due to failed request: {req}"
+                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in caplog.record_tuples
 
     @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
@@ -125,31 +127,41 @@ class MixinTestCase:
         from unittest.mock import AsyncMock
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            example_url = "https//example.org"
+            scrapy_request = Request(url="https://example.org", method="GET")
             spider = Spider("foo")
             req_handler = handler._make_request_handler(
-                method="GET",
-                url=example_url,
-                headers=Headers({}),
+                context_name=DEFAULT_CONTEXT_NAME,
+                method=scrapy_request.method,
+                url=scrapy_request.url,
+                headers=scrapy_request.headers,
                 body=None,
                 encoding="utf-8",
                 spider=spider,
             )
             route = MagicMock()
             playwright_request = AsyncMock()
-            playwright_request.url = example_url
+            playwright_request.url = scrapy_request.url
             playwright_request.is_navigation_request = MagicMock(return_value=True)
             playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
-            exc = Exception("Target page, context or browser has been closed")
-            route.continue_.side_effect = exc
+            ex = Exception("Target page, context or browser has been closed")
+            route.continue_.side_effect = ex
             await req_handler(route, playwright_request)
             logger.warning.assert_called_with(
-                "%s: failed processing Playwright request (%s)",
-                playwright_request,
-                exc,
-                extra={"spider": spider},
+                "Failed processing Playwright request: <%s %s> exc_type=%s exc_msg=%s",
+                playwright_request.method,
+                playwright_request.url,
+                type(ex),
+                str(ex),
+                extra={
+                    "spider": spider,
+                    "context_name": DEFAULT_CONTEXT_NAME,
+                    "scrapy_request_url": scrapy_request.url,
+                    "scrapy_request_method": scrapy_request.method,
+                    "playwright_request_url": playwright_request.url,
+                    "playwright_request_method": playwright_request.method,
+                },
             )
 
             # unknown error, re-raise
