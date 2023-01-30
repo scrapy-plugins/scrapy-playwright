@@ -158,7 +158,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             "Browser context started: '%s' (persistent=%s)",
             name,
             persistent,
-            extra={"spider": spider},
+            extra={"spider": spider, "context_name": name, "persistent": persistent},
         )
         self.stats.inc_value("playwright/context_count")
         if self.default_navigation_timeout is not None:
@@ -186,12 +186,20 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         await context.semaphore.acquire()
         page = await context.context.new_page()
         self.stats.inc_value("playwright/page_count")
+        total_page_count = (self._get_total_page_count(),)
         logger.debug(
             "[Context=%s] New page created, page count is %i (%i for all contexts)",
             context_name,
             len(context.context.pages),
             self._get_total_page_count(),
-            extra={"spider": spider},
+            extra={
+                "spider": spider,
+                "context_name": context_name,
+                "context_page_count": len(context.context.pages),
+                "total_page_count": total_page_count,
+                "scrapy_request_url": request.url,
+                "scrapy_request_method": request.method,
+            },
         )
         self._set_max_concurrent_page_count()
         if self.default_navigation_timeout is not None:
@@ -203,11 +211,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 await page_init_callback(page, request)
             except Exception as ex:
                 logger.warning(
-                    "[Context=%s] Page init callback exception for %s (%s)",
+                    "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
                     context_name,
                     repr(request),
-                    repr(ex),
-                    extra={"spider": spider},
+                    type(ex),
+                    str(ex),
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                        "exception": ex,
+                    },
                 )
 
         page.on("close", self._make_close_page_callback(context_name))
@@ -266,7 +281,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             elif isinstance(handler, str):
                 try:
                     page.on(event, getattr(spider, handler))
-                except AttributeError:
+                except AttributeError as ex:
                     logger.warning(
                         "Spider '%s' does not have a '%s' attribute,"
                         " ignoring handler for event '%s'",
@@ -278,6 +293,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "context_name": context_name,
                             "scrapy_request_url": request.url,
                             "scrapy_request_method": request.method,
+                            "exception": ex,
                         },
                     )
 
@@ -309,6 +325,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         "context_name": context_name,
                         "scrapy_request_url": request.url,
                         "scrapy_request_method": request.method,
+                        "exception": ex,
                     },
                 )
                 await page.close()
@@ -394,6 +411,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
 
     async def _apply_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
+        context_name = request.meta.get("playwright_context")
         page_methods = request.meta.get("playwright_page_methods") or ()
         if isinstance(page_methods, dict):
             page_methods = page_methods.values()
@@ -401,9 +419,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             if isinstance(pm, PageMethod):
                 try:
                     method = getattr(page, pm.method)
-                except AttributeError:
+                except AttributeError as ex:
                     logger.warning(
-                        "Ignoring %r: could not find method", pm, extra={"spider": spider}
+                        "Ignoring %r: could not find method",
+                        pm,
+                        extra={
+                            "spider": spider,
+                            "context_name": context_name,
+                            "scrapy_request_url": request.url,
+                            "scrapy_request_method": request.method,
+                            "exception": ex,
+                        },
                     )
                 else:
                     pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
@@ -413,7 +439,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     "Ignoring %r: expected PageMethod, got %r",
                     pm,
                     type(pm),
-                    extra={"spider": spider},
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                    },
                 )
 
     def _increment_request_stats(self, request: PlaywrightRequest) -> None:
@@ -510,6 +541,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "scrapy_request_method": method,
                             "playwright_request_url": playwright_request.url,
                             "playwright_request_method": playwright_request.method,
+                            "exception": ex,
                         },
                     )
                 else:

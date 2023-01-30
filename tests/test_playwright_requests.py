@@ -160,6 +160,7 @@ class MixinTestCase:
                     "scrapy_request_method": scrapy_request.method,
                     "playwright_request_url": playwright_request.url,
                     "playwright_request_method": playwright_request.method,
+                    "exception": ex,
                 },
             )
 
