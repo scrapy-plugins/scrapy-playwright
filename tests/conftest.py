@@ -28,3 +28,4 @@ def pytest_pycollect_makeitem(collector, name, obj):
         item = pytest.Function.from_parent(collector, name=name)
         if "asyncio" in item.keywords:
             return list(collector._genfunctions(name, obj))
+    return None

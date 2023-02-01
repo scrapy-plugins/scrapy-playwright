@@ -68,7 +68,7 @@ class MixinProcessHeadersTestCase:
     async def test_use_custom_headers(self):
         """Custom header processing function"""
 
-        async def important_headers(*args, **kwargs) -> dict:
+        async def important_headers(*_args, **_kwargs) -> dict:
             return {"foo": "bar"}
 
         settings_dict = {

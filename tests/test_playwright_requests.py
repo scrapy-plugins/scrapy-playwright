@@ -12,7 +12,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
-from scrapy.http.response.html import HtmlResponse
+from scrapy.http import Response, HtmlResponse
 
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
@@ -25,6 +25,9 @@ class DialogSpider(Spider):
     """A spider with a method to handle the "dialog" page event"""
 
     name = "dialog"
+
+    def parse(self, response: Response, **kwargs) -> None:
+        return None
 
     async def handle_dialog(self, dialog: Dialog) -> None:
         self.dialog_message = dialog.message
@@ -319,7 +322,7 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_initialization_ok(self):
-        async def init_page(page, request):
+        async def init_page(page, _request):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
         settings_dict = {
@@ -340,7 +343,7 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_initialization_fail(self, caplog):
-        async def init_page(page, request, unused_arg):
+        async def init_page(page, _request, _unused_arg):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
         settings_dict = {
@@ -363,7 +366,7 @@ class MixinTestCase:
         assert log_entry[0] == "scrapy-playwright"
         assert log_entry[1] == logging.WARNING
         assert f"[Context=default] Page init callback exception for {req!r}" in log_entry[2]
-        assert "init_page() missing 1 required positional argument: 'unused_arg'" in log_entry[2]
+        assert "init_page() missing 1 required positional argument: '_unused_arg'" in log_entry[2]
 
     @pytest.mark.asyncio
     async def test_redirect(self):
