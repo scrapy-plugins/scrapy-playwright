@@ -343,7 +343,7 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_page_initialization_fail(self, caplog):
-        async def init_page(page, _request, _unused_arg):
+        async def init_page(page, _request, _missing):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
         settings_dict = {
@@ -366,7 +366,7 @@ class MixinTestCase:
         assert log_entry[0] == "scrapy-playwright"
         assert log_entry[1] == logging.WARNING
         assert f"[Context=default] Page init callback exception for {req!r}" in log_entry[2]
-        assert "init_page() missing 1 required positional argument: '_unused_arg'" in log_entry[2]
+        assert "init_page() missing 1 required positional argument: '_missing'" in log_entry[2]
 
     @pytest.mark.asyncio
     async def test_redirect(self):
