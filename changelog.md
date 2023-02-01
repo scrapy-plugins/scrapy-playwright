@@ -1,5 +1,11 @@
 # scrapy-playwright changelog
 
+### [v0.0.26](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.26) (2023-02-01)
+
+* Fix logging (pass extra args instead of updating log record factory)
+* Miscellaneous adjustments (naming, typing, etc)
+
+
 ### [v0.0.25](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.25) (2023-01-24)
 
 * Set spider attribute on log records
