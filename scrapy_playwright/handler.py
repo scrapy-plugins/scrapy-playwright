@@ -152,7 +152,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await self._maybe_launch_browser()
             context = await self.browser.new_context(**context_kwargs)
             persistent = False
-            self.stats.inc_value("playwright/context_count/non-persistent")
+            self.stats.inc_value("playwright/context_count/non_persistent")
         context.on("close", self._make_close_browser_context_callback(name, persistent, spider))
         logger.debug(
             "Browser context started: '%s' (persistent=%s)",
