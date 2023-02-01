@@ -659,21 +659,21 @@ See also:
 
 ## Executing actions on pages
 
-A sorted iterable (`list`, `tuple` or `dict`, for instance) could be passed
-in the `playwright_page_methods`
+A sorted iterable (e.g. `list`, `tuple`, `dict`) of `PageMethod` objects
+could be passed in the `playwright_page_methods`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta)
-key to request coroutines to be awaited on the `Page` before returning the final
+key to request methods to be invoked on the `Page` object before returning the final
 `Response` to the callback.
 
-This is useful when you need to perform certain actions on a page, like scrolling
-down or clicking links, and you want to handle only the final result in your callback.
+This is useful when you need to perform certain actions on a page (like scrolling
+down or clicking links) and you want to handle only the final result in your callback.
 
 ### `PageMethod` class
 
 #### `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
 
 Represents a method to be called (and awaited if necessary) on a
-`playwright.page.Page` object, such as "click", "screenshot", "evaluate", etc.
+`playwright.page.Page` object (e.g. "click", "screenshot", "evaluate", etc).
 `method` is the name of the method, `*args` and `**kwargs`
 are passed when calling such method. The return value
 will be stored in the `PageMethod.result` attribute.
@@ -729,7 +729,7 @@ new URL, which might be different from the request's URL.
 
 A dictionary of Page event handlers can be specified in the `playwright_page_event_handlers`
 [Request.meta](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) key.
-Keys are the name of the event to be handled (`dialog`, `download`, etc).
+Keys are the name of the event to be handled (e.g. `dialog`, `download`, etc).
 Values can be either callables or strings (in which case a spider method with the name will be looked up).
 
 Example:
