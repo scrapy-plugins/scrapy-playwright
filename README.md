@@ -856,6 +856,48 @@ The `headers_received` and `bytes_received` signals are not fired by the
 scrapy-playwright download handler.
 
 
+## Reporting issues
+
+Before reporting an issue please try to make sure the problem cannot be
+reproduced by using Playwright directly. To do this, translate your spider code
+to a reasonably close Playwright script. If the problem still occurs this way,
+you should instead report it
+[upstream](https://github.com/microsoft/playwright-python). For instance:
+
+```python
+class ExampleSpider(scrapy.Spider):
+    name = "example"
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://example.org",
+            meta=dict(
+                playwright=True,
+                playwright_page_methods=[
+                    PageMethod("screenshot", path="example.png", full_page=True),
+                ],
+            ),
+        )
+```
+
+translates roughly to:
+
+```python
+import asyncio
+from playwright.async_api import async_playwright
+
+async def main():
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        page = await browser.new_page()
+        await page.goto("https://example.org")
+        await page.screenshot(path="example.png", full_page=True)
+        await browser.close()
+
+asyncio.run(main())
+```
+
+
 ## Deprecation policy
 
 Deprecated features will be supported for at least six months
