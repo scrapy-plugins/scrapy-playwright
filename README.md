@@ -51,7 +51,7 @@ playwright install firefox chromium
 
 ## Changelog
 
-See the [changelog.md](changelog.md) file.
+See the [changelog](docs/changelog.md) file.
 
 
 ## Activation
@@ -437,6 +437,11 @@ def parse(self, response):
     print(response.meta["playwright_security_details"])
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
+
+
+## Frequently asked questions
+
+See the [FAQ](docs/faq.md) document.
 
 
 ## Receiving Page objects in callbacks
@@ -904,5 +909,5 @@ asyncio.run(main())
 
 Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
-may be removed at any time. See the [changelog](changelog.md)
+may be removed at any time. See the [changelog](docs/changelog.md)
 for more information about deprecations and removals.
