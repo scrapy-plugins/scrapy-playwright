@@ -57,3 +57,24 @@ class PlaywrightDownloaderMiddleware:
         request.meta.setdefault("playwright", True)
         return None
 ```
+
+
+## How to increase the allowed memory size for the browser?
+
+If you're seeing messages such as `JavaScript heap out of memory`, there's a
+chance you're falling into the scope of
+https://github.com/microsoft/playwright/issues/6319. As a workaround, it's
+possible to increase the amount of memory allowed for the Node.js process by
+specifying a value for the the `--max-old-space-size` V8 option in the
+`NODE_OPTIONS` environment variable, e.g.:
+
+```
+$ export NODE_OPTIONS=--max-old-space-size=SIZE  # in megabytes
+```
+
+Sources & further reading:
+* https://github.com/scrapy-plugins/scrapy-playwright/issues/19#issuecomment-886211045
+* https://github.com/npm/npm/issues/12238#issuecomment-367147962
+* https://medium.com/the-node-js-collection/node-options-has-landed-in-8-x-5fba57af703d
+* https://nodejs.org/dist/latest-v8.x/docs/api/cli.html#cli_node_options_options
+* https://nodejs.org/api/cli.html#cli_max_old_space_size_size_in_megabytes
