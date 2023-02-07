@@ -1,7 +1,7 @@
-# Frequently asked questions
+# Frequently Asked Questions
 
 
-## How to use scrapy-playwright with the CrawlSpider?
+## How to use scrapy-playwright with the [CrawlSpider](https://docs.scrapy.org/en/latest/topics/spiders.html#crawlspider)?
 
 By specifying a `process_request` method that modifies requests in-place in your
 [crawling rules](https://docs.scrapy.org/en/latest/topics/spiders.html#scrapy.spiders.Rule).

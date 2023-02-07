@@ -900,7 +900,7 @@ asyncio.run(main())
 ```
 
 
-## Frequently asked questions
+## Frequently Asked Questions
 
 See the [FAQ](docs/faq.md) document.
 
