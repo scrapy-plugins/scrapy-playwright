@@ -51,7 +51,7 @@ playwright install firefox chromium
 
 ## Changelog
 
-See the [changelog](docs/changelog.md) file.
+See the [changelog](docs/changelog.md) document.
 
 
 ## Activation
@@ -437,11 +437,6 @@ def parse(self, response):
     print(response.meta["playwright_security_details"])
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
-
-
-## Frequently asked questions
-
-See the [FAQ](docs/faq.md) document.
 
 
 ## Receiving Page objects in callbacks
@@ -903,6 +898,11 @@ async def main():
 
 asyncio.run(main())
 ```
+
+
+## Frequently asked questions
+
+See the [FAQ](docs/faq.md) document.
 
 
 ## Deprecation policy

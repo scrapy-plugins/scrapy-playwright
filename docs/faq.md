@@ -30,7 +30,7 @@ class MyCrawlSpider(CrawlSpider):
 If you want all requests to be processed by Playwright and don't want to repeat
 yourself, or you're using a generic spider that doesn't support request
 customization (e.g. `scrapy.spiders.SitemapSpider`), you can use a middleware
-to edit the `meta` attribute of all requests.
+to edit the `meta` attribute for all requests.
 
 Depending on your project and the interactions with other components, you might
 decide to use a
