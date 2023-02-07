@@ -865,6 +865,8 @@ you should instead report it
 [upstream](https://github.com/microsoft/playwright-python). For instance:
 
 ```python
+import scrapy
+
 class ExampleSpider(scrapy.Spider):
     name = "example"
 
