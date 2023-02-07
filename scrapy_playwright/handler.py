@@ -73,7 +73,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         ) or settings.getint("CONCURRENT_REQUESTS")
         self.context_launch_lock = asyncio.Lock()
         self.context_wrappers: Dict[str, BrowserContextWrapper] = {}
-        self.context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
+        self.startup_context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
         if settings.getint("PLAYWRIGHT_MAX_CONTEXTS"):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
@@ -115,17 +115,18 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.playwright_context_manager = PlaywrightContextManager()
         playwright_instance = await self.playwright_context_manager.start()
         self.browser_type: BrowserType = getattr(playwright_instance, self.browser_type_name)
-        if self.context_kwargs:
-            logger.info("Launching %i startup context(s)", len(self.context_kwargs))
+        if self.startup_context_kwargs:
+            logger.info("Launching %i startup context(s)", len(self.startup_context_kwargs))
             await asyncio.gather(
                 *[
                     self._create_browser_context(name=name, context_kwargs=kwargs)
-                    for name, kwargs in self.context_kwargs.items()
+                    for name, kwargs in self.startup_context_kwargs.items()
                 ]
             )
             self._set_max_concurrent_context_count()
             logger.info("Startup context(s) launched")
             self.stats.set_value("playwright/page_count", self._get_total_page_count())
+        del self.startup_context_kwargs
 
     async def _maybe_launch_browser(self) -> None:
         async with self.browser_launch_lock:
