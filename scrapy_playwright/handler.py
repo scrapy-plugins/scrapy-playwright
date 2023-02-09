@@ -29,7 +29,7 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
-from scrapy_playwright._utils import _encode_body, _is_safe_close_error, _maybe_await
+from scrapy_playwright._utils import _encode_body, _is_safe_close_error, _maybe_await, _async_delay
 
 
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
@@ -77,6 +77,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
             )
+        self.close_inactive_context_interval: Optional[int] = None
+        if "PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL" in settings:
+            with suppress(TypeError, ValueError):
+                self.close_inactive_context_interval = int(
+                    settings.get("PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL")
+                )
+                if self.close_inactive_context_interval < 0:
+                    self.close_inactive_context_interval = None
 
         self.default_navigation_timeout: Optional[float] = None
         if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
@@ -161,6 +169,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             extra={"spider": spider, "context_name": name, "persistent": persistent},
         )
         self.stats.inc_value("playwright/context_count")
+        if self.close_inactive_context_interval is not None:
+            asyncio.create_task(
+                _async_delay(
+                    self._maybe_close_inactive_context(name, spider),
+                    self.close_inactive_context_interval,
+                )
+            )
         if self.default_navigation_timeout is not None:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         self.context_wrappers[name] = BrowserContextWrapper(
@@ -170,6 +185,39 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         self._set_max_concurrent_context_count()
         return self.context_wrappers[name]
+
+    async def _maybe_close_inactive_context(
+        self, name: str, spider: Optional[Spider] = None
+    ) -> None:
+        """Close a context if it has no associated pages,
+        otherwise schedule a task to check again in the future.
+        """
+        page_count = 0
+        async with self.context_launch_lock:
+            ctx_wrapper = self.context_wrappers.get(name)
+            if ctx_wrapper:
+                page_count = len(ctx_wrapper.context.pages)
+                if not page_count:
+                    logger.info(
+                        "[Context=%s] Closing inactive context",
+                        name,
+                        extra={"spider": spider, "context_name": name},
+                    )
+                    await ctx_wrapper.context.close()
+        if page_count and self.close_inactive_context_interval:
+            logger.debug(
+                "[Context=%s] page count is %i, checking again in %i seconds",
+                name,
+                page_count,
+                self.close_inactive_context_interval,
+                extra={"spider": spider, "context_name": name, "context_page_count": page_count},
+            )
+            asyncio.create_task(
+                _async_delay(
+                    self._maybe_close_inactive_context(name, spider),
+                    self.close_inactive_context_interval,
+                )
+            )
 
     async def _create_page(self, request: Request, spider: Spider) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
@@ -257,6 +305,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         yield deferred_from_coro(self._close())
 
     async def _close(self) -> None:
+        logger.info("Closing %i contexts", len(self.context_wrappers))
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
         self.context_wrappers.clear()
         if hasattr(self, "browser"):

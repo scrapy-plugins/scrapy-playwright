@@ -1,8 +1,15 @@
+import asyncio
+
 from typing import Awaitable, Iterator, Tuple
 
 from scrapy.http.headers import Headers
 from scrapy.utils.python import to_unicode
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
+
+
+async def _async_delay(coro: Awaitable, delay: int) -> None:
+    await asyncio.sleep(delay)
+    await coro
 
 
 async def _maybe_await(obj):
