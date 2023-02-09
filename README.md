@@ -112,7 +112,7 @@ does not match the running Browser. If you prefer the `User-Agent` sent by
 default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
-## Supported settings
+## Supported [settings](https://docs.scrapy.org/en/latest/topics/settings.html)
 
 ### `PLAYWRIGHT_BROWSER_TYPE`
 Type `str`, default `"chromium"`.
@@ -177,8 +177,8 @@ PLAYWRIGHT_MAX_CONTEXTS = 8
 ### `PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT`
 Type `Optional[float]`, default `None`
 
-Timeout to be used when requesting pages by Playwright. If `None` or unset,
-the default value will be used (30000 ms at the time of writing this).
+Timeout to be used when requesting pages by Playwright, in milliseconds. If
+`None` or unset, the default value will be used (30000 ms at the time of writing).
 See the docs for [BrowserContext.set_default_navigation_timeout](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-set-default-navigation-timeout).
 
 ```python
@@ -268,7 +268,7 @@ only supported when using Scrapy>=2.4. With prior versions, only strings are
 supported.
 
 
-## Supported request meta keys
+## Supported [`Request.meta`](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) keys
 
 ### `playwright`
 Type `bool`, default `False`
@@ -375,14 +375,14 @@ class AwesomeSpider(scrapy.Spider):
 avoid using these methods unless you know exactly what you're doing.
 
 ### `playwright_page_methods`
-Type `Iterable`, default `()`
+Type `Iterable[PageMethod]`, default `()`
 
-An iterable of `scrapy_playwright.page.PageMethod` objects to indicate
-actions to be performed on the page before returning the final response.
-See [Executing actions on pages](#executing-actions-on-pages).
+An iterable of [`scrapy_playwright.page.PageMethod`](#pagemethod-class)
+objects to indicate actions to be performed on the page before returning the
+final response. See [Executing actions on pages](#executing-actions-on-pages).
 
 ### `playwright_page`
-Type `Optional[playwright.async_api._generated.Page]`, default `None`
+Type `Optional[playwright.async_api.Page]`, default `None`
 
 A [Playwright page](https://playwright.dev/python/docs/api/class-page) to be used to
 download the request. If unspecified, a new page is created for each request.
@@ -441,7 +441,8 @@ def parse(self, response):
 
 ## Receiving Page objects in callbacks
 
-Specifying a non-False value for the `playwright_include_page` meta key for a
+Specifying a value that evaluates to `True` in the
+[`playwright_include_page`](#playwright_include_page) meta key for a
 request will result in the corresponding `playwright.async_api.Page` object
 being available in the `playwright_page` meta key in the request callback.
 In order to be able to `await` coroutines on the provided `Page` object,
@@ -564,7 +565,7 @@ that context is used and `playwright_context_kwargs` are ignored.
 
 ### Closing a context during a crawl
 
-After [receiving the Page object in your callback](#receiving-the-page-object-in-the-callback),
+After [receiving the Page object in your callback](#receiving-page-objects-in-callbacks),
 you can access a context though the corresponding [`Page.context`](https://playwright.dev/python/docs/api/class-page#page-context)
 attribute, and await [`close`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-close) on it.
 
@@ -825,7 +826,7 @@ class ScrollSpider(scrapy.Spider):
 ```
 
 
-For more examples, please see the scripts in the [examples](examples) directory.
+See the [examples](examples) directory for more.
 
 
 ## Known issues
@@ -858,11 +859,12 @@ scrapy-playwright download handler.
 
 ## Reporting issues
 
-Before reporting an issue please try to make sure the problem cannot be
-reproduced by using Playwright directly. To do this, translate your spider code
-to a reasonably close Playwright script. If the problem still occurs this way,
-you should instead report it
-[upstream](https://github.com/microsoft/playwright-python). For instance:
+Before opening an issue please make sure the unexpected behavior can only be
+observed by using this package and not with standalone Playwright. To do this,
+translate your spider code to a reasonably close Playwright script: if the
+issue also occurs this way, you should instead report it
+[upstream](https://github.com/microsoft/playwright-python).
+For instance:
 
 ```python
 import scrapy
