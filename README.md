@@ -290,7 +290,7 @@ return scrapy.Request(
     url="https://example.org",
     meta={
         "playwright": True,
-        "playwright_context": "persistent",
+        "playwright_context": "awesome_context",
     },
 )
 ```
@@ -307,7 +307,7 @@ return scrapy.Request(
     url="https://example.org",
     meta={
         "playwright": True,
-        "playwright_context": "new",
+        "playwright_context": "awesome_context",
         "playwright_context_kwargs": {
             "ignore_https_errors": True,
         },
@@ -319,15 +319,16 @@ return scrapy.Request(
 Type `bool`, default `False`
 
 If `True`, the [Playwright page](https://playwright.dev/python/docs/api/class-page)
-that was used to download the request will be available in the callback via
-`response.meta['playwright_page']`.
+that was used to download the request will be available in the callback at
+`response.meta['playwright_page']`. If `False` (or unset) the page will be
+closed immediately after processing the request.
 
 **Important!**
 
 This meta key is entirely optional, it's NOT necessary for the page to load or for any
 asynchronous operation to be performed (specifically, it's NOT necessary for `PageMethod`
 objects to be applied). Use it only if you need access to the Page object in the callback
-that handles the request.
+that handles the response.
 
 For more information and important notes see
 [Receiving Page objects in callbacks](#receiving-page-objects-in-callbacks).
@@ -371,8 +372,8 @@ class AwesomeSpider(scrapy.Spider):
 
 **Important!**
 
-`scrapy-playwright` uses `Page.route` & `Page.unroute` internally, please
-avoid using these methods unless you know exactly what you're doing.
+`scrapy-playwright` uses `Page.route` & `Page.unroute` internally, avoid using
+these methods unless you know exactly what you're doing.
 
 ### `playwright_page_methods`
 Type `Iterable[PageMethod]`, default `()`
@@ -494,7 +495,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 * When passing `playwright_include_page=True`, make sure pages are always closed
   when they are no longer used. It's recommended to set a Request errback to make
   sure pages are closed even if a request fails (if `playwright_include_page=False`
-  or unset, pages are automatically closed upon encountering an exception).
+  pages are automatically closed upon encountering an exception).
   This is important, as open pages count towards the limit set by
   `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` and crawls could freeze if the limit is reached
   and pages remain open indefinitely.
@@ -575,7 +576,11 @@ def parse(self, response):
         url="https://example.org",
         callback=self.parse_in_new_context,
         errback=self.close_context_on_error,
-        meta={"playwright": True, "playwright_context": "new", "playwright_include_page": True},
+        meta={
+            "playwright": True,
+            "playwright_context": "awesome_context",
+            "playwright_include_page": True,
+        },
     )
 
 async def parse_in_new_context(self, response):
@@ -585,7 +590,6 @@ async def parse_in_new_context(self, response):
     return {"title": title}
 
 async def close_context_on_error(self, failure):
-    self.logger.warning("There was an error when processing %s: %s", failure.request, failure.value)
     page = failure.request.meta["playwright_page"]
     await page.context.close()
 ```
@@ -593,11 +597,10 @@ async def close_context_on_error(self, failure):
 ### Maximum concurrent context count
 
 Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
-of concurent contexts. This setting should be used with caution: it's possible
-to block the whole crawl if contexts are not closed after they are no longer
-used (refer to the above section to dinamically close contexts). Make sure to
-define an errback to still be able to close the context even if there are
-errors with a request.
+of concurent contexts. Use with caution: it's possible to block the whole crawl
+if contexts are not closed after they are no longer used (refer to the above
+section to dinamically close contexts). Make sure to define an errback to still
+close contexts even if there are errors.
 
 
 ## Proxy support
@@ -627,7 +630,7 @@ class ProxySpider(Spider):
         print(response.text)
 ```
 
-You can also set proxies per context with the `PLAYWRIGHT_CONTEXTS` setting:
+Proxies can also be set at the context level with the `PLAYWRIGHT_CONTEXTS` setting:
 
 ```python
 PLAYWRIGHT_CONTEXTS = {
@@ -715,7 +718,7 @@ async def parse(self, response):
 
 ### Supported methods
 
-Please refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
+Refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
 to see available methods.
 
 ### Impact on Response objects
@@ -761,14 +764,20 @@ class EventSpider(scrapy.Spider):
         logging.info(f"Received response with URL {response.url}")
 ```
 
-See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page) for a list of
-the accepted events and the arguments passed to their handlers.
+See the [upstream `Page` docs](https://playwright.dev/python/docs/api/class-page)
+for a list of the accepted events and the arguments passed to their handlers.
 
-**Note**: keep in mind that, unless they are
-[removed later](https://playwright.dev/python/docs/events#addingremoving-event-listener),
-these handlers will remain attached to the page and will be called for subsequent
-downloads using the same page. This is usually not a problem, since by default
-requests are performed in single-use pages.
+### Notes about page event handlers
+
+* Event handlers will remain attached to the page and will be called for
+  subsequent downloads using the same page unless they are
+  [removed later](https://playwright.dev/python/docs/events#addingremoving-event-listener).
+  This is usually not a problem, since by default requests are performed in
+  single-use pages.
+* Event handlers will process Playwright objects, not Scrapy ones. For example,
+  for each Scrapy request/response there will be a matching Playwright
+  request/response, but not the other way: background requests/responses to get
+  images, scripts, stylesheets, etc are not seen by Scrapy.
 
 
 ## Examples
