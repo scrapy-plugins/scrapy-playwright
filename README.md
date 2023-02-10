@@ -240,6 +240,17 @@ See the [notes about leaving unclosed pages](#receiving-page-objects-in-callback
 PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
 ```
 
+### `PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL`
+Type `Optional[int]`, default `None`
+
+Enables a period task to automatically close browser contexts which have no
+active pages. Set to the amount of seconds between checks. Set to `None` (the
+default) to disable the check, i.e. no contexts are automaticallly closed.
+
+```python
+PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL = 2 * 60  # 2 minutes
+```
+
 ### `PLAYWRIGHT_ABORT_REQUEST`
 Type `Optional[Union[Callable, str]]`, default `None`
 
@@ -563,6 +574,12 @@ yield scrapy.Request(
 Please note that if a context with the specified name already exists,
 that context is used and `playwright_context_kwargs` are ignored.
 
+### Automatically closing inactive contexts
+
+Specifying a non-negative integer value for the
+[`PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL`](#playwright_close_inactive_context_interval)
+setting enables a periodic task which closes browser contexts which have no active pages.
+
 ### Closing a context during a crawl
 
 After [receiving the Page object in your callback](#receiving-page-objects-in-callbacks),
@@ -595,10 +612,11 @@ async def close_context_on_error(self, failure):
 Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
 of concurent contexts. This setting should be used with caution: it's possible
 to block the whole crawl if contexts are not closed after they are no longer
-used (refer to the above section to dinamically close contexts). Make sure to
-define an errback to still be able to close the context even if there are
-errors with a request.
-
+used (refer to the above section to dinamically close contexts, see also the
+section about
+[automatically closing inactive contexts](#automatically-closing-inactive-contexts)).
+Make sure to define an errback to still be able to close the context even if
+there are errors with a request.
 
 ## Proxy support
 
