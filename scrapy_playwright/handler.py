@@ -204,12 +204,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         extra={"spider": spider, "context_name": name},
                     )
                     await ctx_wrapper.context.close()
-        if page_count and self.close_inactive_context_interval:
+        if page_count and self.close_inactive_context_interval is not None:
             logger.debug(
-                "[Context=%s] page count is %i, checking again in %i seconds",
+                "[Context=%s] Page count is %i, not closing context",
                 name,
                 page_count,
-                self.close_inactive_context_interval,
                 extra={"spider": spider, "context_name": name, "context_page_count": page_count},
             )
             asyncio.create_task(
