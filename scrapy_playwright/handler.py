@@ -77,11 +77,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
             )
-        self.close_inactive_context_interval: Optional[int] = settings.getint(
-            "PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL"
-        )
-        if self.close_inactive_context_interval <= 0:
-            self.close_inactive_context_interval = None
+        self.close_inactive_context_interval: Optional[int] = None
+        close_context_interval = settings.getint("PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL")
+        if close_context_interval > 0:
+            self.close_inactive_context_interval = close_context_interval
 
         self.default_navigation_timeout: Optional[float] = None
         if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
