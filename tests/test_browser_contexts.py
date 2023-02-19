@@ -247,6 +247,9 @@ class MixinTestCaseMultipleContexts:
 
     @pytest.mark.asyncio
     async def test_close_inactive_context(self, caplog):
+        # if self.browser_type == "firefox":
+        #     pytest.skip("Gets stuck in Firefox")
+
         caplog.set_level(logging.DEBUG)
         spider = Spider("foo")
         async with make_handler(
@@ -258,24 +261,19 @@ class MixinTestCaseMultipleContexts:
             assert len(handler.context_wrappers) == 0
             with MockServer() as server:
                 await handler._download_request(
-                    Request(
-                        url=server.urljoin("/delay/1"),
-                        meta={"playwright": True},
-                    ),
-                    spider,
+                    Request(server.urljoin("/headers"), meta={"playwright": True}), spider
                 )
                 assert len(handler.context_wrappers) == 1
-                assert (
-                    "scrapy-playwright",
-                    logging.DEBUG,
-                    "[Context=default] Page count is 1, not closing context",
-                ) in caplog.record_tuples
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)
+                await handler._download_request(
+                    Request(server.urljoin("/delay/1"), meta={"playwright": True}), spider
+                )
+                await asyncio.sleep(0.7)
                 assert len(handler.context_wrappers) == 0
                 assert (
                     "scrapy-playwright",
                     logging.INFO,
-                    "[Context=default] Closing inactive context",
+                    "[Context=default] Closing inactive browser context",
                 ) in caplog.record_tuples
 
 

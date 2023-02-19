@@ -55,8 +55,10 @@ PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
 @dataclass
 class BrowserContextWrapper:
     context: BrowserContext
-    semaphore: asyncio.Semaphore
     persistent: bool
+    semaphore: asyncio.Semaphore  # limit amount of pages
+    inactive: asyncio.Event
+    waiting_close: asyncio.Event
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
@@ -167,54 +169,43 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             extra={"spider": spider, "context_name": name, "persistent": persistent},
         )
         self.stats.inc_value("playwright/context_count")
-        if self.close_context_interval is not None:
-            asyncio.create_task(
-                _async_delay(
-                    self._maybe_close_inactive_context(name, spider),
-                    self.close_context_interval,
-                )
-            )
         if self.default_navigation_timeout is not None:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         self.context_wrappers[name] = BrowserContextWrapper(
             context=context,
-            semaphore=asyncio.Semaphore(value=self.max_pages_per_context),
             persistent=persistent,
+            semaphore=asyncio.Semaphore(value=self.max_pages_per_context),
+            inactive=asyncio.Event(),
+            waiting_close=asyncio.Event(),
         )
+        if self.close_context_interval is not None:
+            asyncio.create_task(
+                self._maybe_close_inactive_context(
+                    context_name=name, context_wrapper=self.context_wrappers[name], spider=spider
+                )
+            )
         self._set_max_concurrent_context_count()
         return self.context_wrappers[name]
 
     async def _maybe_close_inactive_context(
-        self, name: str, spider: Optional[Spider] = None
+        self,
+        context_name: str,
+        context_wrapper: BrowserContextWrapper,
+        spider: Optional[Spider] = None,
     ) -> None:
-        """Close a context if it has no associated pages,
-        otherwise schedule a task to check again in the future.
-        """
-        page_count = 0
-        async with self.context_lock:
-            ctx_wrapper = self.context_wrappers.get(name)
-            if ctx_wrapper:
-                page_count = len(ctx_wrapper.context.pages)
-                if not page_count:
-                    logger.info(
-                        "[Context=%s] Closing inactive context",
-                        name,
-                        extra={"spider": spider, "context_name": name},
-                    )
-                    await ctx_wrapper.context.close()
-        if page_count and self.close_context_interval is not None:
-            logger.debug(
-                "[Context=%s] Page count is %i, not closing context",
-                name,
-                page_count,
-                extra={"spider": spider, "context_name": name, "context_page_count": page_count},
-            )
-            asyncio.create_task(
-                _async_delay(
-                    self._maybe_close_inactive_context(name, spider),
-                    self.close_context_interval,
+        """Close a context if it has had no pages for a certain amount of time."""
+        while True:
+            await context_wrapper.inactive.wait()
+            context_wrapper.waiting_close.set()
+            await asyncio.sleep(self.close_context_interval)  # type: ignore [arg-type]
+            if context_wrapper.waiting_close.is_set() and not context_wrapper.context.pages:
+                logger.info(
+                    "[Context=%s] Closing inactive browser context",
+                    context_name,
+                    extra={"spider": spider, "context_name": context_name},
                 )
-            )
+                await context_wrapper.context.close()
+                break
 
     async def _create_page(self, request: Request, spider: Spider) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
@@ -229,6 +220,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 )
 
         await ctx_wrapper.semaphore.acquire()
+        ctx_wrapper.inactive.clear()
+        ctx_wrapper.waiting_close.clear()
         page = await ctx_wrapper.context.new_page()
         self.stats.inc_value("playwright/page_count")
         total_page_count = self._get_total_page_count()
@@ -476,6 +469,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         def close_page_callback() -> None:
             if context_name in self.context_wrappers:
                 self.context_wrappers[context_name].semaphore.release()
+                if not self.context_wrappers[context_name].context.pages:
+                    self.context_wrappers[context_name].inactive.set()
 
         return close_page_callback
 
