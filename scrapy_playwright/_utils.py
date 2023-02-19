@@ -1,13 +1,15 @@
 import asyncio
+from contextlib import suppress
 
-from typing import Awaitable, Iterator, Tuple
+from typing import Awaitable, Iterator, Optional, Tuple
 
 from scrapy.http.headers import Headers
+from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 
-async def _async_delay(coro: Awaitable, delay: int) -> None:
+async def _async_delay(coro: Awaitable, delay: float) -> None:
     await asyncio.sleep(delay)
     await coro
 
@@ -45,3 +47,11 @@ def _is_safe_close_error(error: Exception) -> bool:
     return message.endswith("Browser has been closed") or message.endswith(
         "Target page, context or browser has been closed"
     )
+
+
+def _read_float_setting(settings: Settings, key: str) -> Optional[float]:
+    try:
+        return float(settings[key])
+    except (KeyError, TypeError, ValueError):
+        pass
+    return None

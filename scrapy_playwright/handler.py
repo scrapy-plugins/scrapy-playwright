@@ -29,7 +29,13 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
-from scrapy_playwright._utils import _encode_body, _is_safe_close_error, _maybe_await, _async_delay
+from scrapy_playwright._utils import (
+    _async_delay,
+    _encode_body,
+    _is_safe_close_error,
+    _maybe_await,
+    _read_float_setting,
+)
 
 
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
@@ -77,17 +83,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
             )
-        self.close_inactive_context_interval: Optional[int] = None
-        close_context_interval = settings.getint("PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL")
-        if close_context_interval > 0:
-            self.close_inactive_context_interval = close_context_interval
+        self.close_context_interval: Optional[float] = _read_float_setting(
+            settings, "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL"
+        )
 
-        self.default_navigation_timeout: Optional[float] = None
-        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
-            with suppress(TypeError, ValueError):
-                self.default_navigation_timeout = float(
-                    settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
-                )
+        self.default_navigation_timeout: Optional[float] = _read_float_setting(
+            settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
+        )
 
         # headers
         if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in settings:
@@ -165,11 +167,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             extra={"spider": spider, "context_name": name, "persistent": persistent},
         )
         self.stats.inc_value("playwright/context_count")
-        if self.close_inactive_context_interval is not None:
+        if self.close_context_interval is not None:
             asyncio.create_task(
                 _async_delay(
                     self._maybe_close_inactive_context(name, spider),
-                    self.close_inactive_context_interval,
+                    self.close_context_interval,
                 )
             )
         if self.default_navigation_timeout is not None:
@@ -200,7 +202,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         extra={"spider": spider, "context_name": name},
                     )
                     await ctx_wrapper.context.close()
-        if page_count and self.close_inactive_context_interval is not None:
+        if page_count and self.close_context_interval is not None:
             logger.debug(
                 "[Context=%s] Page count is %i, not closing context",
                 name,
@@ -210,7 +212,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             asyncio.create_task(
                 _async_delay(
                     self._maybe_close_inactive_context(name, spider),
-                    self.close_inactive_context_interval,
+                    self.close_context_interval,
                 )
             )
 

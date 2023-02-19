@@ -240,15 +240,15 @@ See the [notes about leaving unclosed pages](#receiving-page-objects-in-callback
 PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
 ```
 
-### `PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL`
-Type `Optional[int]`, default `None`
+### `PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`
+Type `Optional[float]`, default `None`
 
 Enables a period task to automatically close browser contexts which have no
 active pages. Set to the amount of seconds between checks. Set to `None` (the
 default) to disable the check, i.e. no contexts are automaticallly closed.
 
 ```python
-PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL = 2 * 60  # 2 minutes
+PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL = 2 * 60  # 2 minutes
 ```
 
 ### `PLAYWRIGHT_ABORT_REQUEST`
@@ -578,7 +578,7 @@ that context is used and `playwright_context_kwargs` are ignored.
 ### Automatically closing inactive contexts
 
 Specifying a non-negative integer value for the
-[`PLAYWRIGHT_CLOSE_INACTIVE_CONTEXT_INTERVAL`](#playwright_close_inactive_context_interval)
+[`PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`](#playwright_close_context_interval)
 setting enables a periodic task which closes browser contexts which have no active pages.
 
 ### Closing a context during a crawl
