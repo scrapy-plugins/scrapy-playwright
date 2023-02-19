@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import suppress
 
 from typing import Awaitable, Iterator, Optional, Tuple
 
