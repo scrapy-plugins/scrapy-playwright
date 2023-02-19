@@ -30,7 +30,6 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
-    _async_delay,
     _encode_body,
     _is_safe_close_error,
     _maybe_await,
