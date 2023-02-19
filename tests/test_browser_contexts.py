@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import platform
 import tempfile
 from pathlib import Path
@@ -243,6 +244,44 @@ class MixinTestCaseMultipleContexts:
             assert cookie["name"] == "asdf"
             assert cookie["value"] == "qwerty"
             assert cookie["domain"] == "example.org"
+
+    @pytest.mark.asyncio
+    async def test_close_inactive_context(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        spider = Spider("foo")
+        async with make_handler(
+            {
+                "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+                "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL": 0.5,
+                "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1,
+            }
+        ) as handler:
+            assert len(handler.context_wrappers) == 0
+            with StaticMockServer() as server:
+                await asyncio.gather(
+                    *[
+                        handler._download_request(
+                            Request(
+                                server.urljoin(f"/index.html?a={i}"), meta={"playwright": True}
+                            ),
+                            spider,
+                        )
+                        for i in range(5)
+                    ]
+                )
+                assert len(handler.context_wrappers) == 1
+                assert (
+                    "scrapy-playwright",
+                    logging.DEBUG,
+                    "[Context=default] Page count is 1, not closing context",
+                ) in caplog.record_tuples
+                await asyncio.sleep(0.3)
+                assert len(handler.context_wrappers) == 0
+                assert (
+                    "scrapy-playwright",
+                    logging.INFO,
+                    "[Context=default] Closing inactive context",
+                ) in caplog.record_tuples
 
 
 class TestCaseMultipleContextsChromium(MixinTestCaseMultipleContexts):
