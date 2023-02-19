@@ -247,9 +247,6 @@ class MixinTestCaseMultipleContexts:
 
     @pytest.mark.asyncio
     async def test_close_inactive_context(self, caplog):
-        # if self.browser_type == "firefox":
-        #     pytest.skip("Gets stuck in Firefox")
-
         caplog.set_level(logging.DEBUG)
         spider = Spider("foo")
         async with make_handler(
