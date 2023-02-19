@@ -76,7 +76,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.max_pages_per_context: int = settings.getint(
             "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"
         ) or settings.getint("CONCURRENT_REQUESTS")
-        self.context_launch_lock = asyncio.Lock()
+        self.context_lock = asyncio.Lock()
         self.context_wrappers: Dict[str, BrowserContextWrapper] = {}
         self.startup_context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
         if settings.getint("PLAYWRIGHT_MAX_CONTEXTS"):
@@ -191,7 +191,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         otherwise schedule a task to check again in the future.
         """
         page_count = 0
-        async with self.context_launch_lock:
+        async with self.context_lock:
             ctx_wrapper = self.context_wrappers.get(name)
             if ctx_wrapper:
                 page_count = len(ctx_wrapper.context.pages)
@@ -221,7 +221,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
         # this block needs to be locked because several attempts to launch a context
         # with the same name could happen at the same time from different requests
-        async with self.context_launch_lock:
+        async with self.context_lock:
             ctx_wrapper = self.context_wrappers.get(context_name)
             if ctx_wrapper is None:
                 ctx_wrapper = await self._create_browser_context(
