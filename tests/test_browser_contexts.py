@@ -11,7 +11,7 @@ from scrapy import Spider, Request
 from scrapy_playwright.page import PageMethod
 
 from tests import make_handler
-from tests.mockserver import StaticMockServer
+from tests.mockserver import MockServer, StaticMockServer
 
 
 class MixinTestCaseMultipleContexts:
@@ -253,21 +253,16 @@ class MixinTestCaseMultipleContexts:
             {
                 "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
                 "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL": 0.5,
-                "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1,
             }
         ) as handler:
             assert len(handler.context_wrappers) == 0
-            with StaticMockServer() as server:
-                await asyncio.gather(
-                    *[
-                        handler._download_request(
-                            Request(
-                                server.urljoin(f"/index.html?a={i}"), meta={"playwright": True}
-                            ),
-                            spider,
-                        )
-                        for i in range(5)
-                    ]
+            with MockServer() as server:
+                await handler._download_request(
+                    Request(
+                        url=server.urljoin("/delay/1"),
+                        meta={"playwright": True},
+                    ),
+                    spider,
                 )
                 assert len(handler.context_wrappers) == 1
                 assert (
@@ -275,7 +270,7 @@ class MixinTestCaseMultipleContexts:
                     logging.DEBUG,
                     "[Context=default] Page count is 1, not closing context",
                 ) in caplog.record_tuples
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.5)
                 assert len(handler.context_wrappers) == 0
                 assert (
                     "scrapy-playwright",
