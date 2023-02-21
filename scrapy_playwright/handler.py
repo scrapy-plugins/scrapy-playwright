@@ -500,7 +500,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             # if the request is triggered by scrapy, not playwright
             original_playwright_method: str = playwright_request.method
-            if playwright_request.url == url:
+            if (
+                playwright_request.url.rstrip("/") == url.rstrip("/")
+                and playwright_request.is_navigation_request()
+            ):
                 if method.upper() != playwright_request.method.upper():
                     overrides["method"] = method
                 if body:
