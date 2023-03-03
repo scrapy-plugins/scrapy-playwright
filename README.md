@@ -616,7 +616,7 @@ class ProxySpider(Spider):
     custom_settings = {
         "PLAYWRIGHT_LAUNCH_OPTIONS": {
             "proxy": {
-                "server": "http://myproxy.com:3128"
+                "server": "http://myproxy.com:3128",
                 "username": "user",
                 "password": "pass",
             },
