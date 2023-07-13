@@ -178,30 +178,24 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             waiting_close=asyncio.Event(),
         )
         if self.close_context_interval is not None:
-            asyncio.create_task(
-                self._maybe_close_inactive_context(
-                    context_name=name, context_wrapper=self.context_wrappers[name], spider=spider
-                )
-            )
+            asyncio.create_task(self._maybe_close_inactive_context(name=name, spider=spider))
         self._set_max_concurrent_context_count()
         return self.context_wrappers[name]
 
     async def _maybe_close_inactive_context(
-        self,
-        context_name: str,
-        context_wrapper: BrowserContextWrapper,
-        spider: Optional[Spider] = None,
+        self, name: str, spider: Optional[Spider] = None
     ) -> None:
         """Close a context if it has had no pages for a certain amount of time."""
-        while True:
+        while name in self.context_wrappers:
+            context_wrapper = self.context_wrappers[name]
             await context_wrapper.inactive.wait()
             context_wrapper.waiting_close.set()
             await asyncio.sleep(self.close_context_interval)  # type: ignore [arg-type]
             if context_wrapper.waiting_close.is_set() and not context_wrapper.context.pages:
                 logger.info(
                     "[Context=%s] Closing inactive browser context",
-                    context_name,
-                    extra={"spider": spider, "context_name": context_name},
+                    name,
+                    extra={"spider": spider, "context_name": name},
                 )
                 await context_wrapper.context.close()
                 break
