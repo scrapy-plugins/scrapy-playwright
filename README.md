@@ -128,7 +128,8 @@ Type `dict`, default `{}`
 
 A dictionary with options to be passed as keyword arguments when launching the
 Browser. See the docs for
-[`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
+[`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+for a list of supported keyword arguments.
 
 ```python
 PLAYWRIGHT_LAUNCH_OPTIONS = {
@@ -534,6 +535,11 @@ context can also be customized on startup via the `PLAYWRIGHT_CONTEXTS` setting.
 
 Pass a value for the `user_data_dir` keyword argument to launch a context as
 persistent. See also [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context).
+
+Note that persistent contexts are launched independently from the main browser
+instance, hence keyword arguments passed in the
+[`PLAYWRIGHT_LAUNCH_OPTIONS`](#playwright_launch_options)
+setting do not apply. 
 
 ### Creating a context during a crawl
 
