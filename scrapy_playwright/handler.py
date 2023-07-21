@@ -181,7 +181,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             ctx_wrapper = self.context_wrappers.get(context_name)
             if ctx_wrapper is None:
                 ctx_wrapper = await self._create_browser_context(
-                    name=context_name, context_kwargs=request.meta.get("playwright_context_kwargs")
+                    name=context_name,
+                    context_kwargs=request.meta.get("playwright_context_kwargs"),
+                    spider=spider,
                 )
 
         await ctx_wrapper.semaphore.acquire()
