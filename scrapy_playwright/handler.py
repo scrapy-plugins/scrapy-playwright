@@ -113,8 +113,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         """Launch Playwright manager and configured startup context(s)."""
         logger.info("Starting download handler")
         self.playwright_context_manager = PlaywrightContextManager()
-        playwright_instance = await self.playwright_context_manager.start()
-        self.browser_type: BrowserType = getattr(playwright_instance, self.browser_type_name)
+        self.playwright = await self.playwright_context_manager.start()
+        self.browser_type: BrowserType = getattr(self.playwright, self.browser_type_name)
         if self.startup_context_kwargs:
             logger.info("Launching %i startup context(s)", len(self.startup_context_kwargs))
             await asyncio.gather(
@@ -266,6 +266,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             logger.info("Closing browser")
             await self.browser.close()
         await self.playwright_context_manager.__aexit__()
+        await self.playwright.stop()
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
