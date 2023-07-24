@@ -539,7 +539,7 @@ persistent. See also [`BrowserType.launch_persistent_context`](https://playwrigh
 Note that persistent contexts are launched independently from the main browser
 instance, hence keyword arguments passed in the
 [`PLAYWRIGHT_LAUNCH_OPTIONS`](#playwright_launch_options)
-setting do not apply. 
+setting do not apply.
 
 ### Creating a context during a crawl
 
@@ -592,13 +592,21 @@ def parse(self, response):
 async def parse_in_new_context(self, response):
     page = response.meta["playwright_page"]
     title = await page.title()
+    await page.close()
     await page.context.close()
     return {"title": title}
 
 async def close_context_on_error(self, failure):
     page = failure.request.meta["playwright_page"]
+    await page.close()
     await page.context.close()
 ```
+
+### Avoid race conditions & memory leaks when closing contexts
+Make sure to close the page before closing the context. See
+[this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/191#issuecomment-1548097114)
+in [#191](https://github.com/scrapy-plugins/scrapy-playwright/issues/191)
+for more information.
 
 ### Maximum concurrent context count
 

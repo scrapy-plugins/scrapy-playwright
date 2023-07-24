@@ -99,6 +99,7 @@ class MultipleContextsSpider(Spider):
         page = response.meta["playwright_page"]
         context_name = response.meta["playwright_context"]
         storage_state = await page.context.storage_state()
+        await page.close()
         await page.context.close()
         return {
             "url": response.url,
