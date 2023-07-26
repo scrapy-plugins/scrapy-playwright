@@ -541,7 +541,7 @@ instance, hence keyword arguments passed in the
 [`PLAYWRIGHT_LAUNCH_OPTIONS`](#playwright_launch_options)
 setting do not apply.
 
-### Creating a context during a crawl
+### Creating contexts while crawling
 
 If the context specified in the `playwright_context` meta key does not exist, it will be created.
 You can specify keyword arguments to be passed to
@@ -570,7 +570,7 @@ yield scrapy.Request(
 Please note that if a context with the specified name already exists,
 that context is used and `playwright_context_kwargs` are ignored.
 
-### Closing a context during a crawl
+### Closing contexts while crawling
 
 After [receiving the Page object in your callback](#receiving-page-objects-in-callbacks),
 you can access a context though the corresponding [`Page.context`](https://playwright.dev/python/docs/api/class-page#page-context)
@@ -612,9 +612,9 @@ for more information.
 
 Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
 of concurent contexts. Use with caution: it's possible to block the whole crawl
-if contexts are not closed after they are no longer used (refer to the above
-section to dinamically close contexts). Make sure to define an errback to still
-close contexts even if there are errors.
+if contexts are not closed after they are no longer used (refer to
+[this section](#closing-contexts-while-crawling) to dinamically close contexts).
+Make sure to define an errback to still close contexts even if there are errors.
 
 
 ## Proxy support
@@ -665,7 +665,7 @@ PLAYWRIGHT_CONTEXTS = {
 }
 ```
 
-Or passing a `proxy` key when [creating a context during a crawl](#creating-a-context-during-a-crawl).
+Or passing a `proxy` key when [creating contexts while crawling](#creating-contexts-while-crawling).
 
 See also:
 * [`zyte-smartproxy-playwright`](https://github.com/zytedata/zyte-smartproxy-playwright):
