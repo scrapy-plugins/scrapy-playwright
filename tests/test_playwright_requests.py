@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from playwright.async_api import (
     Dialog,
+    Error as PlaywrightError,
     Page as PlaywrightPage,
     TimeoutError as PlaywrightTimeoutError,
 )
@@ -122,6 +123,28 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in caplog.record_tuples
 
+    @pytest.mark.asyncio
+    async def test_retry_page_content_still_navigating(self, caplog):
+        if self.browser_type != "chromium":
+            pytest.skip("Only Chromium seems to redirect meta tags within the same goto call")
+
+        caplog.set_level(logging.DEBUG)
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(server.urljoin("/redirect.html"), meta={"playwright": True})
+                resp = await handler._download_request(req, Spider("foo"))
+
+            assert resp.request is req
+            assert resp.url == server.urljoin("/index.html")  # redirected
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert (
+                "scrapy-playwright",
+                logging.DEBUG,
+                f"Retrying to get content from page '{req.url}', error: 'Unable to retrieve"
+                " content because the page is navigating and changing the content.'",
+            ) in caplog.record_tuples
+
     @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
@@ -147,7 +170,7 @@ class MixinTestCase:
             playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
-            ex = Exception("Target page, context or browser has been closed")
+            ex = PlaywrightError("Target page, context or browser has been closed")
             route.continue_.side_effect = ex
             await req_handler(route, playwright_request)
             logger.warning.assert_called_with(

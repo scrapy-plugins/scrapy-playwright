@@ -8,6 +8,7 @@ async def make_handler(settings_dict: dict):
     """Convenience function to obtain an initialized handler and close it gracefully"""
     from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 
+    settings_dict.setdefault("TELNETCONSOLE_ENABLED", False)
     crawler = get_crawler(settings_dict=settings_dict)
     handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
     try:
