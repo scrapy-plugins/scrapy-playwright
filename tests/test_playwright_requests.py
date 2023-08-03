@@ -190,9 +190,12 @@ class MixinTestCase:
                 },
             )
 
-            # unknown error, re-raise
+            # unknown errors, re-raise
             route.continue_.side_effect = ZeroDivisionError("asdf")
             with pytest.raises(ZeroDivisionError):
+                await req_handler(route, playwright_request)
+            route.continue_.side_effect = PlaywrightError("qwerty")
+            with pytest.raises(PlaywrightError):
                 await req_handler(route, playwright_request)
 
     @pytest.mark.asyncio
