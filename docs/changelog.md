@@ -1,5 +1,11 @@
 # scrapy-playwright changelog
 
+
+### [v0.0.28](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.28) (2023-08-05)
+
+* Retry page.content if necessary (#218)
+
+
 ### [v0.0.27](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.27) (2023-07-24)
 
 * Override method only for navigation requests (#177)
