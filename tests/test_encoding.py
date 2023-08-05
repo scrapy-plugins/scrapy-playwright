@@ -1,7 +1,7 @@
 import pytest
 from scrapy.http.headers import Headers
 
-from scrapy_playwright.handler import _encode_body
+from scrapy_playwright._utils import _encode_body
 
 
 def body_str(charset: str, content: str = "áéíóú") -> str:
