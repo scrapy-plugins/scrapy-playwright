@@ -9,7 +9,7 @@ from scrapy.http.response.html import HtmlResponse
 
 from scrapy_playwright.page import PageMethod
 
-from tests import make_handler
+from tests import make_handler, assert_correct_response
 from tests.mockserver import StaticMockServer
 
 
@@ -30,14 +30,6 @@ async def test_page_methods():
     assert screenshot.kwargs == {"path": "/tmp/file", "type": "png"}
     assert screenshot.result is None
     assert str(screenshot) == "<PageMethod for method 'screenshot'>"
-
-
-def assert_correct_response(response: HtmlResponse, request: Request) -> None:
-    assert isinstance(response, HtmlResponse)
-    assert response.request is request
-    assert response.url == request.url
-    assert response.status == 200
-    assert "playwright" in response.flags
 
 
 class MixinPageMethodTestCase:
@@ -139,11 +131,7 @@ class MixinPageMethodTestCase:
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert isinstance(resp, HtmlResponse)
-            assert resp.request is req
-            assert resp.url == server.urljoin("/scroll.html")
-            assert resp.status == 200
-            assert "playwright" in resp.flags
+            assert_correct_response(resp, req)
             assert len(resp.css("div.quote")) == 30
 
     @pytest.mark.asyncio

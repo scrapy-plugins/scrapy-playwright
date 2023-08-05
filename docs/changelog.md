@@ -1,5 +1,12 @@
 # scrapy-playwright changelog
 
+### [v0.0.27](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.27) (2023-07-24)
+
+* Override method only for navigation requests (#177)
+* Pass spider argument to _create_browser_context (#212)
+* await AsyncPlaywright.stop on close (#214)
+
+
 ### [v0.0.26](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.26) (2023-02-01)
 
 * Fix logging (pass extra args instead of updating log record factory)

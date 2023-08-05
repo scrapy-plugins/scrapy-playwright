@@ -13,12 +13,12 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
-from scrapy.http import Response, HtmlResponse
+from scrapy.http import Response
 
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
-from tests import make_handler
+from tests import make_handler, assert_correct_response
 from tests.mockserver import MockServer, StaticMockServer
 
 
@@ -44,11 +44,7 @@ class MixinTestCase:
                 req = Request(server.urljoin("/index.html"), meta=meta)
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert isinstance(resp, HtmlResponse)
-            assert resp.request is req
-            assert resp.url == req.url
-            assert resp.status == 200
-            assert "playwright" in resp.flags
+            assert_correct_response(resp, req)
             assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
             assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
             assert resp.meta["playwright_page"].url == resp.url
@@ -64,10 +60,7 @@ class MixinTestCase:
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert resp.request is req
-            assert resp.url == req.url
-            assert resp.status == 200
-            assert "playwright" in resp.flags
+            assert_correct_response(resp, req)
             assert "Request body: foo=bar" in resp.text
 
     @pytest.mark.asyncio
@@ -166,6 +159,7 @@ class MixinTestCase:
             route = MagicMock()
             playwright_request = AsyncMock()
             playwright_request.url = scrapy_request.url
+            playwright_request.method = scrapy_request.method
             playwright_request.is_navigation_request = MagicMock(return_value=True)
             playwright_request.all_headers.return_value = {}
 

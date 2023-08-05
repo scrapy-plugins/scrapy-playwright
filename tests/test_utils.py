@@ -4,7 +4,12 @@ import sys
 import pytest
 from playwright.async_api import Error as PlaywrightError
 from scrapy import Spider
-from scrapy_playwright._utils import _get_page_content, _NAVIGATION_ERROR_MSG
+from scrapy.http.headers import Headers
+from scrapy_playwright._utils import _get_page_content, _NAVIGATION_ERROR_MSG, _encode_body
+
+
+# page content retrieval
+# ======================
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
@@ -67,3 +72,65 @@ async def test_get_page_content_reraise_unknown_exception():
             scrapy_request_url="https://example.org",
             scrapy_request_method="GET",
         )
+
+
+# body encoding
+# =============
+
+
+def body_str(charset: str, content: str = "áéíóú") -> str:
+    return f"""
+        <!doctype html>
+        <html>
+        <head>
+        <meta charset="{charset}">
+        </head>
+        <body>
+        <p>{content}</p>
+        </body>
+        </html>
+    """.strip()
+
+
+@pytest.mark.asyncio
+async def test_encode_from_headers():
+    """Charset declared in headers takes precedence"""
+    text = body_str(charset="gb2312")
+    body, encoding = _encode_body(
+        headers=Headers({"content-type": "text/html; charset=ISO-8859-1"}),
+        text=text,
+    )
+    assert encoding == "cp1252"
+    assert body == text.encode(encoding)
+
+
+@pytest.mark.asyncio
+async def test_encode_from_body():
+    """No charset declared in headers, use the one declared in the body"""
+    text = body_str(charset="gb2312")
+    body, encoding = _encode_body(headers=Headers({}), text=text)
+    assert encoding == "gb18030"
+    assert body == text.encode(encoding)
+
+
+@pytest.mark.asyncio
+async def test_encode_fallback_utf8():
+    """No charset declared, use utf-8 as fallback"""
+    text = "<html>áéíóú</html>"
+    body, encoding = _encode_body(headers=Headers(), text=text)
+    assert encoding == "utf-8"
+    assert body == text.encode(encoding)
+
+
+@pytest.mark.asyncio
+async def test_encode_mismatch():
+    """Charset declared in headers and body do not match, and the headers
+    one fails to encode: use the one in the body (first one that works)
+    """
+    text = body_str(charset="gb2312", content="空手道")
+    body, encoding = _encode_body(
+        headers=Headers({"content-type": "text/html; charset=ISO-8859-1"}),
+        text=text,
+    )
+    assert encoding == "gb18030"
+    assert body == text.encode(encoding)
