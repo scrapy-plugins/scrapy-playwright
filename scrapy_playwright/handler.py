@@ -614,6 +614,7 @@ async def _maybe_execute_page_init_callback(
                     "scrapy_request_method": request.method,
                     "exception": ex,
                 },
+                exc_info=True,
             )
 
 
