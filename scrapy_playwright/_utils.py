@@ -1,9 +1,15 @@
+import logging
 from typing import Awaitable, Iterator, Optional, Tuple
 
+from playwright.async_api import Error, Page
+from scrapy import Spider
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
+
+
+logger = logging.getLogger("scrapy-playwright")
 
 
 async def _maybe_await(obj):
@@ -30,15 +36,50 @@ def _encode_body(headers: Headers, text: str) -> Tuple[bytes, str]:
     return text.encode("utf-8"), "utf-8"  # fallback
 
 
-def _is_safe_close_error(error: Exception) -> bool:
+def _is_safe_close_error(error: Error) -> bool:
     """
-    Taken verbatim from
+    Taken almost verbatim from
     https://github.com/microsoft/playwright-python/blob/v1.20.0/playwright/_impl/_helper.py#L234-L238
     """
     message = str(error)
     return message.endswith("Browser has been closed") or message.endswith(
         "Target page, context or browser has been closed"
     )
+
+
+_NAVIGATION_ERROR_MSG = (
+    "Unable to retrieve content because the page is navigating and changing the content."
+)
+
+
+async def _get_page_content(
+    page: Page,
+    spider: Spider,
+    context_name: str,
+    scrapy_request_url: str,
+    scrapy_request_method: str,
+) -> str:
+    """Wrapper around Page.content to retry if necessary.
+    Arguments other than the page are only for logging.
+    """
+    try:
+        return await page.content()
+    except Error as err:
+        if err.message == _NAVIGATION_ERROR_MSG:
+            logger.debug(
+                "Retrying to get content from page '%s', error: '%s'",
+                page.url,
+                _NAVIGATION_ERROR_MSG,
+                extra={
+                    "spider": spider,
+                    "context_name": context_name,
+                    "scrapy_request_url": scrapy_request_url,
+                    "scrapy_request_method": scrapy_request_method,
+                    "playwright_page_url": page.url,
+                },
+            )
+            return await page.content()
+        raise
 
 
 def _read_float_setting(settings: Settings, key: str) -> Optional[float]:

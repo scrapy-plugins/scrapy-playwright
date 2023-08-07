@@ -8,16 +8,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 from playwright.async_api import (
     Dialog,
+    Error as PlaywrightError,
     Page as PlaywrightPage,
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
-from scrapy.http import Response, HtmlResponse
+from scrapy.http import Response
 
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
-from tests import make_handler
+from tests import make_handler, assert_correct_response
 from tests.mockserver import MockServer, StaticMockServer
 
 
@@ -43,11 +44,7 @@ class MixinTestCase:
                 req = Request(server.urljoin("/index.html"), meta=meta)
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert isinstance(resp, HtmlResponse)
-            assert resp.request is req
-            assert resp.url == req.url
-            assert resp.status == 200
-            assert "playwright" in resp.flags
+            assert_correct_response(resp, req)
             assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
             assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
             assert resp.meta["playwright_page"].url == resp.url
@@ -63,10 +60,7 @@ class MixinTestCase:
                 )
                 resp = await handler._download_request(req, Spider("foo"))
 
-            assert resp.request is req
-            assert resp.url == req.url
-            assert resp.status == 200
-            assert "playwright" in resp.flags
+            assert_correct_response(resp, req)
             assert "Request body: foo=bar" in resp.text
 
     @pytest.mark.asyncio
@@ -122,6 +116,28 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in caplog.record_tuples
 
+    @pytest.mark.asyncio
+    async def test_retry_page_content_still_navigating(self, caplog):
+        if self.browser_type != "chromium":
+            pytest.skip("Only Chromium seems to redirect meta tags within the same goto call")
+
+        caplog.set_level(logging.DEBUG)
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(server.urljoin("/redirect.html"), meta={"playwright": True})
+                resp = await handler._download_request(req, Spider("foo"))
+
+            assert resp.request is req
+            assert resp.url == server.urljoin("/index.html")  # redirected
+            assert resp.status == 200
+            assert "playwright" in resp.flags
+            assert (
+                "scrapy-playwright",
+                logging.DEBUG,
+                f"Retrying to get content from page '{req.url}', error: 'Unable to retrieve"
+                " content because the page is navigating and changing the content.'",
+            ) in caplog.record_tuples
+
     @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
@@ -143,11 +159,12 @@ class MixinTestCase:
             route = MagicMock()
             playwright_request = AsyncMock()
             playwright_request.url = scrapy_request.url
+            playwright_request.method = scrapy_request.method
             playwright_request.is_navigation_request = MagicMock(return_value=True)
             playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
-            ex = Exception("Target page, context or browser has been closed")
+            ex = PlaywrightError("Target page, context or browser has been closed")
             route.continue_.side_effect = ex
             await req_handler(route, playwright_request)
             logger.warning.assert_called_with(
@@ -167,9 +184,12 @@ class MixinTestCase:
                 },
             )
 
-            # unknown error, re-raise
+            # unknown errors, re-raise
             route.continue_.side_effect = ZeroDivisionError("asdf")
             with pytest.raises(ZeroDivisionError):
+                await req_handler(route, playwright_request)
+            route.continue_.side_effect = PlaywrightError("qwerty")
+            with pytest.raises(PlaywrightError):
                 await req_handler(route, playwright_request)
 
     @pytest.mark.asyncio

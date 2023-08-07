@@ -128,7 +128,8 @@ Type `dict`, default `{}`
 
 A dictionary with options to be passed as keyword arguments when launching the
 Browser. See the docs for
-[`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
+[`BrowserType.launch`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+for a list of supported keyword arguments.
 
 ```python
 PLAYWRIGHT_LAUNCH_OPTIONS = {
@@ -524,7 +525,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
 
 Multiple [browser contexts](https://playwright.dev/python/docs/browser-contexts)
 to be launched at startup can be defined via the
-[`PLAYWRIGHT_CONTEXTS`](#PLAYWRIGHT_CONTEXTS) setting.
+[`PLAYWRIGHT_CONTEXTS`](#playwright_contexts) setting.
 
 ### Choosing a specific context for a request
 
@@ -548,7 +549,12 @@ context can also be customized on startup via the `PLAYWRIGHT_CONTEXTS` setting.
 Pass a value for the `user_data_dir` keyword argument to launch a context as
 persistent. See also [`BrowserType.launch_persistent_context`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context).
 
-### Creating a context during a crawl
+Note that persistent contexts are launched independently from the main browser
+instance, hence keyword arguments passed in the
+[`PLAYWRIGHT_LAUNCH_OPTIONS`](#playwright_launch_options)
+setting do not apply.
+
+### Creating contexts while crawling
 
 If the context specified in the `playwright_context` meta key does not exist, it will be created.
 You can specify keyword arguments to be passed to
@@ -583,7 +589,7 @@ Specifying a non-negative integer value for the
 [`PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`](#playwright_close_context_interval)
 setting enables closing browser contexts which have no active pages.
 
-### Closing a context during a crawl
+### Closing contexts while crawling
 
 After [receiving the Page object in your callback](#receiving-page-objects-in-callbacks),
 you can access a context though the corresponding [`Page.context`](https://playwright.dev/python/docs/api/class-page#page-context)
@@ -605,21 +611,28 @@ def parse(self, response):
 async def parse_in_new_context(self, response):
     page = response.meta["playwright_page"]
     title = await page.title()
+    await page.close()
     await page.context.close()
     return {"title": title}
 
 async def close_context_on_error(self, failure):
     page = failure.request.meta["playwright_page"]
+    await page.close()
     await page.context.close()
 ```
+
+### Avoid race conditions & memory leaks when closing contexts
+Make sure to close the page before closing the context. See
+[this comment](https://github.com/scrapy-plugins/scrapy-playwright/issues/191#issuecomment-1548097114)
+in [#191](https://github.com/scrapy-plugins/scrapy-playwright/issues/191)
+for more information.
 
 ### Maximum concurrent context count
 
 Specify a value for the `PLAYWRIGHT_MAX_CONTEXTS` setting to limit the amount
 of concurent contexts. Use with caution: it's possible to block the whole crawl
-if contexts are not closed after they are no longer used (refer to the above
-section to dinamically close contexts, see also the section about
-[automatically closing inactive contexts](#automatically-closing-inactive-contexts)).
+if contexts are not closed after they are no longer used (refer to
+[this section](#closing-contexts-while-crawling) to dinamically close contexts).
 Make sure to define an errback to still close contexts even if there are errors.
 
 
@@ -636,7 +649,7 @@ class ProxySpider(Spider):
     custom_settings = {
         "PLAYWRIGHT_LAUNCH_OPTIONS": {
             "proxy": {
-                "server": "http://myproxy.com:3128"
+                "server": "http://myproxy.com:3128",
                 "username": "user",
                 "password": "pass",
             },
@@ -671,7 +684,7 @@ PLAYWRIGHT_CONTEXTS = {
 }
 ```
 
-Or passing a `proxy` key when [creating a context during a crawl](#creating-a-context-during-a-crawl).
+Or passing a `proxy` key when [creating contexts while crawling](#creating-contexts-while-crawling).
 
 See also:
 * [`zyte-smartproxy-playwright`](https://github.com/zytedata/zyte-smartproxy-playwright):
