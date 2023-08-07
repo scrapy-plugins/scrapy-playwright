@@ -21,7 +21,7 @@ def _is_coroutine(obj):
     return asyncio.iscoroutinefunction(obj) or inspect.isgeneratorfunction(obj)
 
 
-@pytest.mark.tryfirst
+@pytest.hookimpl(tryfirst=True)
 def pytest_pycollect_makeitem(collector, name, obj):
     """A pytest hook to collect asyncio coroutines."""
     if collector.funcnamefilter(name) and _is_coroutine(obj):

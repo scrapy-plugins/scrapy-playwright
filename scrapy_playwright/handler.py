@@ -4,12 +4,13 @@ from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
 from time import time
-from typing import Awaitable, Callable, Dict, Generator, Optional, Tuple, Type, TypeVar, Union
+from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
 
 from playwright.async_api import (
     Browser,
     BrowserContext,
     BrowserType,
+    Error as PlaywrightError,
     Page,
     PlaywrightContextManager,
     Request as PlaywrightRequest,
@@ -24,13 +25,17 @@ from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
-from scrapy.utils.python import to_unicode
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
-from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
+from scrapy_playwright._utils import (
+    _encode_body,
+    _get_page_content,
+    _is_safe_close_error,
+    _maybe_await,
+)
 
 
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
@@ -113,8 +118,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         """Launch Playwright manager and configured startup context(s)."""
         logger.info("Starting download handler")
         self.playwright_context_manager = PlaywrightContextManager()
-        playwright_instance = await self.playwright_context_manager.start()
-        self.browser_type: BrowserType = getattr(playwright_instance, self.browser_type_name)
+        self.playwright = await self.playwright_context_manager.start()
+        self.browser_type: BrowserType = getattr(self.playwright, self.browser_type_name)
         if self.startup_context_kwargs:
             logger.info("Launching %i startup context(s)", len(self.startup_context_kwargs))
             await asyncio.gather(
@@ -181,7 +186,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             ctx_wrapper = self.context_wrappers.get(context_name)
             if ctx_wrapper is None:
                 ctx_wrapper = await self._create_browser_context(
-                    name=context_name, context_kwargs=request.meta.get("playwright_context_kwargs")
+                    name=context_name,
+                    context_kwargs=request.meta.get("playwright_context_kwargs"),
+                    spider=spider,
                 )
 
         await ctx_wrapper.semaphore.acquire()
@@ -244,6 +251,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             logger.info("Closing browser")
             await self.browser.close()
         await self.playwright_context_manager.__aexit__()
+        await self.playwright.stop()
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
@@ -332,7 +340,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
         await self._apply_page_methods(page, request, spider)
-        body_str = await page.content()
+        body_str = await _get_page_content(
+            page=page,
+            spider=spider,
+            context_name=context_name,
+            scrapy_request_url=request.url,
+            scrapy_request_method=request.method,
+        )
         request.meta["download_latency"] = time() - start_time
 
         if not request.meta.get("playwright_include_page"):
@@ -513,7 +527,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "playwright_request_method_new": overrides["method"],
                         },
                     )
-            except Exception as ex:
+            except PlaywrightError as ex:
                 if _is_safe_close_error(ex):
                     logger.warning(
                         "Failed processing Playwright request: <%s %s> exc_type=%s exc_msg=%s",
@@ -535,12 +549,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     raise
 
         return _request_handler
-
-
-async def _maybe_await(obj):
-    if isinstance(obj, Awaitable):
-        return await obj
-    return obj
 
 
 def _attach_page_event_handlers(
@@ -661,32 +669,3 @@ def _make_response_logger(context_name: str, spider: Spider) -> Callable:
         )
 
     return _log_response
-
-
-def _possible_encodings(headers: Headers, text: str) -> Generator[str, None, None]:
-    if headers.get("content-type"):
-        content_type = to_unicode(headers["content-type"])
-        yield http_content_type_encoding(content_type)
-    yield html_body_declared_encoding(text)
-
-
-def _encode_body(headers: Headers, text: str) -> Tuple[bytes, str]:
-    for encoding in filter(None, _possible_encodings(headers, text)):
-        try:
-            body = text.encode(encoding)
-        except UnicodeEncodeError:
-            pass
-        else:
-            return body, encoding
-    return text.encode("utf-8"), "utf-8"  # fallback
-
-
-def _is_safe_close_error(error: Exception) -> bool:
-    """
-    Taken verbatim from
-    https://github.com/microsoft/playwright-python/blob/v1.20.0/playwright/_impl/_helper.py#L234-L238
-    """
-    message = str(error)
-    return message.endswith("Browser has been closed") or message.endswith(
-        "Target page, context or browser has been closed"
-    )
