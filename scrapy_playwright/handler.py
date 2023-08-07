@@ -231,6 +231,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         "scrapy_request_method": request.method,
                         "exception": ex,
                     },
+                    exc_info=True,
                 )
 
         page.on("close", self._make_close_page_callback(context_name))
@@ -318,6 +319,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         "scrapy_request_method": request.method,
                         "exception": ex,
                     },
+                    exc_info=True,
                 )
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
@@ -410,6 +412,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "scrapy_request_method": request.method,
                             "exception": ex,
                         },
+                        exc_info=True,
                     )
                 else:
                     pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
@@ -560,6 +563,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "playwright_request_method": playwright_request.method,
                             "exception": ex,
                         },
+                        exc_info=True,
                     )
                 else:
                     raise
@@ -591,6 +595,7 @@ def _attach_page_event_handlers(
                         "scrapy_request_method": request.method,
                         "exception": ex,
                     },
+                    exc_info=True,
                 )
 
 

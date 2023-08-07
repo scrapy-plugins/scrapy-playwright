@@ -182,6 +182,7 @@ class MixinTestCase:
                     "playwright_request_method": playwright_request.method,
                     "exception": ex,
                 },
+                exc_info=True,
             )
 
             # unknown errors, re-raise
