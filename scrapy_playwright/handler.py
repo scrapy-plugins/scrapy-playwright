@@ -212,6 +212,27 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self._set_max_concurrent_page_count()
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
+        page_init_callback = request.meta.get("playwright_page_init_callback")
+        if page_init_callback:
+            try:
+                page_init_callback = load_object(page_init_callback)
+                await page_init_callback(page, request)
+            except Exception as ex:
+                logger.warning(
+                    "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
+                    context_name,
+                    repr(request),
+                    type(ex),
+                    str(ex),
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                        "exception": ex,
+                    },
+                    exc_info=True,
+                )
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
@@ -302,6 +323,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         "scrapy_request_method": request.method,
                         "exception": ex,
                     },
+                    exc_info=True,
                 )
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
@@ -394,6 +416,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "scrapy_request_method": request.method,
                             "exception": ex,
                         },
+                        exc_info=True,
                     )
                 else:
                     pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
@@ -544,6 +567,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                             "playwright_request_method": playwright_request.method,
                             "exception": ex,
                         },
+                        exc_info=True,
                     )
                 else:
                     raise
@@ -575,6 +599,7 @@ def _attach_page_event_handlers(
                         "scrapy_request_method": request.method,
                         "exception": ex,
                     },
+                    exc_info=True,
                 )
 
 
