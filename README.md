@@ -350,10 +350,11 @@ See [Handling page events](#handling-page-events).
 ### `playwright_page_init_callback`
 Type `Optional[Union[Callable, str]]`, default `None`
 
-A coroutine function (`async def`) to be invoked immediately after creating
-a page for the request. It receives the page and the request as positional
-arguments. Useful for initialization code. Invoked only for newly created
-pages, ignored if the page for the request already exists (e.g. by passing
+A coroutine function (`async def`) to be invoked for newly created pages.
+Called after attaching page event handlers & setting up internal route
+handling, before making any request. It receives the Playwright page and the
+Scrapy request as positional arguments. Useful for initialization code.
+Ignored if the page for the request already exists (e.g. by passing
 `playwright_page`).
 
 ```python

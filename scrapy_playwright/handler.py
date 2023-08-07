@@ -303,6 +303,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             ),
         )
 
+        await _maybe_execute_page_init_callback(
+            page=page, request=request, context_name=context_name, spider=spider
+        )
+
         try:
             result = await self._download_request_with_page(request, page, spider)
         except Exception as ex:
@@ -616,6 +620,35 @@ async def _set_redirect_meta(request: Request, response: PlaywrightResponse) -> 
         request.meta["redirect_times"] = redirect_times
         request.meta["redirect_urls"] = list(reversed(redirect_urls))
         request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
+
+
+async def _maybe_execute_page_init_callback(
+    page: Page,
+    request: Request,
+    context_name: str,
+    spider: Spider,
+) -> None:
+    page_init_callback = request.meta.get("playwright_page_init_callback")
+    if page_init_callback:
+        try:
+            page_init_callback = load_object(page_init_callback)
+            await page_init_callback(page, request)
+        except Exception as ex:
+            logger.warning(
+                "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
+                context_name,
+                repr(request),
+                type(ex),
+                str(ex),
+                extra={
+                    "spider": spider,
+                    "context_name": context_name,
+                    "scrapy_request_url": request.url,
+                    "scrapy_request_method": request.method,
+                    "exception": ex,
+                },
+                exc_info=True,
+            )
 
 
 def _make_request_logger(context_name: str, spider: Spider) -> Callable:
