@@ -3,6 +3,7 @@ import logging
 import platform
 import tempfile
 from pathlib import Path
+from unittest import IsolatedAsyncioTestCase
 from uuid import uuid4
 
 import pytest
@@ -274,14 +275,14 @@ class MixinTestCaseMultipleContexts:
                 ) in caplog.record_tuples
 
 
-class TestCaseMultipleContextsChromium(MixinTestCaseMultipleContexts):
+class TestCaseMultipleContextsChromium(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
     browser_type = "chromium"
 
 
-class TestCaseMultipleContextsFirefox(MixinTestCaseMultipleContexts):
+class TestCaseMultipleContextsFirefox(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestCaseMultipleContextsWebkit(MixinTestCaseMultipleContexts):
+class TestCaseMultipleContextsWebkit(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
     browser_type = "webkit"

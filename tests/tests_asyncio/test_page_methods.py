@@ -2,6 +2,7 @@ import logging
 import platform
 import subprocess
 from tempfile import NamedTemporaryFile
+from unittest import IsolatedAsyncioTestCase
 
 import pytest
 from scrapy import Spider, Request
@@ -22,19 +23,25 @@ def get_mimetype(file):
     ).stdout.strip()
 
 
-@pytest.mark.asyncio
-async def test_page_methods():
-    screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
-    assert screenshot.method == "screenshot"
-    assert screenshot.args == ("foo", 123)
-    assert screenshot.kwargs == {"path": "/tmp/file", "type": "png"}
-    assert screenshot.result is None
-    assert str(screenshot) == "<PageMethod for method 'screenshot'>"
+class TestPageMethods(IsolatedAsyncioTestCase):
+    @pytest.mark.asyncio
+    async def test_page_methods(self):
+        screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
+        assert screenshot.method == "screenshot"
+        assert screenshot.args == ("foo", 123)
+        assert screenshot.kwargs == {"path": "/tmp/file", "type": "png"}
+        assert screenshot.result is None
+        assert str(screenshot) == "<PageMethod for method 'screenshot'>"
 
 
 class MixinPageMethodTestCase:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._caplog = caplog
+
     @pytest.mark.asyncio
-    async def test_page_non_page_method(self, caplog):
+    async def test_page_non_page_method(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
@@ -56,10 +63,10 @@ class MixinPageMethodTestCase:
                 "scrapy-playwright",
                 logging.WARNING,
                 f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
-            ) in caplog.record_tuples
+            ) in self._caplog.record_tuples
 
     @pytest.mark.asyncio
-    async def test_page_mixed_page_methods(self, caplog):
+    async def test_page_mixed_page_methods(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(
@@ -81,7 +88,7 @@ class MixinPageMethodTestCase:
             "scrapy-playwright",
             logging.WARNING,
             f"Ignoring {repr(does_not_exist)}: could not find method",
-        ) in caplog.record_tuples
+        ) in self._caplog.record_tuples
         assert not req.meta["playwright_page_methods"]["is_closed"].result
         assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
@@ -178,14 +185,14 @@ class MixinPageMethodTestCase:
                 assert get_mimetype(pdf_file) == "application/pdf"
 
 
-class TestPageMethodChromium(MixinPageMethodTestCase):
+class TestPageMethodChromium(IsolatedAsyncioTestCase, MixinPageMethodTestCase):
     browser_type = "chromium"
 
 
-class TestPageMethodFirefox(MixinPageMethodTestCase):
+class TestPageMethodFirefox(IsolatedAsyncioTestCase, MixinPageMethodTestCase):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestPageMethodWebkit(MixinPageMethodTestCase):
+class TestPageMethodWebkit(IsolatedAsyncioTestCase, MixinPageMethodTestCase):
     browser_type = "webkit"

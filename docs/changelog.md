@@ -1,6 +1,12 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.29](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.29) (2023-08-11)
+
+* Set exc_info=True for warning log records (#219)
+* Invoke page_init_callback after setting route (#205)
+
+
 ### [v0.0.28](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.28) (2023-08-05)
 
 * Retry page.content if necessary (#218)
