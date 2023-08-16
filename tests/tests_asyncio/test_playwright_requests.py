@@ -1,10 +1,9 @@
 import json
 import logging
 import platform
-import sys
 from ipaddress import ip_address
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from playwright.async_api import (
@@ -143,12 +142,9 @@ class MixinTestCase:
                 " content because the page is navigating and changing the content.'",
             ) in self._caplog.record_tuples
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
     async def test_route_continue_exception(self, logger):
-        from unittest.mock import AsyncMock
-
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             scrapy_request = Request(url="https://example.org", method="GET")
             spider = Spider("foo")

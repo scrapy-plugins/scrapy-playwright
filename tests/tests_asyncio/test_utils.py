@@ -1,6 +1,6 @@
 import logging
-import sys
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock
 
 import pytest
 from playwright.async_api import Error as PlaywrightError
@@ -15,7 +15,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @pytest.mark.asyncio
     async def test_get_page_content_ok(self):
         from unittest.mock import AsyncMock
@@ -32,11 +31,8 @@ class TestPageContent(IsolatedAsyncioTestCase):
         )
         assert content == expected_content
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @pytest.mark.asyncio
     async def test_get_page_content_retry_known_exception(self):
-        from unittest.mock import AsyncMock
-
         expected_content = "lorem ipsum"
         page = AsyncMock()
         page.url = "FAKE URL"
@@ -56,7 +52,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
             " content because the page is navigating and changing the content.'",
         ) in self._caplog.record_tuples
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @pytest.mark.asyncio
     async def test_get_page_content_reraise_unknown_exception(self):
         from unittest.mock import AsyncMock

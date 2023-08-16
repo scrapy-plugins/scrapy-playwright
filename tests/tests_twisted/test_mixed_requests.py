@@ -1,6 +1,3 @@
-import sys
-
-import pytest
 from scrapy import Spider
 from scrapy.http import Request, Response
 from scrapy.utils.test import get_crawler
@@ -11,15 +8,11 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from tests.mockserver import StaticMockServer
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="Times out with py37 and playwright>=1.10")
 class MixedRequestsTestCase(TestCase):
     """
     This test case ensures the handler's 'download_request' method works as expected, and
     non-playwright requests are processed correctly. The rest of the tests directly call
     '_download_request', which is a coroutine ('download_request' returns a Deferred).
-    This stopped working under py37 with playwright==1.10, but I couldn't find anything in the
-    release notes to explain the change. Also, playwright doesn't currently define a __version__
-    attribute, which would allow to enable the test for playwright<=1.9
     """
 
     @defer.inlineCallbacks
