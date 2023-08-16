@@ -1,5 +1,6 @@
 import json
 import platform
+from unittest import IsolatedAsyncioTestCase
 
 import pytest
 from scrapy import Spider, Request
@@ -91,14 +92,14 @@ class MixinProcessHeadersTestCase:
                 assert "asdf" not in headers
 
 
-class TestProcessHeadersChromium(MixinProcessHeadersTestCase):
+class TestProcessHeadersChromium(IsolatedAsyncioTestCase, MixinProcessHeadersTestCase):
     browser_type = "chromium"
 
 
-class TestProcessHeadersFirefox(MixinProcessHeadersTestCase):
+class TestProcessHeadersFirefox(IsolatedAsyncioTestCase, MixinProcessHeadersTestCase):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestProcessHeadersWebkit(MixinProcessHeadersTestCase):
+class TestProcessHeadersWebkit(IsolatedAsyncioTestCase, MixinProcessHeadersTestCase):
     browser_type = "webkit"
