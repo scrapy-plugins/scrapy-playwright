@@ -16,6 +16,11 @@ from tests.mockserver import MockServer, StaticMockServer
 
 
 class MixinTestCaseMultipleContexts:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._caplog = caplog
+
     @pytest.mark.asyncio
     async def test_contexts_max_settings(self):
         settings = {
@@ -247,8 +252,7 @@ class MixinTestCaseMultipleContexts:
             assert cookie["domain"] == "example.org"
 
     @pytest.mark.asyncio
-    async def test_close_inactive_context(self, caplog):
-        caplog.set_level(logging.DEBUG)
+    async def test_close_inactive_context(self):
         spider = Spider("foo")
         async with make_handler(
             {
@@ -272,7 +276,7 @@ class MixinTestCaseMultipleContexts:
                     "scrapy-playwright",
                     logging.INFO,
                     "[Context=default] Closing inactive browser context",
-                ) in caplog.record_tuples
+                ) in self._caplog.record_tuples
 
 
 class TestCaseMultipleContextsChromium(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
