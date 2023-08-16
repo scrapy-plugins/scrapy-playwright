@@ -17,8 +17,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
 
     @pytest.mark.asyncio
     async def test_get_page_content_ok(self):
-        from unittest.mock import AsyncMock
-
         expected_content = "lorem ipsum"
         page = AsyncMock()
         page.content.return_value = expected_content
@@ -54,8 +52,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
 
     @pytest.mark.asyncio
     async def test_get_page_content_reraise_unknown_exception(self):
-        from unittest.mock import AsyncMock
-
         expected_exception_message = "nope"
         page = AsyncMock()
         page.content.side_effect = PlaywrightError(expected_exception_message)
