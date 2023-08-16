@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v2
@@ -22,8 +22,11 @@ jobs:
     - name: Install tox
       run: pip install tox
 
-    - name: Run tests
+    - name: Run asyncio tests
       run: tox -e py
+
+    - name: Run twisted tests
+      run: tox -e py-twisted
 
     - name: Upload coverage report
       run: |

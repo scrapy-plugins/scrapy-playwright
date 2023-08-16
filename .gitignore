@@ -4,11 +4,16 @@
 .mypy_cache/
 *.egg-info/
 .tox/
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
 build/
 dist/
 examples/*.png
 pip-wheel-metadata/
+
+# coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+coverage-*.xml
+coverage-asyncio/
+coverage-twisted/

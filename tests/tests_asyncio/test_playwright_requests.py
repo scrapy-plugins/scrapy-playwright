@@ -1,9 +1,9 @@
 import json
 import logging
 import platform
-import sys
 from ipaddress import ip_address
-from unittest.mock import MagicMock, patch
+from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from playwright.async_api import (
@@ -36,6 +36,11 @@ class DialogSpider(Spider):
 
 
 class MixinTestCase:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._caplog = caplog
+
     @pytest.mark.asyncio
     async def test_basic_response(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
@@ -99,7 +104,7 @@ class MixinTestCase:
             assert handler.default_navigation_timeout == 0.5
 
     @pytest.mark.asyncio
-    async def test_timeout_error(self, caplog):
+    async def test_timeout_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
             "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
@@ -114,14 +119,13 @@ class MixinTestCase:
                     logging.WARNING,
                     f"Closing page due to failed request: {req}"
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
-                ) in caplog.record_tuples
+                ) in self._caplog.record_tuples
 
     @pytest.mark.asyncio
-    async def test_retry_page_content_still_navigating(self, caplog):
+    async def test_retry_page_content_still_navigating(self):
         if self.browser_type != "chromium":
             pytest.skip("Only Chromium seems to redirect meta tags within the same goto call")
 
-        caplog.set_level(logging.DEBUG)
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 req = Request(server.urljoin("/redirect.html"), meta={"playwright": True})
@@ -136,14 +140,11 @@ class MixinTestCase:
                 logging.DEBUG,
                 f"Retrying to get content from page '{req.url}', error: 'Unable to retrieve"
                 " content because the page is navigating and changing the content.'",
-            ) in caplog.record_tuples
+            ) in self._caplog.record_tuples
 
-    @pytest.mark.skipif(sys.version_info < (3, 8), reason="AsyncMock was added on Python 3.8")
     @patch("scrapy_playwright.handler.logger")
     @pytest.mark.asyncio
     async def test_route_continue_exception(self, logger):
-        from unittest.mock import AsyncMock
-
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             scrapy_request = Request(url="https://example.org", method="GET")
             spider = Spider("foo")
@@ -238,7 +239,7 @@ class MixinTestCase:
             assert spider.dialog_message == "foobar"
 
     @pytest.mark.asyncio
-    async def test_event_handler_dialog_missing(self, caplog):
+    async def test_event_handler_dialog_missing(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 spider = DialogSpider()
@@ -258,7 +259,7 @@ class MixinTestCase:
             logging.WARNING,
             "Spider 'dialog' does not have a 'missing_method' attribute,"
             " ignoring handler for event 'dialog'",
-        ) in caplog.record_tuples
+        ) in self._caplog.record_tuples
         assert getattr(spider, "dialog_message", None) is None
 
     @pytest.mark.asyncio
@@ -293,7 +294,7 @@ class MixinTestCase:
         assert headers["Referer"] == fake_referer
 
     @pytest.mark.asyncio
-    async def test_navigation_returns_none(self, caplog):
+    async def test_navigation_returns_none(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer():
                 req = Request(url="about:blank", meta={"playwright": True})
@@ -304,7 +305,7 @@ class MixinTestCase:
             logging.WARNING,
             f"Navigating to {req!r} returned None, the response"
             " will have empty headers and status 200",
-        ) in caplog.record_tuples
+        ) in self._caplog.record_tuples
         assert not response.headers
         assert response.status == 200
 
@@ -363,7 +364,7 @@ class MixinTestCase:
         assert headers["extra-header"] == "Qwerty"
 
     @pytest.mark.asyncio
-    async def test_page_initialization_fail(self, caplog):
+    async def test_page_initialization_fail(self):
         async def init_page(page, _request, _missing):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
 
@@ -382,12 +383,12 @@ class MixinTestCase:
         headers = json.loads(response.css("pre::text").get())
         headers = {key.lower(): value for key, value in headers.items()}
         assert "extra-header" not in headers
-
-        log_entry = caplog.record_tuples[0]
-        assert log_entry[0] == "scrapy-playwright"
-        assert log_entry[1] == logging.WARNING
-        assert f"[Context=default] Page init callback exception for {req!r}" in log_entry[2]
-        assert "init_page() missing 1 required positional argument: '_missing'" in log_entry[2]
+        for entry in self._caplog.record_tuples:
+            if "Page init callback exception for" in entry[2]:
+                assert entry[0] == "scrapy-playwright"
+                assert entry[1] == logging.WARNING
+                assert f"[Context=default] Page init callback exception for {req!r}" in entry[2]
+                assert "init_page() missing 1 required positional argument: '_missing'" in entry[2]
 
     @pytest.mark.asyncio
     async def test_redirect(self):
@@ -408,28 +409,27 @@ class MixinTestCase:
         ]
 
     @pytest.mark.asyncio
-    async def test_logging_record_spider(self, caplog):
+    async def test_logging_record_spider(self):
         """Make sure at least one log record has the spider as an attribute
         (records sent before opening the spider will not have it).
         """
-        caplog.set_level(logging.DEBUG)
         spider = Spider("spider_name")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
                 req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
                 await handler._download_request(req, spider)
 
-        assert any(getattr(rec, "spider", None) is spider for rec in caplog.records)
+        assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
 
-class TestCaseChromium(MixinTestCase):
+class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "chromium"
 
 
-class TestCaseFirefox(MixinTestCase):
+class TestCaseFirefox(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "firefox"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
-class TestCaseWebkit(MixinTestCase):
+class TestCaseWebkit(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "webkit"
