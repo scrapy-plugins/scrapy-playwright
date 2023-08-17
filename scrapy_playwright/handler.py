@@ -350,10 +350,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         request.meta["download_latency"] = time() - start_time
 
-        if not request.meta.get("playwright_include_page"):
-            await page.close()
-            self.stats.inc_value("playwright/page_count/closed")
-
         server_ip_address = None
         with suppress(AttributeError, KeyError, TypeError, ValueError):
             server_addr = await response.server_addr()
@@ -361,6 +357,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         with suppress(AttributeError):
             request.meta["playwright_security_details"] = await response.security_details()
+
+        if not request.meta.get("playwright_include_page"):
+            await page.close()
+            self.stats.inc_value("playwright/page_count/closed")
 
         body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
