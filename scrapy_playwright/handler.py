@@ -657,16 +657,15 @@ def _make_request_logger(context_name: str, spider: Spider) -> Callable:
 
 def _make_response_logger(context_name: str, spider: Spider) -> Callable:
     async def _log_response(response: PlaywrightResponse) -> None:
-        referrer = await _get_header_value(response, "referer")
-        log_args = [context_name, response.status, response.url, referrer]
-        if 300 <= response.status < 400:
-            location = await _get_header_value(response, "location")
+        log_args = [context_name, response.status, response.url]
+        location = await _get_header_value(response, "location")
+        if location:
             log_args.append(location)
-            msg = "[Context=%s] Response: <%i %s> (referrer: %s, location: %s)"
+            log_msg = "[Context=%s] Response: <%i %s> (location: %s)"
         else:
-            msg = "[Context=%s] Response: <%i %s> (referrer: %s)"
+            log_msg = "[Context=%s] Response: <%i %s>"
         logger.debug(
-            msg,
+            log_msg,
             *log_args,
             extra={
                 "spider": spider,
