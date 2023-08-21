@@ -32,6 +32,7 @@ from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
     _encode_body,
+    _get_header_value,
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
@@ -632,19 +633,22 @@ async def _maybe_execute_page_init_callback(
 
 def _make_request_logger(context_name: str, spider: Spider) -> Callable:
     async def _log_request(request: PlaywrightRequest) -> None:
-        referrer = await request.header_value("referer")
+        log_args = [context_name, request.method.upper(), request.url, request.resource_type]
+        referrer = await _get_header_value(request, "referer")
+        if referrer:
+            log_args.append(referrer)
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)"
+        else:
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s)"
         logger.debug(
-            "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)",
-            context_name,
-            request.method.upper(),
-            request.url,
-            request.resource_type,
-            referrer,
+            log_msg,
+            *log_args,
             extra={
                 "spider": spider,
                 "context_name": context_name,
                 "playwright_request_url": request.url,
                 "playwright_request_method": request.method,
+                "playwright_resource_type": request.resource_type,
             },
         )
 
@@ -653,10 +657,10 @@ def _make_request_logger(context_name: str, spider: Spider) -> Callable:
 
 def _make_response_logger(context_name: str, spider: Spider) -> Callable:
     async def _log_response(response: PlaywrightResponse) -> None:
-        referrer = await response.header_value("referer")
+        referrer = await _get_header_value(response, "referer")
         log_args = [context_name, response.status, response.url, referrer]
         if 300 <= response.status < 400:
-            location = await response.header_value("location")
+            location = await _get_header_value(response, "location")
             log_args.append(location)
             msg = "[Context=%s] Response: <%i %s> (referrer: %s, location: %s)"
         else:
