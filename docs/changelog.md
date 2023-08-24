@@ -1,6 +1,12 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.30](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.30) (2023-08-17)
+
+* Fix page_init_callback duplication (#222)
+* Bump minimum Python version from 3.7 to 3.8 (#223)
+
+
 ### [v0.0.29](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.29) (2023-08-11)
 
 * Set exc_info=True for warning log records (#219)

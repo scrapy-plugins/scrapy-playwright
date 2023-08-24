@@ -1,7 +1,7 @@
 import logging
-from typing import Awaitable, Iterator, Optional, Tuple
+from typing import Awaitable, Iterator, Optional, Tuple, Union
 
-from playwright.async_api import Error, Page
+from playwright.async_api import Error, Page, Request, Response
 from scrapy import Spider
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
@@ -88,3 +88,13 @@ def _read_float_setting(settings: Settings, key: str) -> Optional[float]:
     except (KeyError, TypeError, ValueError):
         pass
     return None
+
+
+async def _get_header_value(
+    resource: Union[Request, Response],
+    header_name: str,
+) -> Optional[str]:
+    try:
+        return await resource.header_value(header_name)
+    except Exception:
+        return None

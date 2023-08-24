@@ -32,6 +32,7 @@ from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
     _encode_body,
+    _get_header_value,
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
@@ -239,27 +240,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self._set_max_concurrent_page_count()
         if self.default_navigation_timeout is not None:
             page.set_default_navigation_timeout(self.default_navigation_timeout)
-        page_init_callback = request.meta.get("playwright_page_init_callback")
-        if page_init_callback:
-            try:
-                page_init_callback = load_object(page_init_callback)
-                await page_init_callback(page, request)
-            except Exception as ex:
-                logger.warning(
-                    "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
-                    context_name,
-                    repr(request),
-                    type(ex),
-                    str(ex),
-                    extra={
-                        "spider": spider,
-                        "context_name": context_name,
-                        "scrapy_request_url": request.url,
-                        "scrapy_request_method": request.method,
-                        "exception": ex,
-                    },
-                    exc_info=True,
-                )
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
@@ -399,10 +379,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         request.meta["download_latency"] = time() - start_time
 
-        if not request.meta.get("playwright_include_page"):
-            await page.close()
-            self.stats.inc_value("playwright/page_count/closed")
-
         server_ip_address = None
         with suppress(AttributeError, KeyError, TypeError, ValueError):
             server_addr = await response.server_addr()
@@ -410,6 +386,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         with suppress(AttributeError):
             request.meta["playwright_security_details"] = await response.security_details()
+
+        if not request.meta.get("playwright_include_page"):
+            await page.close()
+            self.stats.inc_value("playwright/page_count/closed")
 
         body, encoding = _encode_body(headers=headers, text=body_str)
         respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
@@ -683,19 +663,22 @@ async def _maybe_execute_page_init_callback(
 
 def _make_request_logger(context_name: str, spider: Spider) -> Callable:
     async def _log_request(request: PlaywrightRequest) -> None:
-        referrer = await request.header_value("referer")
+        log_args = [context_name, request.method.upper(), request.url, request.resource_type]
+        referrer = await _get_header_value(request, "referer")
+        if referrer:
+            log_args.append(referrer)
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)"
+        else:
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s)"
         logger.debug(
-            "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)",
-            context_name,
-            request.method.upper(),
-            request.url,
-            request.resource_type,
-            referrer,
+            log_msg,
+            *log_args,
             extra={
                 "spider": spider,
                 "context_name": context_name,
                 "playwright_request_url": request.url,
                 "playwright_request_method": request.method,
+                "playwright_resource_type": request.resource_type,
             },
         )
 
@@ -704,16 +687,15 @@ def _make_request_logger(context_name: str, spider: Spider) -> Callable:
 
 def _make_response_logger(context_name: str, spider: Spider) -> Callable:
     async def _log_response(response: PlaywrightResponse) -> None:
-        referrer = await response.header_value("referer")
-        log_args = [context_name, response.status, response.url, referrer]
-        if 300 <= response.status < 400:
-            location = await response.header_value("location")
+        log_args = [context_name, response.status, response.url]
+        location = await _get_header_value(response, "location")
+        if location:
             log_args.append(location)
-            msg = "[Context=%s] Response: <%i %s> (referrer: %s, location: %s)"
+            log_msg = "[Context=%s] Response: <%i %s> (location: %s)"
         else:
-            msg = "[Context=%s] Response: <%i %s> (referrer: %s)"
+            log_msg = "[Context=%s] Response: <%i %s>"
         logger.debug(
-            msg,
+            log_msg,
             *log_args,
             extra={
                 "spider": spider,
