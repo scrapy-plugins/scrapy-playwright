@@ -82,12 +82,11 @@ async def _get_page_content(
         raise
 
 
-def _read_float_setting(settings: Settings, key: str) -> Optional[float]:
+def _get_float_setting(settings: Settings, key: str) -> Optional[float]:
     try:
         return float(settings[key])
-    except (KeyError, TypeError, ValueError):
-        pass
-    return None
+    except:
+        return None
 
 
 async def _get_header_value(

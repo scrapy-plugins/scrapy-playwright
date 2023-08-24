@@ -36,7 +36,7 @@ from scrapy_playwright._utils import (
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
-    _read_float_setting,
+    _get_float_setting,
 )
 
 
@@ -87,11 +87,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.context_semaphore = asyncio.Semaphore(
                 value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
             )
-        self.close_context_interval: Optional[float] = _read_float_setting(
+        self.close_context_interval: Optional[float] = _get_float_setting(
             settings, "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL"
         )
 
-        self.default_navigation_timeout: Optional[float] = _read_float_setting(
+        self.default_navigation_timeout: Optional[float] = _get_float_setting(
             settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
         )
 

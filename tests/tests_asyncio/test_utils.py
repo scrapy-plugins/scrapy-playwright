@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock
 
@@ -6,9 +7,11 @@ import pytest
 from playwright.async_api import Error as PlaywrightError
 from scrapy import Spider
 from scrapy.http.headers import Headers
+from scrapy.settings import Settings
 from scrapy_playwright._utils import (
     _NAVIGATION_ERROR_MSG,
     _encode_body,
+    _get_float_setting,
     _get_header_value,
     _get_page_content,
     _maybe_await,
@@ -129,20 +132,19 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
 
 class TestHeaderValue(IsolatedAsyncioTestCase):
     @pytest.mark.asyncio
-    async def test_get_header_ok(self):
+    async def test_get_header_value(self):
         async def _identity(x):
             return x
 
-        resource = AsyncMock()
-        resource.header_value = _identity
-        assert "asdf" == await _get_header_value(resource, "asdf")
-        assert "qwerty" == await _get_header_value(resource, "qwerty")
+        res1 = AsyncMock()
+        res1.header_value = _identity
+        assert "asdf" == await _get_header_value(res1, "asdf")
+        assert "qwerty" == await _get_header_value(res1, "qwerty")
 
-    async def test_get_header_exception(self):
-        resource = AsyncMock()
-        resource.header_value.side_effect = Exception("nope")
-        assert await _get_header_value(resource, "asdf") is None
-        assert await _get_header_value(resource, "qwerty") is None
+        res2 = AsyncMock()
+        res2.header_value.side_effect = Exception("nope")
+        assert await _get_header_value(res2, "asdf") is None
+        assert await _get_header_value(res2, "qwerty") is None
 
 
 class TestMaybeAwait(IsolatedAsyncioTestCase):
@@ -157,3 +159,27 @@ class TestMaybeAwait(IsolatedAsyncioTestCase):
         assert await _maybe_await("foo") == "foo"
         assert await _maybe_await("bar") == "bar"
         assert await _maybe_await(1234) == 1234
+
+
+class TestGetFloatSetting(IsolatedAsyncioTestCase):
+    @pytest.mark.asyncio
+    async def test_get_float_setting(self):
+        settings = Settings(
+            {
+                "FLOAT": 1.5,
+                "DECIMAL": Decimal("2.5"),
+                "INT": 3,
+                "NUMERIC_STRING": "123",
+                "NON_NUMERIC_STRING": "asdf",
+                "NONE": None,
+                "LIST": [1, 2, 3],
+            }
+        )
+        assert _get_float_setting(settings, "FLOAT") == 1.5
+        assert _get_float_setting(settings, "DECIMAL") == 2.5
+        assert _get_float_setting(settings, "INT") == 3.0
+        assert _get_float_setting(settings, "NUMERIC_STRING") == 123
+        assert _get_float_setting(settings, "NON_NUMERIC_STRING") is None
+        assert _get_float_setting(settings, "NONE") is None
+        assert _get_float_setting(settings, "LIST") is None
+        assert _get_float_setting(settings, "MISSING_KEY") is None
