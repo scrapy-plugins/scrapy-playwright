@@ -11,6 +11,7 @@ from scrapy_playwright._utils import (
     _encode_body,
     _get_header_value,
     _get_page_content,
+    _maybe_await,
 )
 
 
@@ -142,3 +143,17 @@ class TestHeaderValue(IsolatedAsyncioTestCase):
         resource.header_value.side_effect = Exception("nope")
         assert await _get_header_value(resource, "asdf") is None
         assert await _get_header_value(resource, "qwerty") is None
+
+
+class TestMaybeAwait(IsolatedAsyncioTestCase):
+    @pytest.mark.asyncio
+    async def test_maybe_await(self):
+        async def _awaitable_identity(x):
+            return x
+
+        assert await _maybe_await(_awaitable_identity("asdf")) == "asdf"
+        assert await _maybe_await(_awaitable_identity("qwerty")) == "qwerty"
+        assert await _maybe_await(_awaitable_identity(1234)) == 1234
+        assert await _maybe_await("foo") == "foo"
+        assert await _maybe_await("bar") == "bar"
+        assert await _maybe_await(1234) == 1234
