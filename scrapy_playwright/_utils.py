@@ -1,7 +1,7 @@
 import logging
-from typing import Awaitable, Iterator, Tuple
+from typing import Awaitable, Iterator, Optional, Tuple, Union
 
-from playwright.async_api import Error, Page
+from playwright.async_api import Error, Page, Request, Response
 from scrapy import Spider
 from scrapy.http.headers import Headers
 from scrapy.utils.python import to_unicode
@@ -79,3 +79,13 @@ async def _get_page_content(
             )
             return await page.content()
         raise
+
+
+async def _get_header_value(
+    resource: Union[Request, Response],
+    header_name: str,
+) -> Optional[str]:
+    try:
+        return await resource.header_value(header_name)
+    except Exception:
+        return None
