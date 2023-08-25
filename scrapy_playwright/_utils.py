@@ -85,7 +85,7 @@ async def _get_page_content(
 def _get_float_setting(settings: Settings, key: str) -> Optional[float]:
     try:
         return float(settings[key])
-    except:
+    except Exception:
         return None
 
 
