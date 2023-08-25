@@ -494,13 +494,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         self.browser_type_name, playwright_request, headers
                     )
                 )
-            # the request that reaches the callback should contain the final headers
-            headers.clear()
-            headers.update(final_headers)
-            del final_headers
 
-            # if the request is triggered by scrapy, not playwright
-            original_playwright_method: str = playwright_request.method
+            # if the current request corresponds to the original scrapy one
             if (
                 playwright_request.url.rstrip("/") == url.rstrip("/")
                 and playwright_request.is_navigation_request()
@@ -509,7 +504,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     overrides["method"] = method
                 if body:
                     overrides["post_data"] = body.decode(encoding)
+                # the request that reaches the callback should contain the final headers
+                headers.clear()
+                headers.update(final_headers)
 
+            del final_headers
+
+            original_playwright_method: str = playwright_request.method
             try:
                 await route.continue_(**overrides)
                 if overrides.get("method"):
