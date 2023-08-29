@@ -166,6 +166,7 @@ class TestGetFloatSetting(IsolatedAsyncioTestCase):
     async def test_get_float_setting(self):
         settings = Settings(
             {
+                "ZERO": 0,
                 "FLOAT": 1.5,
                 "DECIMAL": Decimal("2.5"),
                 "INT": 3,
@@ -175,6 +176,7 @@ class TestGetFloatSetting(IsolatedAsyncioTestCase):
                 "LIST": [1, 2, 3],
             }
         )
+        assert _get_float_setting(settings, "ZERO") == 0.0
         assert _get_float_setting(settings, "FLOAT") == 1.5
         assert _get_float_setting(settings, "DECIMAL") == 2.5
         assert _get_float_setting(settings, "INT") == 3.0
