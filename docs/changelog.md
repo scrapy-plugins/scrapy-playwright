@@ -1,6 +1,12 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.31](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.31) (2023-08-28)
+
+* Do not fail when getting referer header for debug log messages (#225)
+* Do not override headers with values from asset requests (#226)
+
+
 ### [v0.0.30](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.30) (2023-08-17)
 
 * Fix page_init_callback duplication (#222)

@@ -23,9 +23,14 @@ async def use_scrapy_headers(
     scrapy_headers_str.setdefault("user-agent", playwright_headers.get("user-agent"))
 
     if playwright_request.is_navigation_request():
+        # if referer header is set via playwright_page_goto_kwargs
+        if referer := playwright_headers.get("referer"):
+            scrapy_headers_str.setdefault("referer", referer)
+
+        # otherwise it fails with playwright.helper.Error: NS_ERROR_NET_RESET
         if browser_type == "firefox":
-            # otherwise this fails with playwright.helper.Error: NS_ERROR_NET_RESET
             scrapy_headers_str["host"] = urlparse(playwright_request.url).netloc
+
         return scrapy_headers_str
 
     # override user agent, for consistency with other requests
