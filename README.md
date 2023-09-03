@@ -143,11 +143,11 @@ Type Optional[`str`], default `None`
 
 The endpoint of a remote Chromium browser to connect using the
 [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/),
-via [`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp). If set, the `PLAYWRIGHT_LAUNCH_OPTIONS`
-setting is ignored.
-
-If set, all non-persistent contexts will be created on the connected remote browser.
-The `PLAYWRIGHT_BROWSER_TYPE` setting must not be set to a value different than "chromium".
+via [`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp).
+If this setting is used:
+* all non-persistent contexts will be created on the connected remote browser
+* the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
+* the `PLAYWRIGHT_BROWSER_TYPE` setting must not be set to a value different than "chromium"
 
 ```python
 PLAYWRIGHT_CDP_URL = "http://localhost:9222"
