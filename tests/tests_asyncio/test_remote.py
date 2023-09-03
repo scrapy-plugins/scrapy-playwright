@@ -27,7 +27,7 @@ async def _run_chromium() -> Tuple[subprocess.Popen, str]:
         )
         devtools_url = None
         while devtools_url is None:
-            line = proc.stderr.readline().strip()
+            line = proc.stderr.readline().strip()  # type: ignore
             if not line:
                 time.sleep(0.2)
                 continue
@@ -39,7 +39,7 @@ async def _run_chromium() -> Tuple[subprocess.Popen, str]:
 
 
 @asynccontextmanager
-async def remote_chromium() -> str:
+async def remote_chromium():
     """Launch a Chromium instance with remote debugging enabled."""
     proc = None
     devtools_url = None

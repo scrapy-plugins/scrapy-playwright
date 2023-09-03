@@ -7,7 +7,6 @@ from time import time
 from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
 
 from playwright.async_api import (
-    Browser,
     BrowserContext,
     BrowserType,
     Error as PlaywrightError,
@@ -143,14 +142,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Launching browser %s", self.browser_type.name)
-                self.browser: Browser = await self.browser_type.launch(**self.launch_options)
+                self.browser = await self.browser_type.launch(**self.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
 
     async def _maybe_connect_devtools(self) -> None:
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Connecting using CDP: %s", self.browser_cdp_url)
-                self.browser: Browser = await self.browser_type.connect_over_cdp(
+                self.browser = await self.browser_type.connect_over_cdp(
                     self.browser_cdp_url, **self.browser_cdp_kwargs
                 )
                 logger.info("Connected using CDP: %s", self.browser_cdp_url)
