@@ -7,7 +7,6 @@ from time import time
 from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
 
 from playwright.async_api import (
-    Browser,
     BrowserContext,
     BrowserType,
     Error as PlaywrightError,
@@ -69,9 +68,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats = crawler.stats
 
         # browser
+        self.browser_cdp_url = settings.get("PLAYWRIGHT_CDP_URL")
+        self.browser_cdp_kwargs = settings.get("PLAYWRIGHT_CDP_KWARGS") or {}
+        self.browser_cdp_kwargs.pop("endpoint_url", None)
         self.browser_type_name = settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE
         self.browser_launch_lock = asyncio.Lock()
         self.launch_options: dict = settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
+        if self.browser_cdp_url and self.launch_options:
+            logger.warning("PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
 
         # contexts
         self.max_pages_per_context: int = settings.getint(
@@ -138,8 +142,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Launching browser %s", self.browser_type.name)
-                self.browser: Browser = await self.browser_type.launch(**self.launch_options)
+                self.browser = await self.browser_type.launch(**self.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
+
+    async def _maybe_connect_devtools(self) -> None:
+        async with self.browser_launch_lock:
+            if not hasattr(self, "browser"):
+                logger.info("Connecting using CDP: %s", self.browser_cdp_url)
+                self.browser = await self.browser_type.connect_over_cdp(
+                    self.browser_cdp_url, **self.browser_cdp_kwargs
+                )
+                logger.info("Connected using CDP: %s", self.browser_cdp_url)
 
     async def _create_browser_context(
         self,
@@ -147,27 +160,45 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         context_kwargs: Optional[dict],
         spider: Optional[Spider] = None,
     ) -> BrowserContextWrapper:
-        """Create a new context, also launching a browser if necessary."""
+        """Create a new context, also launching a local browser or connecting
+        to a remote one if necessary.
+        """
         if hasattr(self, "context_semaphore"):
             await self.context_semaphore.acquire()
         context_kwargs = context_kwargs or {}
         if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
             context = await self.browser_type.launch_persistent_context(**context_kwargs)
             persistent = True
-            self.stats.inc_value("playwright/context_count/persistent")
+            remote = False
+        elif self.browser_cdp_url:
+            await self._maybe_connect_devtools()
+            context = await self.browser.new_context(**context_kwargs)
+            persistent = False
+            remote = True
         else:
             await self._maybe_launch_browser()
             context = await self.browser.new_context(**context_kwargs)
             persistent = False
-            self.stats.inc_value("playwright/context_count/non_persistent")
-        context.on("close", self._make_close_browser_context_callback(name, persistent, spider))
-        logger.debug(
-            "Browser context started: '%s' (persistent=%s)",
-            name,
-            persistent,
-            extra={"spider": spider, "context_name": name, "persistent": persistent},
+            remote = False
+
+        context.on(
+            "close", self._make_close_browser_context_callback(name, persistent, remote, spider)
         )
         self.stats.inc_value("playwright/context_count")
+        self.stats.inc_value(f"playwright/context_count/persistent/{persistent}")
+        self.stats.inc_value(f"playwright/context_count/remote/{remote}")
+        logger.debug(
+            "Browser context started: '%s' (persistent=%s, remote=%s)",
+            name,
+            persistent,
+            remote,
+            extra={
+                "spider": spider,
+                "context_name": name,
+                "persistent": persistent,
+                "remote": remote,
+            },
+        )
         if self.default_navigation_timeout is not None:
             context.set_default_navigation_timeout(self.default_navigation_timeout)
         self.context_wrappers[name] = BrowserContextWrapper(
@@ -436,17 +467,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return close_page_callback
 
     def _make_close_browser_context_callback(
-        self, name: str, persistent: bool, spider: Optional[Spider] = None
+        self, name: str, persistent: bool, remote: bool, spider: Optional[Spider] = None
     ) -> Callable:
         def close_browser_context_callback() -> None:
             self.context_wrappers.pop(name, None)
             if hasattr(self, "context_semaphore"):
                 self.context_semaphore.release()
             logger.debug(
-                "Browser context closed: '%s' (persistent=%s)",
+                "Browser context closed: '%s' (persistent=%s, remote=%s)",
                 name,
                 persistent,
-                extra={"spider": spider, "context_name": name},
+                remote,
+                extra={
+                    "spider": spider,
+                    "context_name": name,
+                    "persistent": persistent,
+                    "remote": remote,
+                },
             )
 
         return close_browser_context_callback
