@@ -139,7 +139,7 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 ```
 
 ### `PLAYWRIGHT_CDP_URL`
-Type Optional[`str`], default `None`
+Type `Optional[str]`, default `None`
 
 The endpoint of a remote Chromium browser to connect using the
 [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/),
