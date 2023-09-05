@@ -349,13 +349,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if request.meta.get("playwright_include_page"):
             request.meta["playwright_page"] = page
 
-        context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
-
-        start_time = time()
+        context_name = request.meta.get("playwright_context")
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
         page_goto_kwargs.pop("url", None)
+
+        start_time = time()
         response = await page.goto(url=request.url, **page_goto_kwargs)
-        if response is None:
+        if response is not None:
+            await _set_redirect_meta(request=request, response=response)
+            headers = Headers(await response.all_headers())
+            headers.pop("Content-Encoding", None)
+        else:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -368,10 +372,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 },
             )
             headers = Headers()
-        else:
-            await _set_redirect_meta(request=request, response=response)
-            headers = Headers(await response.all_headers())
-            headers.pop("Content-Encoding", None)
+
         await self._apply_page_methods(page, request, spider)
         body_str = await _get_page_content(
             page=page,
@@ -383,12 +384,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         request.meta["download_latency"] = time() - start_time
 
         server_ip_address = None
-        with suppress(AttributeError, KeyError, TypeError, ValueError):
-            server_addr = await response.server_addr()
-            server_ip_address = ip_address(server_addr["ipAddress"])
-
-        with suppress(AttributeError):
+        if response is not None:
             request.meta["playwright_security_details"] = await response.security_details()
+            with suppress(KeyError, TypeError, ValueError):
+                server_addr = await response.server_addr()
+                server_ip_address = ip_address(server_addr["ipAddress"])
 
         if not request.meta.get("playwright_include_page"):
             await page.close()
