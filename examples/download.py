@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from scrapy import Spider, Request
 
 
@@ -20,8 +22,7 @@ class DownloadSpider(Spider):
 
     def parse(self, response):
         if filename := response.meta.get("playwright_suggested_filename"):
-            with open(filename, "wb") as fp:
-                fp.write(response.body)
+            (Path(__file__).parent / filename).write_bytes(response.body)
         yield {
             "url": response.url,
             "response_cls": response.__class__.__name__,

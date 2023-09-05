@@ -441,7 +441,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         try:
             response = await page.goto(url=request.url, **page_goto_kwargs)
         except PlaywrightError as ex:
-            if "net::ERR_ABORTED" not in str(ex):
+            if not (
+                self.browser_type_name in ("firefox", "webkit")
+                and "Download is starting" in ex.message
+                or self.browser_type_name == "chromium"
+                and "net::ERR_ABORTED" in ex.message
+            ):
                 raise
             await download_ready.wait()  # TODO: add timeout
         page.remove_listener("download", _handle_download)

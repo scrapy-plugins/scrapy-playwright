@@ -423,9 +423,6 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_download_file(self):
-        if self.browser_type != "chromium":
-            pytest.skip("Getting downloaded files as responses only works with Chromium")
-
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
                 request = Request(
