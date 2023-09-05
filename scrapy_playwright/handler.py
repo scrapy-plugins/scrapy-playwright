@@ -393,7 +393,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.stats.inc_value("playwright/page_count/closed")
 
         if download:
-            self.stats.inc_value("playwright/response_count/download")
             request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
             respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
             return respcls(
@@ -425,7 +424,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         download_ready = asyncio.Event()
 
         async def _handle_download(dwnld: Download) -> None:
-            self.stats.inc_value("playwright/request_count/download")
+            self.stats.inc_value("playwright/download_count")
             if failure := await dwnld.failure():
                 raise RuntimeError(failure)
             with NamedTemporaryFile() as temp_file:

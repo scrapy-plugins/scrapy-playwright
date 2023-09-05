@@ -421,6 +421,23 @@ class MixinTestCase:
 
         assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
+    @pytest.mark.asyncio
+    async def test_download_file(self):
+        if self.browser_type != "chromium":
+            pytest.skip("Getting downloaded files as responses only works with Chromium")
+
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                request = Request(
+                    url=server.urljoin("/files/mancha.pdf"),
+                    meta={"playwright": True},
+                )
+                response = await handler._download_request(request, Spider("foo"))
+
+                assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
+                assert response.body.startswith(b"%PDF-1.5")
+                assert handler.stats.get_value("playwright/download_count") == 1
+
 
 class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "chromium"
