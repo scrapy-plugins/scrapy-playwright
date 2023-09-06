@@ -392,7 +392,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
-        if download:
+        if download.get("exception"):
+            raise download["exception"]
+        elif download:
             request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
             respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
             return respcls(
@@ -425,19 +427,23 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         async def _handle_download(dwnld: Download) -> None:
             self.stats.inc_value("playwright/download_count")
-            if failure := await dwnld.failure():
-                raise RuntimeError(failure)
-            with NamedTemporaryFile() as temp_file:
-                await dwnld.save_as(temp_file.name)
-                temp_file.seek(0)
-                download["bytes"] = temp_file.read()
-            download["url"] = dwnld.url
-            download["suggested_filename"] = dwnld.suggested_filename
-            download_ready.set()
+            try:
+                if failure := await dwnld.failure():
+                    raise RuntimeError(failure)
+                with NamedTemporaryFile() as temp_file:
+                    await dwnld.save_as(temp_file.name)
+                    temp_file.seek(0)
+                    download["bytes"] = temp_file.read()
+                download["url"] = dwnld.url
+                download["suggested_filename"] = dwnld.suggested_filename
+            except Exception as ex:
+                download["exception"] = ex
+            finally:
+                download_ready.set()
 
-        page.on("download", _handle_download)
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
         page_goto_kwargs.pop("url", None)
+        page.on("download", _handle_download)
         try:
             response = await page.goto(url=request.url, **page_goto_kwargs)
         except PlaywrightError as ex:
