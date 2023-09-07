@@ -322,7 +322,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
 
         try:
-            result = await self._download_request_with_page(request, page, spider)
+            return await self._download_request_with_page(request, page, spider)
         except Exception as ex:
             if not request.meta.get("playwright_include_page") and not page.is_closed():
                 logger.warning(
@@ -342,8 +342,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise
-        else:
-            return result
 
     async def _download_request_with_page(
         self, request: Request, page: Page, spider: Spider
@@ -395,7 +393,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         if download.get("exception"):
             raise download["exception"]
-        elif download:
+        if download:
             request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
             respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
             return respcls(
@@ -447,12 +445,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page.on("download", _handle_download)
         try:
             response = await page.goto(url=request.url, **page_goto_kwargs)
-        except PlaywrightError as ex:
+        except PlaywrightError as err:
             if not (
                 self.browser_type_name in ("firefox", "webkit")
-                and "Download is starting" in ex.message
+                and "Download is starting" in err.message
                 or self.browser_type_name == "chromium"
-                and "net::ERR_ABORTED" in ex.message
+                and "net::ERR_ABORTED" in err.message
             ):
                 raise
             if self.default_navigation_timeout is not None:
@@ -461,9 +459,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 timeout = _DEFAULT_DOWNLOAD_TIMEOUT
             try:
                 await asyncio.wait_for(download_ready.wait(), timeout=timeout)
-            except asyncio.TimeoutError as ex:
+            except asyncio.TimeoutError as timeout_exception:
                 message = f"Timeout {timeout}s exceeded for {request.url}"
-                raise asyncio.TimeoutError(message) from ex
+                raise asyncio.TimeoutError(message) from timeout_exception
         finally:
             page.remove_listener("download", _handle_download)
 
