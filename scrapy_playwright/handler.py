@@ -52,6 +52,7 @@ logger = logging.getLogger("scrapy-playwright")
 DEFAULT_BROWSER_TYPE = "chromium"
 DEFAULT_CONTEXT_NAME = "default"
 PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
+_DEFAULT_DOWNLOAD_TIMEOUT = 30  # seconds
 
 
 @dataclass
@@ -454,8 +455,17 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 and "net::ERR_ABORTED" in ex.message
             ):
                 raise
-            await download_ready.wait()  # TODO: add timeout
-        page.remove_listener("download", _handle_download)
+            if self.default_navigation_timeout is not None:
+                timeout = self.default_navigation_timeout / 1000
+            else:
+                timeout = _DEFAULT_DOWNLOAD_TIMEOUT
+            try:
+                await asyncio.wait_for(download_ready.wait(), timeout=timeout)
+            except asyncio.TimeoutError as ex:
+                message = f"Timeout {timeout}s exceeded for {request.url}"
+                raise asyncio.TimeoutError(message) from ex
+        finally:
+            page.remove_listener("download", _handle_download)
 
         return response, download
 
