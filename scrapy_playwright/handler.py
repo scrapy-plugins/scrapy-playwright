@@ -453,15 +453,19 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 and "net::ERR_ABORTED" in err.message
             ):
                 raise
-            if self.default_navigation_timeout is not None:
-                timeout = self.default_navigation_timeout / 1000
+            if self.default_navigation_timeout == 0:  # no timeout
+                await download_ready.wait()
             else:
-                timeout = _DEFAULT_DOWNLOAD_TIMEOUT
-            try:
-                await asyncio.wait_for(download_ready.wait(), timeout=timeout)
-            except asyncio.TimeoutError as timeout_exception:
-                message = f"Timeout {timeout}s exceeded for {request.url}"
-                raise asyncio.TimeoutError(message) from timeout_exception
+                timeout = (
+                    _DEFAULT_DOWNLOAD_TIMEOUT
+                    if self.default_navigation_timeout is None
+                    else self.default_navigation_timeout / 1000
+                )
+                try:
+                    await asyncio.wait_for(download_ready.wait(), timeout=timeout)
+                except asyncio.TimeoutError as timeout_exception:
+                    message = f"Timeout {timeout}s exceeded for {request.url}"
+                    raise asyncio.TimeoutError(message) from timeout_exception
         finally:
             page.remove_listener("download", _handle_download)
 
