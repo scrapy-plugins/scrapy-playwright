@@ -475,6 +475,22 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
 
+    @patch("scrapy_playwright.handler.NamedTemporaryFile")
+    @pytest.mark.asyncio
+    async def test_download_file_exception(self, NamedTemporaryFile):
+        NamedTemporaryFile.side_effect = ZeroDivisionError("asdf")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                request = Request(url=server.urljoin("/mancha.pdf"), meta={"playwright": True})
+                with pytest.raises(ZeroDivisionError) as excinfo:
+                    await handler._download_request(request, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Closing page due to failed request: {request}"
+                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+                ) in self._caplog.record_tuples
+
 
 class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "chromium"

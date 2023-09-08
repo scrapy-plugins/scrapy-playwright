@@ -386,12 +386,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 server_addr = await response.server_addr()
                 server_ip_address = ip_address(server_addr["ipAddress"])
 
+        if download.get("exception"):
+            raise download["exception"]
+
         if not request.meta.get("playwright_include_page"):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
-        if download.get("exception"):
-            raise download["exception"]
         if download:
             request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
             respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
@@ -420,7 +421,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self, request: Request, page: Page
     ) -> Tuple[Optional[PlaywrightResponse], dict]:
         response: Optional[PlaywrightResponse] = None
-        download: dict = {}  # updated in-place in _download_event_handler
+        download: dict = {}  # updated in-place in _handle_download
         download_ready = asyncio.Event()
 
         async def _handle_download(dwnld: Download) -> None:
