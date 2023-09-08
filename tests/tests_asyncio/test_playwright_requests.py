@@ -423,17 +423,57 @@ class MixinTestCase:
 
     @pytest.mark.asyncio
     async def test_download_file(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
                 request = Request(
-                    url=server.urljoin("/files/mancha.pdf"),
+                    url=server.urljoin("mancha.pdf"),
                     meta={"playwright": True},
                 )
                 response = await handler._download_request(request, Spider("foo"))
-
                 assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
                 assert response.body.startswith(b"%PDF-1.5")
                 assert handler.stats.get_value("playwright/download_count") == 1
+
+    @pytest.mark.asyncio
+    async def test_download_file_delay_ok(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                request = Request(
+                    url=server.urljoin("/mancha.pdf?delay=1"),
+                    meta={"playwright": True},
+                )
+                response = await handler._download_request(request, Spider("foo"))
+                assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
+                assert response.body.startswith(b"%PDF-1.5")
+                assert handler.stats.get_value("playwright/download_count") == 1
+
+    @pytest.mark.asyncio
+    async def test_download_file_delay_error(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 10,
+        }
+        async with make_handler(settings_dict) as handler:
+            with MockServer() as server:
+                request = Request(
+                    url=server.urljoin("/mancha.pdf?delay=1"),
+                    meta={"playwright": True},
+                )
+                with pytest.raises(PlaywrightError) as excinfo:
+                    await handler._download_request(request, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Closing page due to failed request: {request}"
+                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+                ) in self._caplog.record_tuples
 
 
 class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
