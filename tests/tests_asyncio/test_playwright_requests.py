@@ -111,7 +111,7 @@ class MixinTestCase:
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/delay/1"), meta={"playwright": True})
+                req = Request(server.urljoin("/headers?delay=1"), meta={"playwright": True})
                 with pytest.raises(PlaywrightTimeoutError) as excinfo:
                     await handler._download_request(req, Spider("foo"))
                 assert (

@@ -7,7 +7,7 @@ from pathlib import Path
 from subprocess import Popen, PIPE
 from threading import Thread
 from typing import Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, parse_qs
 
 
 class StaticMockServer:
@@ -42,39 +42,50 @@ class StaticMockServer:
 class _RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         """Echo back the request body"""
-        content_length = int(self.headers["Content-Length"])
-        body = self.rfile.read(content_length)
+        content_length = int(self.headers.get("Content-Length") or 0)
+        body_bytes = b"Request body: " + self.rfile.read(content_length)
         self.send_response(200)
+        self.send_header("Content-Length", len(body_bytes))
         self.end_headers()
-        self.wfile.write(b"Request body: ")
-        self.wfile.write(body)
+        self.wfile.write(body_bytes)
 
     def do_GET(self) -> None:
-        if self.path == "/headers":
+        parsed_path = urlparse(self.path)
+        query_string = {key: values[0] for key, values in parse_qs(parsed_path.query).items()}
+
+        if delay := int(query_string.get("delay") or 0):
+            print(f"Sleeping {delay} seconds on path {parsed_path.path}...")
+            time.sleep(delay)
+
+        if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
-        elif self.path == "/redirect2":
+        elif parsed_path.path == "/redirect2":
             self.send_response(302)
+            self.send_header("Content-Length", 0)
             self.send_header("Location", "/redirect")
             self.end_headers()
-        elif self.path == "/redirect":
+        elif parsed_path.path == "/redirect":
             self.send_response(301)
+            self.send_header("Content-Length", 0)
             self.send_header("Location", "/headers")
             self.end_headers()
+        elif parsed_path.path == "/mancha.pdf":
+            body_bytes = (Path(__file__).absolute().parent / "site/files/mancha.pdf").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", 'attachment; filename="mancha.pdf"')
+            self.send_header("Content-Length", len(body_bytes))
+            self.end_headers()
+            self.wfile.write(body_bytes)
         else:
-            delay_match = re.match(r"^/delay/(\d+)$", self.path)
-            if delay_match:
-                delay = int(delay_match.group(1))
-                print(f"Sleeping {delay} seconds...")
-                time.sleep(delay)
-                self._send_json({"delay": delay})
-            else:
-                self._send_json({"error": "unknown path"}, status=400)
+            self._send_json({"error": "unknown path"}, status=404)
 
     def _send_json(self, body: dict, status: int = 200) -> None:
+        body_bytes = json.dumps(body, indent=2).encode("utf8")
         self.send_response(status)
+        self.send_header("Content-Length", len(body_bytes))
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        body_bytes = json.dumps(body, indent=4).encode("utf8")
         self.wfile.write(body_bytes)
 
 
