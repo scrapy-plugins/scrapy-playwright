@@ -428,7 +428,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self.stats.inc_value("playwright/download_count")
             try:
                 if failure := await dwnld.failure():
-                    raise RuntimeError(failure)
+                    raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
                 with NamedTemporaryFile() as temp_file:
                     await dwnld.save_as(temp_file.name)
                     temp_file.seek(0)

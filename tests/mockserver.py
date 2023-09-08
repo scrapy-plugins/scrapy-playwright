@@ -71,10 +71,11 @@ class _RequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
         elif parsed_path.path == "/mancha.pdf":
             body_bytes = (Path(__file__).absolute().parent / "site/files/mancha.pdf").read_bytes()
+            content_length_multiplier = int(query_string.get("content_length_multiplier") or 1)
             self.send_response(200)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Disposition", 'attachment; filename="mancha.pdf"')
-            self.send_header("Content-Length", str(len(body_bytes)))
+            self.send_header("Content-Length", str(len(body_bytes) * content_length_multiplier))
             self.end_headers()
             self.wfile.write(body_bytes)
         else:
