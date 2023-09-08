@@ -45,7 +45,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length") or 0)
         body_bytes = b"Request body: " + self.rfile.read(content_length)
         self.send_response(200)
-        self.send_header("Content-Length", len(body_bytes))
+        self.send_header("Content-Length", str(len(body_bytes)))
         self.end_headers()
         self.wfile.write(body_bytes)
 
@@ -61,12 +61,12 @@ class _RequestHandler(BaseHTTPRequestHandler):
             self._send_json(dict(self.headers))
         elif parsed_path.path == "/redirect2":
             self.send_response(302)
-            self.send_header("Content-Length", 0)
+            self.send_header("Content-Length", "0")
             self.send_header("Location", "/redirect")
             self.end_headers()
         elif parsed_path.path == "/redirect":
             self.send_response(301)
-            self.send_header("Content-Length", 0)
+            self.send_header("Content-Length", "0")
             self.send_header("Location", "/headers")
             self.end_headers()
         elif parsed_path.path == "/mancha.pdf":
@@ -74,7 +74,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Disposition", 'attachment; filename="mancha.pdf"')
-            self.send_header("Content-Length", len(body_bytes))
+            self.send_header("Content-Length", str(len(body_bytes)))
             self.end_headers()
             self.wfile.write(body_bytes)
         else:
@@ -83,7 +83,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def _send_json(self, body: dict, status: int = 200) -> None:
         body_bytes = json.dumps(body, indent=2).encode("utf8")
         self.send_response(status)
-        self.send_header("Content-Length", len(body_bytes))
+        self.send_header("Content-Length", str(len(body_bytes)))
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(body_bytes)
