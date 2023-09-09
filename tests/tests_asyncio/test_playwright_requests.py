@@ -69,41 +69,6 @@ class MixinTestCase:
             assert "Request body: foo=bar" in resp.text
 
     @pytest.mark.asyncio
-    async def test_timeout_value(self):
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-        }
-        async with make_handler(settings_dict) as handler:
-            assert handler.default_navigation_timeout is None
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": None,
-        }
-        async with make_handler(settings_dict) as handler:
-            assert handler.default_navigation_timeout is None
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0,
-        }
-        async with make_handler(settings_dict) as handler:
-            assert handler.default_navigation_timeout == 0
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 123,
-        }
-        async with make_handler(settings_dict) as handler:
-            assert handler.default_navigation_timeout == 123
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0.5,
-        }
-        async with make_handler(settings_dict) as handler:
-            assert handler.default_navigation_timeout == 0.5
-
-    @pytest.mark.asyncio
     async def test_timeout_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,

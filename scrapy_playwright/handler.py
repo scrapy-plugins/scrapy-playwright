@@ -22,6 +22,7 @@ from scrapy.crawler import Crawler
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
+from scrapy.settings import Settings
 from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
@@ -59,57 +60,68 @@ class BrowserContextWrapper:
     persistent: bool
 
 
+@dataclass
+class Config:
+    cdp_url: Optional[str]
+    cdp_kwargs: dict
+    browser_type_name: str
+    launch_options: dict
+    max_pages_per_context: int
+    max_contexts: Optional[int]
+    startup_context_kwargs: dict
+    navigation_timeout: Optional[float] = None
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> "Config":
+        cfg = cls(
+            cdp_url=settings.get("PLAYWRIGHT_CDP_URL"),
+            cdp_kwargs=settings.getdict("PLAYWRIGHT_CDP_KWARGS") or {},
+            browser_type_name=settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE,
+            launch_options=settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {},
+            max_pages_per_context=settings.getint("PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"),
+            max_contexts=settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or None,
+            startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
+        )
+        cfg.cdp_kwargs.pop("endpoint_url", None)
+        if not cfg.max_pages_per_context:
+            cfg.max_pages_per_context = settings.getint("CONCURRENT_REQUESTS")
+        if cfg.cdp_url and cfg.launch_options:
+            logger.warning("PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
+        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
+            with suppress(TypeError, ValueError):
+                cfg.navigation_timeout = float(settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"])
+        return cfg
+
+
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def __init__(self, crawler: Crawler) -> None:
-        settings = crawler.settings
-        super().__init__(settings=settings, crawler=crawler)
+        super().__init__(settings=crawler.settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
 
-        # browser
-        self.browser_cdp_url = settings.get("PLAYWRIGHT_CDP_URL")
-        self.browser_cdp_kwargs = settings.get("PLAYWRIGHT_CDP_KWARGS") or {}
-        self.browser_cdp_kwargs.pop("endpoint_url", None)
-        self.browser_type_name = settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE
-        self.browser_launch_lock = asyncio.Lock()
-        self.launch_options: dict = settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {}
-        if self.browser_cdp_url and self.launch_options:
-            logger.warning("PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
+        self.config = Config.from_settings(crawler.settings)
 
-        # contexts
-        self.max_pages_per_context: int = settings.getint(
-            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"
-        ) or settings.getint("CONCURRENT_REQUESTS")
+        self.browser_launch_lock = asyncio.Lock()
         self.context_launch_lock = asyncio.Lock()
         self.context_wrappers: Dict[str, BrowserContextWrapper] = {}
-        self.startup_context_kwargs: dict = settings.getdict("PLAYWRIGHT_CONTEXTS")
-        if settings.getint("PLAYWRIGHT_MAX_CONTEXTS"):
-            self.context_semaphore = asyncio.Semaphore(
-                value=settings.getint("PLAYWRIGHT_MAX_CONTEXTS")
-            )
-
-        self.default_navigation_timeout: Optional[float] = None
-        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
-            with suppress(TypeError, ValueError):
-                self.default_navigation_timeout = float(
-                    settings.get("PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT")
-                )
+        if self.config.max_contexts:
+            self.context_semaphore = asyncio.Semaphore(value=self.config.max_contexts)
 
         # headers
-        if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in settings:
-            if settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"] is None:
+        if "PLAYWRIGHT_PROCESS_REQUEST_HEADERS" in crawler.settings:
+            if crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"] is None:
                 self.process_request_headers = None
             else:
                 self.process_request_headers = load_object(
-                    settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
+                    crawler.settings["PLAYWRIGHT_PROCESS_REQUEST_HEADERS"]
                 )
         else:
             self.process_request_headers = use_scrapy_headers
 
         self.abort_request: Optional[Callable[[PlaywrightRequest], Union[Awaitable, bool]]] = None
-        if settings.get("PLAYWRIGHT_ABORT_REQUEST"):
-            self.abort_request = load_object(settings["PLAYWRIGHT_ABORT_REQUEST"])
+        if crawler.settings.get("PLAYWRIGHT_ABORT_REQUEST"):
+            self.abort_request = load_object(crawler.settings["PLAYWRIGHT_ABORT_REQUEST"])
 
     @classmethod
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
@@ -124,35 +136,35 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         logger.info("Starting download handler")
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
-        self.browser_type: BrowserType = getattr(self.playwright, self.browser_type_name)
-        if self.startup_context_kwargs:
-            logger.info("Launching %i startup context(s)", len(self.startup_context_kwargs))
+        self.browser_type: BrowserType = getattr(self.playwright, self.config.browser_type_name)
+        if self.config.startup_context_kwargs:
+            logger.info("Launching %i startup context(s)", len(self.config.startup_context_kwargs))
             await asyncio.gather(
                 *[
                     self._create_browser_context(name=name, context_kwargs=kwargs)
-                    for name, kwargs in self.startup_context_kwargs.items()
+                    for name, kwargs in self.config.startup_context_kwargs.items()
                 ]
             )
             self._set_max_concurrent_context_count()
             logger.info("Startup context(s) launched")
             self.stats.set_value("playwright/page_count", self._get_total_page_count())
-        del self.startup_context_kwargs
+        del self.config.startup_context_kwargs
 
     async def _maybe_launch_browser(self) -> None:
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Launching browser %s", self.browser_type.name)
-                self.browser = await self.browser_type.launch(**self.launch_options)
+                self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
 
     async def _maybe_connect_devtools(self) -> None:
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
-                logger.info("Connecting using CDP: %s", self.browser_cdp_url)
+                logger.info("Connecting using CDP: %s", self.config.cdp_url)
                 self.browser = await self.browser_type.connect_over_cdp(
-                    self.browser_cdp_url, **self.browser_cdp_kwargs
+                    self.config.cdp_url, **self.config.cdp_kwargs
                 )
-                logger.info("Connected using CDP: %s", self.browser_cdp_url)
+                logger.info("Connected using CDP: %s", self.config.cdp_url)
 
     async def _create_browser_context(
         self,
@@ -170,7 +182,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             context = await self.browser_type.launch_persistent_context(**context_kwargs)
             persistent = True
             remote = False
-        elif self.browser_cdp_url:
+        elif self.config.cdp_url:
             await self._maybe_connect_devtools()
             context = await self.browser.new_context(**context_kwargs)
             persistent = False
@@ -199,11 +211,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 "remote": remote,
             },
         )
-        if self.default_navigation_timeout is not None:
-            context.set_default_navigation_timeout(self.default_navigation_timeout)
+        if self.config.navigation_timeout is not None:
+            context.set_default_navigation_timeout(self.config.navigation_timeout)
         self.context_wrappers[name] = BrowserContextWrapper(
             context=context,
-            semaphore=asyncio.Semaphore(value=self.max_pages_per_context),
+            semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
             persistent=persistent,
         )
         self._set_max_concurrent_context_count()
@@ -242,8 +254,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             },
         )
         self._set_max_concurrent_page_count()
-        if self.default_navigation_timeout is not None:
-            page.set_default_navigation_timeout(self.default_navigation_timeout)
+        if self.config.navigation_timeout is not None:
+            page.set_default_navigation_timeout(self.config.navigation_timeout)
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
@@ -431,7 +443,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     )
                 else:
                     pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
-                    await page.wait_for_load_state(timeout=self.default_navigation_timeout)
+                    await page.wait_for_load_state(timeout=self.config.navigation_timeout)
             else:
                 logger.warning(
                     "Ignoring %r: expected PageMethod, got %r",
@@ -528,7 +540,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             else:
                 overrides["headers"] = final_headers = await _maybe_await(
                     self.process_request_headers(
-                        self.browser_type_name, playwright_request, headers
+                        self.config.browser_type_name, playwright_request, headers
                     )
                 )
 
