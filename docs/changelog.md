@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.33](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.33) (2023-10-19)
+
+* Handle downloads as binary responses (#228)
+
+
 ### [v0.0.32](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.32) (2023-09-04)
 
 * Connect to browser using CDP (#227)
