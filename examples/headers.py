@@ -37,6 +37,6 @@ class HeadersSpider(Spider):
             cookies={"foo": "bar"},
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         headers = json.loads(response.css("pre::text").get())["headers"]
         yield {"url": response.url, "headers": headers}

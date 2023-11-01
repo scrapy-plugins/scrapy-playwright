@@ -26,7 +26,7 @@ class StorageSpider(Spider):
             },
         )
 
-    async def parse(self, response):
+    async def parse(self, response, **kwargs):
         page = response.meta["playwright_page"]
         storage_state = await page.context.storage_state()
         await page.close()
