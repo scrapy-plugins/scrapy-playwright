@@ -50,6 +50,6 @@ class HandleExceptionInMiddlewareSpider(Spider):
             meta={"playwright": True},
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         logging.info("Received response for %s", response.url)
         yield {"url": response.url}

@@ -20,7 +20,7 @@ class DownloadSpider(Spider):
             meta={"playwright": True},
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         if filename := response.meta.get("playwright_suggested_filename"):
             (Path(__file__).parent / filename).write_bytes(response.body)
         yield {

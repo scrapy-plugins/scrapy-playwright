@@ -34,5 +34,5 @@ class ScrollSpider(Spider):
             },
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         return {"url": response.url, "count": len(response.css("div.quote"))}
