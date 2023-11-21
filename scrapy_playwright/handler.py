@@ -3,7 +3,6 @@ import logging
 from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
-from tempfile import NamedTemporaryFile
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
@@ -429,10 +428,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             try:
                 if failure := await dwnld.failure():
                     raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
-                with NamedTemporaryFile() as temp_file:
-                    await dwnld.save_as(temp_file.name)
-                    temp_file.seek(0)
-                    download["bytes"] = temp_file.read()
+                download_path = await dwnld.path()
+                download["bytes"] = download_path.read_bytes()
                 download["url"] = dwnld.url
                 download["suggested_filename"] = dwnld.suggested_filename
             except Exception as ex:
