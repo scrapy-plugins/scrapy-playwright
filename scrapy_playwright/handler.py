@@ -455,9 +455,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             response = await page.goto(url=request.url, **page_goto_kwargs)
         except PlaywrightError as err:
             if not (
-                self.browser_type_name in ("firefox", "webkit")
+                self.config.browser_type_name in ("firefox", "webkit")
                 and "Download is starting" in err.message
-                or self.browser_type_name == "chromium"
+                or self.config.browser_type_name == "chromium"
                 and "net::ERR_ABORTED" in err.message
             ):
                 raise
