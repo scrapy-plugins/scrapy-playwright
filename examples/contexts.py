@@ -95,7 +95,7 @@ class MultipleContextsSpider(Spider):
                 dont_filter=True,
             )
 
-    async def parse(self, response):
+    async def parse(self, response, **kwargs):
         page = response.meta["playwright_page"]
         context_name = response.meta["playwright_context"]
         storage_state = await page.context.storage_state()

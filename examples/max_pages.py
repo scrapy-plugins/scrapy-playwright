@@ -41,7 +41,7 @@ class MaxPagesPerContextContextsSpider(Spider):
                 meta={"playwright": True, "playwright_context": "b"},
             )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         return {"url": response.url}
 
     async def errback(self, failure):

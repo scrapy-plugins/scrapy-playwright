@@ -13,6 +13,7 @@ disable=
     duplicate-code,
     import-outside-toplevel,
     protected-access,
+    too-many-public-methods,
     unnecessary-dunder-call,
 
 

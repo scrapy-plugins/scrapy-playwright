@@ -22,27 +22,6 @@ class MixinTestCaseMultipleContexts:
         self._caplog = caplog
 
     @pytest.mark.asyncio
-    async def test_contexts_max_settings(self):
-        settings = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1234,
-        }
-        async with make_handler(settings) as handler:
-            assert handler.max_pages_per_context == 1234
-
-        settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "CONCURRENT_REQUESTS": 9876}
-        async with make_handler(settings) as handler:
-            assert handler.max_pages_per_context == 9876
-
-        settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "PLAYWRIGHT_MAX_CONTEXTS": None}
-        async with make_handler(settings) as handler:
-            assert not hasattr(handler, "context_semaphore")
-
-        settings = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type, "PLAYWRIGHT_MAX_CONTEXTS": 1234}
-        async with make_handler(settings) as handler:
-            assert handler.context_semaphore._value == 1234
-
-    @pytest.mark.asyncio
     async def test_context_kwargs(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,

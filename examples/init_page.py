@@ -28,7 +28,7 @@ class InitPageSpider(scrapy.Spider):
             },
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         json_str = response.css("pre::text").get()
         print(json_str)
         return {"data": json.loads(json_str)}

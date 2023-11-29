@@ -98,7 +98,7 @@ class AwesomeSpider(scrapy.Spider):
             meta={"playwright": True},
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         # 'response' contains the page as seen by the browser
         return {"url": response.url}
 ```
@@ -137,6 +137,37 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
     "timeout": 20 * 1000,  # 20 seconds
 }
 ```
+
+### `PLAYWRIGHT_CDP_URL`
+Type `Optional[str]`, default `None`
+
+The endpoint of a remote Chromium browser to connect using the
+[Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/),
+via [`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp).
+If this setting is used:
+* all non-persistent contexts will be created on the connected remote browser
+* the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
+* the `PLAYWRIGHT_BROWSER_TYPE` setting must not be set to a value different than "chromium"
+
+```python
+PLAYWRIGHT_CDP_URL = "http://localhost:9222"
+```
+
+### `PLAYWRIGHT_CDP_KWARGS`
+Type `dict[str, Any]`, default `{}`
+
+Additional keyword arguments to be passed to
+[`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp)
+when using `PLAYWRIGHT_CDP_URL`. The `endpoint_url` key is always ignored,
+`PLAYWRIGHT_CDP_URL` is used instead.
+
+```python
+PLAYWRIGHT_CDP_KWARGS = {
+    "slow_mo": 1000,
+    "timeout": 10 * 1000
+}
+```
+
 
 ### `PLAYWRIGHT_CONTEXTS`
 Type `dict[str, dict]`, default `{}`
@@ -412,7 +443,7 @@ def start_requests(self):
         meta={"playwright": True, "playwright_include_page": True},
     )
 
-def parse(self, response):
+def parse(self, response, **kwargs):
     page = response.meta["playwright_page"]
     yield scrapy.Request(
         url="https://httpbin.org/headers",
@@ -449,7 +480,7 @@ about the give response. Only available for HTTPS requests. Could be accessed
 in the callback via `response.meta['playwright_security_details']`
 
 ```python
-def parse(self, response):
+def parse(self, response, **kwargs):
     print(response.meta["playwright_security_details"])
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
@@ -597,7 +628,7 @@ you can access a context though the corresponding [`Page.context`](https://playw
 attribute, and await [`close`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-close) on it.
 
 ```python
-def parse(self, response):
+def parse(self, response, **kwargs):
     yield scrapy.Request(
         url="https://example.org",
         callback=self.parse_in_new_context,
@@ -660,7 +691,7 @@ class ProxySpider(Spider):
     def start_requests(self):
         yield Request("http://httpbin.org/get", meta={"playwright": True})
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         print(response.text)
 ```
 
@@ -729,7 +760,7 @@ def start_requests(self):
         },
     )
 
-def parse(self, response):
+def parse(self, response, **kwargs):
     screenshot = response.meta["playwright_page_methods"][0]
     # screenshot.result contains the image's bytes
 ```
@@ -742,7 +773,7 @@ def start_requests(self):
         meta={"playwright": True, "playwright_include_page": True},
     )
 
-async def parse(self, response):
+async def parse(self, response, **kwargs):
     page = response.meta["playwright_page"]
     screenshot = await page.screenshot(path="example.png", full_page=True)
     # screenshot contains the image's bytes
@@ -834,7 +865,7 @@ class ClickAndSavePdfSpider(scrapy.Spider):
             ),
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         pdf_bytes = response.meta["playwright_page_methods"]["pdf"].result
         with open("iana.pdf", "wb") as fp:
             fp.write(pdf_bytes)
@@ -861,7 +892,7 @@ class ScrollSpider(scrapy.Spider):
             ),
         )
 
-    async def parse(self, response):
+    async def parse(self, response, **kwargs):
         page = response.meta["playwright_page"]
         await page.screenshot(path="quotes.png", full_page=True)
         await page.close()

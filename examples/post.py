@@ -30,5 +30,5 @@ class PostSpider(Spider):
             },
         )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         yield {"url": response.url}
