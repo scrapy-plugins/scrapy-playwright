@@ -74,7 +74,7 @@ class Config:
     max_contexts: Optional[int]
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
-    close_context_interval : Optional[float]
+    close_context_interval: Optional[float]
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -91,7 +91,7 @@ class Config:
             ),
             close_context_interval=_get_float_setting(
                 settings, "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL"
-            )
+            ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         if not cfg.max_pages_per_context:
