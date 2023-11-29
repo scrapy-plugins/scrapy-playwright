@@ -37,5 +37,5 @@ class EventsSpider(Spider):
     async def handle_response(self, response: PlaywrightResponse) -> None:
         self.logger.info(f"Received response with URL {response.url}")
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         return {"url": response.url}
