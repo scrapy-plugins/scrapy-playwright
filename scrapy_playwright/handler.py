@@ -149,7 +149,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             self._set_max_concurrent_context_count()
             logger.info("Startup context(s) launched")
             self.stats.set_value("playwright/page_count", self._get_total_page_count())
-        del self.config.startup_context_kwargs
 
     async def _maybe_launch_browser(self) -> None:
         async with self.browser_launch_lock:
