@@ -11,7 +11,7 @@ from tests.mockserver import StaticMockServer
 
 
 @pytest.mark.skipif(
-    platform.system() != "Windows",
+    platform.system() == "Windows",
     reason="On Windows, If the task reaches two, it will be blocked.",
 )
 class MixedRequestsTestCase(TestCase):
