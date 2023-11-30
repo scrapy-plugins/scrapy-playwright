@@ -29,6 +29,7 @@ jobs:
       run: tox -e py-twisted
 
     - name: Upload coverage report
+      if: runner.os != 'Windows'
       run: |
         if [ "${{ runner.os }}" = "Linux" ]; then
           curl -Os https://uploader.codecov.io/latest/linux/codecov
