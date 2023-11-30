@@ -144,7 +144,7 @@ class MixinPageMethodTestCase:
     @pytest.mark.asyncio
     async def test_page_method_screenshot(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with NamedTemporaryFile(mode="w+b") as png_file:
+            with NamedTemporaryFile(mode="w+b", delete=False) as png_file:
                 with StaticMockServer() as server:
                     req = Request(
                         url=server.urljoin("/index.html"),
@@ -159,7 +159,8 @@ class MixinPageMethodTestCase:
 
                 png_file.file.seek(0)
                 assert png_file.file.read() == req.meta["playwright_page_methods"]["png"].result
-                assert get_mimetype(png_file) == "image/png"
+                if platform.system() != "Windows":
+                    assert get_mimetype(png_file) == "image/png"
 
     @pytest.mark.asyncio
     async def test_page_method_pdf(self):
@@ -167,7 +168,7 @@ class MixinPageMethodTestCase:
             pytest.skip("PDF generation is supported only in Chromium")
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with NamedTemporaryFile(mode="w+b") as pdf_file:
+            with NamedTemporaryFile(mode="w+b", delete=False) as pdf_file:
                 with StaticMockServer() as server:
                     req = Request(
                         url=server.urljoin("/index.html"),
@@ -182,7 +183,8 @@ class MixinPageMethodTestCase:
 
                 pdf_file.file.seek(0)
                 assert pdf_file.file.read() == req.meta["playwright_page_methods"]["pdf"].result
-                assert get_mimetype(pdf_file) == "application/pdf"
+                if platform.system() != "Windows":
+                    assert get_mimetype(pdf_file) == "application/pdf"
 
 
 class TestPageMethodChromium(IsolatedAsyncioTestCase, MixinPageMethodTestCase):

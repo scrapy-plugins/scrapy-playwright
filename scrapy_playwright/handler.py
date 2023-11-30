@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import logging
 from contextlib import suppress
@@ -24,7 +25,7 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.settings import Settings
-from scrapy.utils.defer import deferred_from_coro
+from scrapy.utils.defer import deferred_from_coro as deferred_from_coro_default
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -39,15 +40,50 @@ from scrapy_playwright._utils import (
     _maybe_await,
 )
 
+# Supporting for Windows
+if sys.platform == "win32" and sys.version_info >= (3, 8):
+    import threading
 
-__all__ = ["ScrapyPlaywrightDownloadHandler"]
+    class Var:
+        windows_loop = None
+        windows_thread = None
 
+    def windows_get_asyncio_event_loop():
+        if Var.windows_thread is None:
+            if Var.windows_loop is None:
+                Var.windows_loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()
+                asyncio.set_event_loop(Var.windows_loop)
+            if not Var.windows_loop.is_running():
+                Var.windows_thread = threading.Thread(
+                    target=Var.windows_loop.run_forever, daemon=True
+                )
+                Var.windows_thread.start()
+        return Var.windows_loop
+
+    async def windows_get_result(o):
+        return asyncio.run_coroutine_threadsafe(o, windows_get_asyncio_event_loop()).result()
+
+    deferred_from_coro__old = deferred_from_coro_default
+
+    def deferred_from_coro(o):
+        if isinstance(o, Deferred):
+            return o
+        return deferred_from_coro__old(windows_get_result(o))
+
+else:
+    windows_get_asyncio_event_loop = None
+    windows_get_result = None
+    deferred_from_coro = deferred_from_coro_default
+
+__all__ = [
+    "ScrapyPlaywrightDownloadHandler",
+    "windows_get_asyncio_event_loop",
+    "windows_get_result",
+]
 
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
-
 logger = logging.getLogger("scrapy-playwright")
-
 
 DEFAULT_BROWSER_TYPE = "chromium"
 DEFAULT_CONTEXT_NAME = "default"
