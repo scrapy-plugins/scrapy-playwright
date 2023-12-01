@@ -63,12 +63,10 @@ if sys.platform == "win32" and sys.version_info >= (3, 8):
     async def windows_get_result(o):
         return asyncio.run_coroutine_threadsafe(o, windows_get_asyncio_event_loop()).result()
 
-    deferred_from_coro__old = deferred_from_coro_default
-
     def deferred_from_coro(o):
         if isinstance(o, Deferred):
             return o
-        return deferred_from_coro__old(windows_get_result(o))
+        return deferred_from_coro_default(windows_get_result(o))
 
 else:
     windows_get_asyncio_event_loop = None
