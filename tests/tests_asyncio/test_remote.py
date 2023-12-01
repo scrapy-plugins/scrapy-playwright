@@ -61,6 +61,7 @@ class TestRemoteDevtools(IsolatedAsyncioTestCase):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @pytest.mark.asyncio
     async def test_devtools(self):
         async with remote_chromium() as devtools_url:
             settings_dict = {

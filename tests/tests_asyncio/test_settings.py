@@ -1,5 +1,7 @@
 from unittest import IsolatedAsyncioTestCase
 
+import pytest
+
 from scrapy.settings import Settings
 
 from scrapy_playwright.handler import Config
@@ -31,6 +33,7 @@ class TestSettings(IsolatedAsyncioTestCase):
         config = Config.from_settings(Settings({"CONCURRENT_REQUESTS": 9876}))
         assert config.max_pages_per_context == 9876
 
+    @pytest.mark.asyncio
     async def test_max_contexts(self):
         async with make_handler({"PLAYWRIGHT_MAX_CONTEXTS": None}) as handler:
             assert not hasattr(handler, "context_semaphore")
