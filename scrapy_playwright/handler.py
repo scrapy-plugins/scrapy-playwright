@@ -377,10 +377,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                         "spider": spider,
                         "context_name": context_name,
                         "scrapy_request_url": request.url,
-                        "scrapy_request_method": request.method,
-                        "exception": ex,
-                    },
-                    exc_info=True,
+                        "scrapy_request_method": request.method
+                    }
                 )
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
