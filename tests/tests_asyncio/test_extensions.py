@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from playwright.async_api import PlaywrightContextManager
 from scrapy.exceptions import NotConfigured
+from scrapy.extensions.memusage import MemoryUsage
 
 from scrapy_playwright.extensions import ScrapyPlaywrightMemoryUsageExtension
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
@@ -66,3 +67,10 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
         crawler = MagicMock()
         extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
         assert extension._get_descendant_processes(p1) == [p2, p3, p4]
+
+    async def test_get_virtual_size_sum(self, _MailSender):
+        crawler = MagicMock()
+        extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
+        parent_cls_extension = MemoryUsage(crawler)
+        extension._get_total_process_size = MagicMock(return_value=123)
+        assert extension.get_virtual_size() == parent_cls_extension.get_virtual_size() + 123
