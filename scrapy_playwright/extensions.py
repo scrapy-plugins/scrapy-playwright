@@ -36,7 +36,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             result.extend(self._get_descendant_processes(child))
         return result
 
-    def get_virtual_size(self) -> int:
+    def _get_total_process_size(self) -> int:
         process_list = [self.psutil.Process(pid) for pid in self._get_main_process_ids()]
         for proc in process_list.copy():
             process_list.extend(self._get_descendant_processes(proc))
@@ -51,4 +51,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             total_process_size,
             total_process_size / _MIB_FACTOR,
         )
-        return super().get_virtual_size() + total_process_size
+        return total_process_size
+
+    def get_virtual_size(self) -> int:
+        return super().get_virtual_size() + self._get_total_process_size()
