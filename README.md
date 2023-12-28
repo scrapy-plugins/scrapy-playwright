@@ -826,6 +826,31 @@ for a list of the accepted events and the arguments passed to their handlers.
   images, scripts, stylesheets, etc are not seen by Scrapy.
 
 
+## Memory usage extension
+
+The default Scrapy memory usage extension
+(`scrapy.extensions.memusage.MemoryUsage`) does not include the memory used by
+Playwright because the browser is launched as a separate process. The
+scrapy-playwright package provides a replacement extension which also considers
+the memory used by Playwright.
+
+Update the [EXTENSIONS](https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-EXTENSIONS)
+setting to disable the built-in Scrapy extension and replace it with the one
+from the scrapy-playwright package:
+
+```python
+# settings.py
+EXTENSIONS = {
+    "scrapy.extensions.memusage.MemoryUsage": None,
+    "scrapy_playwright.extensions.ScrapyPlaywrightMemoryUsageExtension": 0,
+}
+```
+
+Refer to the
+[upstream docs](https://docs.scrapy.org/en/latest/topics/extensions.html#module-scrapy.extensions.memusage)
+for more information about the supported settings.
+
+
 ## Examples
 
 **Click on a link, save the resulting page as PDF**
