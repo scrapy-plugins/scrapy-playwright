@@ -1,5 +1,5 @@
 from importlib import import_module
-from typing import List, TYPE_CHECKING
+from typing import List
 
 from scrapy.exceptions import NotConfigured
 from scrapy.extensions.memusage import MemoryUsage
@@ -7,14 +7,12 @@ from scrapy.extensions.memusage import MemoryUsage
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler, logger
 
 
-if TYPE_CHECKING:
-    import psutil
+_MIB_FACTOR = 1024**2
 
 
 class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.mib_factor = 1024**2
         try:
             self.psutil = import_module("psutil")
         except ImportError as exc:
@@ -30,7 +28,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
         except Exception:
             return []
 
-    def _get_descendant_processes(self, process: "psutil.Process") -> List["psutil.process"]:
+    def _get_descendant_processes(self, process) -> list:
         children = process.children()
         result = children.copy()
         for child in children:
@@ -50,6 +48,6 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
         logger.debug(
             "Total process size is %i Bytes (%i MiB)",
             total_process_size,
-            total_process_size / self.mib_factor,
+            total_process_size / _MIB_FACTOR,
         )
         return super().get_virtual_size() + total_process_size
