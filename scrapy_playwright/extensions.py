@@ -1,3 +1,4 @@
+from contextlib import suppress
 from importlib import import_module
 from typing import List
 
@@ -42,10 +43,8 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             process_list.extend(self._get_descendant_processes(proc))
         total_process_size = 0
         for proc in process_list:
-            try:
+            with suppress(Exception):  # might fail if the process exited in the meantime
                 total_process_size += proc.memory_info().rss
-            except Exception:  # might fail if the process exited in the meantime  # nosec
-                pass
         logger.debug(
             "Total process size is %i Bytes (%i MiB)",
             total_process_size,

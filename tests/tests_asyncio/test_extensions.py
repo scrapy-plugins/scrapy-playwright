@@ -30,6 +30,10 @@ def raise_import_error(*args, **kwargs):
     raise ImportError
 
 
+class MockMemoryInfo:
+    rss = 999
+
+
 @patch("scrapy.extensions.memusage.MailSender")
 class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
     async def test_process_availability(self, _MailSender):
@@ -67,6 +71,15 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
         crawler = MagicMock()
         extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
         assert extension._get_descendant_processes(p1) == [p2, p3, p4]
+
+    async def test_get_total_process_size(self, _MailSender):
+        crawler = MagicMock()
+        extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
+        extension.psutil = MagicMock()
+        extension.psutil.Process.return_value.memory_info.return_value = MockMemoryInfo()
+        extension._get_main_process_ids = MagicMock(return_value=[1, 2, 3])
+        expected_size = MockMemoryInfo().rss * len(extension._get_main_process_ids())
+        assert extension._get_total_process_size() == expected_size
 
     async def test_get_virtual_size_sum(self, _MailSender):
         crawler = MagicMock()
