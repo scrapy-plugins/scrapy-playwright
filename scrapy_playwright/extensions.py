@@ -45,7 +45,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
         for proc in process_list:
             try:
                 total_process_size += proc.memory_info().rss
-            except Exception:  # might fail if the process exited in the meantime
+            except Exception:  # might fail if the process exited in the meantime  # nosec
                 pass
         logger.debug(
             "Total process size is %i Bytes (%i MiB)",
