@@ -1,4 +1,4 @@
-import asyncio
+from asyncio.subprocess import Process as AsyncioProcess
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import MagicMock, patch
 
@@ -35,7 +35,7 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
         """The main node process should be accessible from the context manager"""
         ctx_manager = PlaywrightContextManager()
         await ctx_manager.start()
-        assert isinstance(ctx_manager._connection._transport._proc, asyncio.subprocess.Process)
+        assert isinstance(ctx_manager._connection._transport._proc, AsyncioProcess)
         await ctx_manager.__aexit__()
 
     @patch("scrapy_playwright.extensions.import_module", side_effect=raise_import_error)
