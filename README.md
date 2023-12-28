@@ -832,7 +832,8 @@ The default Scrapy memory usage extension
 (`scrapy.extensions.memusage.MemoryUsage`) does not include the memory used by
 Playwright because the browser is launched as a separate process. The
 scrapy-playwright package provides a replacement extension which also considers
-the memory used by Playwright.
+the memory used by Playwright. This extension needs the
+[`psutil`](https://pypi.org/project/psutil/) package to work.
 
 Update the [EXTENSIONS](https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-EXTENSIONS)
 setting to disable the built-in Scrapy extension and replace it with the one
