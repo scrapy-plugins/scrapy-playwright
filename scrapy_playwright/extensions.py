@@ -24,6 +24,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
                 handler.playwright_context_manager._connection._transport._proc.pid
                 for handler in self.crawler.engine.downloader.handlers._handlers.values()
                 if isinstance(handler, ScrapyPlaywrightDownloadHandler)
+                and handler.playwright_context_manager
             ]
         except Exception:
             return []
