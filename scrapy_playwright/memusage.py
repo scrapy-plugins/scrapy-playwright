@@ -37,7 +37,7 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             result.extend(self._get_descendant_processes(child))
         return result
 
-    def _get_total_process_size(self) -> int:
+    def _get_total_playwright_process_memory(self) -> int:
         process_list = [self.psutil.Process(pid) for pid in self._get_main_process_ids()]
         for proc in process_list.copy():
             process_list.extend(self._get_descendant_processes(proc))
@@ -46,11 +46,11 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             with suppress(Exception):  # might fail if the process exited in the meantime
                 total_process_size += proc.memory_info().rss
         logger.debug(
-            "Total process size is %i Bytes (%i MiB)",
+            "Total Playwright process memory: %i Bytes (%i MiB)",
             total_process_size,
             total_process_size / _MIB_FACTOR,
         )
         return total_process_size
 
     def get_virtual_size(self) -> int:
-        return super().get_virtual_size() + self._get_total_process_size()
+        return super().get_virtual_size() + self._get_total_playwright_process_memory()

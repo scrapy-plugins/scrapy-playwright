@@ -7,7 +7,7 @@ from playwright.async_api import PlaywrightContextManager
 from scrapy.exceptions import NotConfigured
 from scrapy.extensions.memusage import MemoryUsage
 
-from scrapy_playwright.extensions import ScrapyPlaywrightMemoryUsageExtension
+from scrapy_playwright.memusage import ScrapyPlaywrightMemoryUsageExtension
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 
 
@@ -43,7 +43,7 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
         assert isinstance(ctx_manager._connection._transport._proc, AsyncioProcess)
         await ctx_manager.__aexit__()
 
-    @patch("scrapy_playwright.extensions.import_module", side_effect=raise_import_error)
+    @patch("scrapy_playwright.memusage.import_module", side_effect=raise_import_error)
     async def test_psutil_not_available_extension_disabled(self, _import_module, _MailSender):
         crawler = MagicMock()
         with pytest.raises(NotConfigured):
@@ -79,11 +79,11 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
         extension.psutil.Process.return_value.memory_info.return_value = MockMemoryInfo()
         extension._get_main_process_ids = MagicMock(return_value=[1, 2, 3])
         expected_size = MockMemoryInfo().rss * len(extension._get_main_process_ids())
-        assert extension._get_total_process_size() == expected_size
+        assert extension._get_total_playwright_process_memory() == expected_size
 
     async def test_get_virtual_size_sum(self, _MailSender):
         crawler = MagicMock()
         extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
         parent_cls_extension = MemoryUsage(crawler)
-        extension._get_total_process_size = MagicMock(return_value=123)
+        extension._get_total_playwright_process_memory = MagicMock(return_value=123)
         assert extension.get_virtual_size() == parent_cls_extension.get_virtual_size() + 123

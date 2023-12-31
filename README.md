@@ -843,13 +843,13 @@ from the scrapy-playwright package:
 # settings.py
 EXTENSIONS = {
     "scrapy.extensions.memusage.MemoryUsage": None,
-    "scrapy_playwright.extensions.ScrapyPlaywrightMemoryUsageExtension": 0,
+    "scrapy_playwright.memusage.ScrapyPlaywrightMemoryUsageExtension": 0,
 }
 ```
 
 Refer to the
 [upstream docs](https://docs.scrapy.org/en/latest/topics/extensions.html#module-scrapy.extensions.memusage)
-for more information about the supported settings.
+for more information about supported settings.
 
 
 ## Examples
