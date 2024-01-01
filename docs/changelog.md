@@ -1,5 +1,11 @@
 # scrapy-playwright changelog
 
+### [v0.0.34](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.34) (2024-01-01)
+
+* Update dev status classifier to 4 - beta
+* Official Python 3.12 support (#254)
+* Custom memusage extension (#257)
+
 
 ### [v0.0.33](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.33) (2023-10-19)
 
