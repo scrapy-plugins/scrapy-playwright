@@ -982,6 +982,37 @@ async def main():
 asyncio.run(main())
 ```
 
+### Reproducible code example
+
+When opening an issue please include a
+[Minimal, Reproducible Example](https://stackoverflow.com/help/minimal-reproducible-example)
+that shows the reported behavior. In addition, please make the code as self-contained as possible
+so an active Scrapy project is not required and the spider can be executed directly from a file with
+[`scrapy runspider`](https://docs.scrapy.org/en/latest/topics/commands.html#std-command-runspider).
+This usually means including the relevant settings in the spider's
+[`custom_settings`](https://docs.scrapy.org/en/latest/topics/settings.html#settings-per-spider)
+attribute:
+
+```python
+import scrapy
+
+class ExampleSpider(scrapy.Spider):
+    name = "example"
+    custom_settings = {
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "DOWNLOAD_HANDLERS": {
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+    }
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url="https://example.org",
+            meta={"playwright": True},
+        )
+```
+
 
 ## Frequently Asked Questions
 
