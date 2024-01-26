@@ -272,6 +272,19 @@ See the [notes about leaving unclosed pages](#receiving-page-objects-in-callback
 PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
 ```
 
+### `PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`
+Type `Optional[float]`, default `None`
+
+**_Experimental_**
+
+If set to a non-zero value, browser contexts will be automatically closed after
+spending the specified amount of seconds without open pages. Set to `None`
+(the default) to disable, i.e. contexts remain open until explicitly closed.
+
+```python
+PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL = 5 * 60  # 5 minutes
+```
+
 ### `PLAYWRIGHT_ABORT_REQUEST`
 Type `Optional[Union[Callable, str]]`, default `None`
 
@@ -601,6 +614,12 @@ yield scrapy.Request(
 
 Please note that if a context with the specified name already exists,
 that context is used and `playwright_context_kwargs` are ignored.
+
+### Automatically closing inactive contexts
+
+Specifying a non-negative integer value for the
+[`PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`](#playwright_close_context_interval)
+setting enables closing browser contexts which have no active pages.
 
 ### Closing contexts while crawling
 
@@ -1025,3 +1044,8 @@ Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
 may be removed at any time. See the [changelog](docs/changelog.md)
 for more information about deprecations and removals.
+
+
+## Experimental features
+
+Features marked as "experimental" might be modified and/or removed at any time.
