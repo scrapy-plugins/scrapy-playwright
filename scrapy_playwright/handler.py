@@ -188,7 +188,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             remote = False
         elif self.config.cdp_url:
             await self._maybe_connect_devtools()
-            context = await self.browser.new_context(**context_kwargs)
+            context = self.browser.contexts[0]
             persistent = False
             remote = True
         else:
@@ -240,7 +240,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 )
 
         await ctx_wrapper.semaphore.acquire()
-        page = await ctx_wrapper.context.new_page()
+        page = ctx_wrapper.context.pages[0]
         self.stats.inc_value("playwright/page_count")
         total_page_count = self._get_total_page_count()
         logger.debug(
