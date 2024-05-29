@@ -982,6 +982,30 @@ async def main():
 asyncio.run(main())
 ```
 
+### Software versions
+
+Be sure to include which versions of Scrapy and scrapy-playwright you are using:
+
+```
+$ python -c "import scrapy_playwright; print(scrapy_playwright.__version__)"
+0.0.34
+```
+
+```
+$ scrapy version -v
+Scrapy       : 2.11.1
+lxml         : 5.1.0.0
+libxml2      : 2.12.3
+cssselect    : 1.2.0
+parsel       : 1.8.1
+w3lib        : 2.1.2
+Twisted      : 23.10.0
+Python       : 3.10.12 (main, Nov 20 2023, 15:14:05) [GCC 11.4.0]
+pyOpenSSL    : 24.0.0 (OpenSSL 3.2.1 30 Jan 2024)
+cryptography : 42.0.5
+Platform     : Linux-6.5.0-35-generic-x86_64-with-glibc2.35
+```
+
 ### Reproducible code example
 
 When opening an issue please include a
@@ -1012,6 +1036,12 @@ class ExampleSpider(scrapy.Spider):
             meta={"playwright": True},
         )
 ```
+
+### Logs
+
+Logs for spider jobs displaying the issue in detail are extremely useful
+understanding possible bugs. Include lines before and after the problem,
+not just isolated tracebacks.
 
 
 ## Frequently Asked Questions
