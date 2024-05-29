@@ -1037,11 +1037,12 @@ class ExampleSpider(scrapy.Spider):
         )
 ```
 
-### Logs
+### Logs and stats
 
 Logs for spider jobs displaying the issue in detail are extremely useful
-understanding possible bugs. Include lines before and after the problem,
-not just isolated tracebacks.
+for understanding possible bugs. Include lines before and after the problem,
+not just isolated tracebacks. Job stats displayed at the end of the job
+are also important.
 
 
 ## Frequently Asked Questions
