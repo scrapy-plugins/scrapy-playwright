@@ -41,6 +41,10 @@ from scrapy_playwright._utils import (
     _maybe_await,
 )
 
+
+__all__ = ["ScrapyPlaywrightDownloadHandler"]
+
+
 # Supporting for Windows
 if sys.platform == "win32" and sys.version_info >= (3, 8):
     import threading
@@ -74,11 +78,6 @@ else:
     windows_get_result = None
     deferred_from_coro = deferred_from_coro_default
 
-__all__ = [
-    "ScrapyPlaywrightDownloadHandler",
-    "windows_get_asyncio_event_loop",
-    "windows_get_result",
-]
 
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
