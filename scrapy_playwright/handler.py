@@ -73,7 +73,6 @@ if platform.system() == "Windows":
         return deferred_from_coro_default(windows_get_result(o))
 
 else:
-    windows_get_result = None
     deferred_from_coro = deferred_from_coro_default
 
 
