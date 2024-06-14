@@ -1,6 +1,6 @@
-import sys
 import asyncio
 import logging
+import platform
 from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
@@ -45,8 +45,7 @@ from scrapy_playwright._utils import (
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
 
 
-# Supporting for Windows
-if sys.platform == "win32" and sys.version_info >= (3, 8):
+if platform.system() == "Windows":
     import threading
 
     class Var:
@@ -74,7 +73,6 @@ if sys.platform == "win32" and sys.version_info >= (3, 8):
         return deferred_from_coro_default(windows_get_result(o))
 
 else:
-    windows_get_asyncio_event_loop = None
     windows_get_result = None
     deferred_from_coro = deferred_from_coro_default
 

@@ -1,4 +1,5 @@
-import sys
+import platform
+
 import pytest
 
 
@@ -9,8 +10,7 @@ def pytest_configure(config):
 
     if (
         config.getoption("reactor", "default") == "asyncio"
-        and sys.platform == "win32"
-        and sys.version_info >= (3, 8)
+        and platform.system() == "Windows"
     ):
         import asyncio
 
