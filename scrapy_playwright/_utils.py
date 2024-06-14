@@ -65,7 +65,7 @@ async def _get_page_content(
     try:
         return await page.content()
     except Error as err:
-        if err.message == _NAVIGATION_ERROR_MSG:
+        if _NAVIGATION_ERROR_MSG in err.message:
             logger.debug(
                 "Retrying to get content from page '%s', error: '%s'",
                 page.url,

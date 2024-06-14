@@ -19,7 +19,7 @@ setuptools.setup(
     url="https://github.com/scrapy-plugins/scrapy-playwright",
     packages=["scrapy_playwright"],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",

@@ -12,6 +12,7 @@ from playwright.async_api import (
     Download,
     Error as PlaywrightError,
     Page,
+    Playwright as AsyncPlaywright,
     PlaywrightContextManager,
     Request as PlaywrightRequest,
     Response as PlaywrightResponse,
@@ -102,6 +103,9 @@ class Config:
 
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
+    playwright_context_manager: Optional[PlaywrightContextManager] = None
+    playwright: Optional[AsyncPlaywright] = None
+
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
@@ -326,8 +330,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if hasattr(self, "browser"):
             logger.info("Closing browser")
             await self.browser.close()
-        await self.playwright_context_manager.__aexit__()
-        await self.playwright.stop()
+        if self.playwright_context_manager:
+            await self.playwright_context_manager.__aexit__()
+        if self.playwright:
+            await self.playwright.stop()
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
