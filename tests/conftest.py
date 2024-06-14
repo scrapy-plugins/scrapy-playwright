@@ -8,10 +8,7 @@ def pytest_configure(config):
     # https://twistedmatrix.com/trac/ticket/9766
     # https://github.com/pytest-dev/pytest-twisted/issues/80
 
-    if (
-        config.getoption("reactor", "default") == "asyncio"
-        and platform.system() == "Windows"
-    ):
+    if config.getoption("reactor", "default") == "asyncio" and platform.system() == "Windows":
         import asyncio
 
         selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
