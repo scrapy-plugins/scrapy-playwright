@@ -15,7 +15,6 @@ from tests.mockserver import StaticMockServer
 
 
 class MixinTestCaseMultipleContexts:
-    @pytest.mark.asyncio
     async def test_context_kwargs(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -38,7 +37,6 @@ class MixinTestCaseMultipleContexts:
                 with pytest.raises(PlaywrightTimeoutError):
                     await handler._download_request(req, Spider("foo"))
 
-    @pytest.mark.asyncio
     async def test_contexts_max_pages(self):
         settings = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -73,7 +71,6 @@ class MixinTestCaseMultipleContexts:
 
             assert handler.stats.get_value("playwright/page_count/max_concurrent") == 4
 
-    @pytest.mark.asyncio
     async def test_max_contexts(self):
         def cb_close_context(task):
             response = task.result()
@@ -108,7 +105,6 @@ class MixinTestCaseMultipleContexts:
 
             assert handler.stats.get_value("playwright/context_count/max_concurrent") == 4
 
-    @pytest.mark.asyncio
     async def test_contexts_startup(self):
         settings = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -147,7 +143,6 @@ class MixinTestCaseMultipleContexts:
             assert cookie["value"] == "bar"
             assert cookie["domain"] == "example.org"
 
-    @pytest.mark.asyncio
     async def test_persistent_context(self):
         temp_dir = f"{tempfile.gettempdir()}/{uuid4()}"
         settings = {
@@ -166,7 +161,6 @@ class MixinTestCaseMultipleContexts:
             assert handler.context_wrappers["persistent"].persistent
             assert not hasattr(handler, "browser")
 
-    @pytest.mark.asyncio
     async def test_mixed_persistent_contexts(self):
         temp_dir = f"{tempfile.gettempdir()}/{uuid4()}"
         settings = {
@@ -189,7 +183,6 @@ class MixinTestCaseMultipleContexts:
             assert not handler.context_wrappers["non-persistent"].persistent
             assert isinstance(handler.browser, Browser)
 
-    @pytest.mark.asyncio
     async def test_contexts_dynamic(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             assert len(handler.context_wrappers) == 0

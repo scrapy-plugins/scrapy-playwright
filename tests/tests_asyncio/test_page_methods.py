@@ -24,7 +24,6 @@ def get_mimetype(file):
 
 
 class TestPageMethods(IsolatedAsyncioTestCase):
-    @pytest.mark.asyncio
     async def test_page_methods(self):
         screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
         assert screenshot.method == "screenshot"
@@ -40,7 +39,6 @@ class MixinPageMethodTestCase:
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
-    @pytest.mark.asyncio
     async def test_page_non_page_method(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -65,7 +63,6 @@ class MixinPageMethodTestCase:
                 f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
             ) in self._caplog.record_tuples
 
-    @pytest.mark.asyncio
     async def test_page_mixed_page_methods(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -92,7 +89,6 @@ class MixinPageMethodTestCase:
         assert not req.meta["playwright_page_methods"]["is_closed"].result
         assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
-    @pytest.mark.asyncio
     async def test_page_method_navigation(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -114,7 +110,6 @@ class MixinPageMethodTestCase:
             text = resp.css("p::text").get()
             assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
-    @pytest.mark.asyncio
     async def test_page_method_infinite_scroll(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -141,7 +136,6 @@ class MixinPageMethodTestCase:
             assert_correct_response(resp, req)
             assert len(resp.css("div.quote")) == 30
 
-    @pytest.mark.asyncio
     async def test_page_method_screenshot(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with NamedTemporaryFile(mode="w+b", delete=False) as png_file:
@@ -162,7 +156,6 @@ class MixinPageMethodTestCase:
                 if platform.system() != "Windows":
                     assert get_mimetype(png_file) == "image/png"
 
-    @pytest.mark.asyncio
     async def test_page_method_pdf(self):
         if self.browser_type != "chromium":
             pytest.skip("PDF generation is supported only in Chromium")

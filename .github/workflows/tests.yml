@@ -8,8 +8,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
 
     steps:
     - uses: actions/checkout@v4
@@ -28,16 +33,20 @@ jobs:
     - name: Run twisted tests
       run: tox -e py-twisted
 
-    - name: Upload coverage report
-      if: runner.os != 'Windows'
+    - name: Upload coverage report (Linux)
+      if: runner.os == 'Linux'
       run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-        else
-          curl -Os https://uploader.codecov.io/latest/macos/codecov
-        fi
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
         chmod +x codecov
         ./codecov
+
+    - name: Upload coverage report (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        curl -Os https://uploader.codecov.io/latest/macos/codecov
+        chmod +x codecov
+        ./codecov
+
     - name: Upload coverage report
       if: runner.os == 'Windows'
       run: |

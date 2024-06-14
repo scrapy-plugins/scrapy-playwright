@@ -41,7 +41,6 @@ class MixinTestCase:
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
-    @pytest.mark.asyncio
     async def test_basic_response(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -53,10 +52,8 @@ class MixinTestCase:
             assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
             assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
             assert resp.meta["playwright_page"].url == resp.url
-
             await resp.meta["playwright_page"].close()
 
-    @pytest.mark.asyncio
     async def test_post_request(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
@@ -68,7 +65,6 @@ class MixinTestCase:
             assert_correct_response(resp, req)
             assert "Request body: foo=bar" in resp.text
 
-    @pytest.mark.asyncio
     async def test_timeout_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -86,7 +82,6 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
 
-    @pytest.mark.asyncio
     async def test_retry_page_content_still_navigating(self):
         if self.browser_type != "chromium":
             pytest.skip("Only Chromium seems to redirect meta tags within the same goto call")
@@ -108,7 +103,6 @@ class MixinTestCase:
             ) in self._caplog.record_tuples
 
     @patch("scrapy_playwright.handler.logger")
-    @pytest.mark.asyncio
     async def test_route_continue_exception(self, logger):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             scrapy_request = Request(url="https://example.org", method="GET")
@@ -159,7 +153,6 @@ class MixinTestCase:
             with pytest.raises(PlaywrightError):
                 await req_handler(route, playwright_request)
 
-    @pytest.mark.asyncio
     async def test_event_handler_dialog_callable(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -181,7 +174,6 @@ class MixinTestCase:
 
             assert spider.dialog_message == "foobar"
 
-    @pytest.mark.asyncio
     async def test_event_handler_dialog_str(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -203,7 +195,6 @@ class MixinTestCase:
 
             assert spider.dialog_message == "foobar"
 
-    @pytest.mark.asyncio
     async def test_event_handler_dialog_missing(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -227,7 +218,6 @@ class MixinTestCase:
         ) in self._caplog.record_tuples
         assert getattr(spider, "dialog_message", None) is None
 
-    @pytest.mark.asyncio
     async def test_response_attributes(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
@@ -239,7 +229,6 @@ class MixinTestCase:
 
         assert response.ip_address == ip_address(server.address)
 
-    @pytest.mark.asyncio
     async def test_page_goto_kwargs_referer(self):
         if self.browser_type != "chromium":
             pytest.skip("referer as goto kwarg seems to work only with chromium :shrug:")
@@ -258,7 +247,6 @@ class MixinTestCase:
         headers = json.loads(response.css("pre::text").get())
         assert headers["Referer"] == fake_referer
 
-    @pytest.mark.asyncio
     async def test_navigation_returns_none(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer():
@@ -274,7 +262,6 @@ class MixinTestCase:
         assert not response.headers
         assert response.status == 200
 
-    @pytest.mark.asyncio
     async def test_abort_requests(self):
         async def should_abort_request_async(request):
             return request.resource_type == "image"
@@ -307,7 +294,6 @@ class MixinTestCase:
                     assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
                     assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
-    @pytest.mark.asyncio
     async def test_page_initialization_ok(self):
         async def init_page(page, _request):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
@@ -328,7 +314,6 @@ class MixinTestCase:
         headers = {key.lower(): value for key, value in headers.items()}
         assert headers["extra-header"] == "Qwerty"
 
-    @pytest.mark.asyncio
     async def test_page_initialization_fail(self):
         async def init_page(page, _request, _missing):
             await page.set_extra_http_headers({"Extra-Header": "Qwerty"})
@@ -355,7 +340,6 @@ class MixinTestCase:
                 assert f"[Context=default] Page init callback exception for {req!r}" in entry[2]
                 assert "init_page() missing 1 required positional argument: '_missing'" in entry[2]
 
-    @pytest.mark.asyncio
     async def test_redirect(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with MockServer() as server:
@@ -373,7 +357,6 @@ class MixinTestCase:
             server.urljoin("/redirect"),
         ]
 
-    @pytest.mark.asyncio
     async def test_logging_record_spider(self):
         """Make sure at least one log record has the spider as an attribute
         (records sent before opening the spider will not have it).
@@ -386,7 +369,6 @@ class MixinTestCase:
 
         assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
-    @pytest.mark.asyncio
     async def test_download_file(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -402,7 +384,6 @@ class MixinTestCase:
                 assert response.body.startswith(b"%PDF-1.5")
                 assert handler.stats.get_value("playwright/download_count") == 1
 
-    @pytest.mark.asyncio
     async def test_download_file_delay_ok(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -419,7 +400,6 @@ class MixinTestCase:
                 assert response.body.startswith(b"%PDF-1.5")
                 assert handler.stats.get_value("playwright/download_count") == 1
 
-    @pytest.mark.asyncio
     async def test_download_file_delay_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -440,7 +420,6 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
 
-    @pytest.mark.asyncio
     async def test_download_file_failure(self):
         if self.browser_type != "chromium":
             pytest.skip()

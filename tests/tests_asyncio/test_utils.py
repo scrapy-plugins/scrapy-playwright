@@ -22,7 +22,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
-    @pytest.mark.asyncio
     async def test_get_page_content_ok(self):
         expected_content = "lorem ipsum"
         page = AsyncMock()
@@ -36,7 +35,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
         )
         assert content == expected_content
 
-    @pytest.mark.asyncio
     async def test_get_page_content_retry_known_exception(self):
         expected_content = "lorem ipsum"
         page = AsyncMock()
@@ -57,7 +55,6 @@ class TestPageContent(IsolatedAsyncioTestCase):
             " content because the page is navigating and changing the content.'",
         ) in self._caplog.record_tuples
 
-    @pytest.mark.asyncio
     async def test_get_page_content_reraise_unknown_exception(self):
         expected_exception_message = "nope"
         page = AsyncMock()
@@ -87,7 +84,6 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
             </html>
         """.strip()
 
-    @pytest.mark.asyncio
     async def test_encode_from_headers(self):
         """Charset declared in headers takes precedence"""
         text = self.body_str(charset="gb2312")
@@ -98,7 +94,6 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
         assert encoding == "cp1252"
         assert body == text.encode(encoding)
 
-    @pytest.mark.asyncio
     async def test_encode_from_body(self):
         """No charset declared in headers, use the one declared in the body"""
         text = self.body_str(charset="gb2312")
@@ -106,7 +101,6 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
         assert encoding == "gb18030"
         assert body == text.encode(encoding)
 
-    @pytest.mark.asyncio
     async def test_encode_fallback_utf8(self):
         """No charset declared, use utf-8 as fallback"""
         text = "<html>áéíóú</html>"
@@ -114,7 +108,6 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
         assert encoding == "utf-8"
         assert body == text.encode(encoding)
 
-    @pytest.mark.asyncio
     async def test_encode_mismatch(self):
         """Charset declared in headers and body do not match, and the headers
         one fails to encode: use the one in the body (first one that works)
@@ -129,7 +122,6 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
 
 
 class TestHeaderValue(IsolatedAsyncioTestCase):
-    @pytest.mark.asyncio
     async def test_get_header_ok(self):
         async def _identity(x):
             return x
@@ -147,7 +139,6 @@ class TestHeaderValue(IsolatedAsyncioTestCase):
 
 
 class TestMaybeAwait(IsolatedAsyncioTestCase):
-    @pytest.mark.asyncio
     async def test_maybe_await(self):
         async def _awaitable_identity(x):
             return x

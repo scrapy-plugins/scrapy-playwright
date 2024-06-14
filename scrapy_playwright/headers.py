@@ -2,6 +2,7 @@
 This module includes functions to process request headers.
 Refer to the PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting for more information.
 """
+
 from urllib.parse import urlparse
 
 from playwright.async_api import Request as PlaywrightRequest
