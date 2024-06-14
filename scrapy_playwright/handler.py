@@ -1,4 +1,5 @@
 import asyncio
+import concurrent
 import logging
 import platform
 from contextlib import suppress
@@ -48,29 +49,30 @@ __all__ = ["ScrapyPlaywrightDownloadHandler"]
 if platform.system() == "Windows":
     import threading
 
-    class Var:
-        windows_loop = None
-        windows_thread = None
+    class _WindowsAdapter:
+        loop = None
+        thread = None
 
-    def windows_get_asyncio_event_loop():
-        if Var.windows_thread is None:
-            if Var.windows_loop is None:
-                Var.windows_loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()
-                asyncio.set_event_loop(Var.windows_loop)
-            if not Var.windows_loop.is_running():
-                Var.windows_thread = threading.Thread(
-                    target=Var.windows_loop.run_forever, daemon=True
-                )
-                Var.windows_thread.start()
-        return Var.windows_loop
+        @classmethod
+        def get_event_loop(cls) -> asyncio.AbstractEventLoop:
+            if cls.thread is None:
+                if cls.loop is None:
+                    policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore
+                    cls.loop = policy.new_event_loop()
+                    asyncio.set_event_loop(cls.loop)
+                if not cls.loop.is_running():
+                    cls.thread = threading.Thread(target=cls.loop.run_forever, daemon=True)
+                    cls.thread.start()
+            return cls.loop
 
-    async def windows_get_result(o):
-        return asyncio.run_coroutine_threadsafe(o, windows_get_asyncio_event_loop()).result()
+        @classmethod
+        async def get_result(cls, o) -> concurrent.futures.Future:
+            return asyncio.run_coroutine_threadsafe(coro=o, loop=cls.get_event_loop()).result()
 
-    def deferred_from_coro(o):
+    def deferred_from_coro(o) -> Deferred:
         if isinstance(o, Deferred):
             return o
-        return deferred_from_coro_default(windows_get_result(o))
+        return deferred_from_coro_default(_WindowsAdapter.get_result(o))
 
 else:
     deferred_from_coro = deferred_from_coro_default

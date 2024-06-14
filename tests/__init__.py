@@ -9,14 +9,14 @@ from scrapy.utils.test import get_crawler
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright.handler import windows_get_result
+    from scrapy_playwright.handler import _WindowsAdapter
 
     def windows_pytest_mark_asyncio(pytest_mark_asyncio):
         def wrapper(*args, **kwargs):
             if args and inspect.iscoroutinefunction(args[0]):
 
                 async def method_proxy(*x):
-                    await windows_get_result(args[0](*x))
+                    await _WindowsAdapter.get_result(args[0](*x))
 
                 return pytest_mark_asyncio(method_proxy)
             return windows_pytest_mark_asyncio(pytest_mark_asyncio(*args, **kwargs))
