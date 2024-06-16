@@ -8,7 +8,6 @@ build/
 dist/
 examples/*.png
 pip-wheel-metadata/
-.idea
 
 # coverage
 .coverage
