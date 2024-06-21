@@ -35,6 +35,8 @@ jobs:
 
     - name: Upload coverage report (Linux)
       if: runner.os == 'Linux'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         chmod +x codecov
@@ -42,6 +44,8 @@ jobs:
 
     - name: Upload coverage report (macOS)
       if: runner.os == 'macOS'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         curl -Os https://uploader.codecov.io/latest/macos/codecov
         chmod +x codecov
