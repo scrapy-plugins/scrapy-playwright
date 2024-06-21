@@ -10,10 +10,7 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from tests.mockserver import StaticMockServer
 
 
-@pytest.mark.skipif(
-    platform.system() == "Windows",
-    reason="On Windows, If the task reaches two, it will be blocked.",
-)
+@pytest.mark.skipif(platform.system() == "Windows", reason="Gets stuck on Windows")
 class MixedRequestsTestCase(TestCase):
     """
     This test case ensures the handler's 'download_request' method works as expected, and

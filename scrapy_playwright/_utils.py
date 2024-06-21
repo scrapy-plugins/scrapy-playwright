@@ -117,6 +117,7 @@ if platform.system() == "Windows":
                 if not cls.loop.is_running():
                     cls.thread = threading.Thread(target=cls.loop.run_forever, daemon=True)
                     cls.thread.start()
+                    logger.info("Started loop on separate thread: %s", cls.loop)
             return cls.loop
 
         @classmethod
