@@ -112,6 +112,21 @@ does not match the running Browser. If you prefer the `User-Agent` sent by
 default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
+## Windows support
+
+Windows support is possible by running the Playwright process in a `ProactorEventLoop`
+in a separate execution thread.
+This is necessary because it's not possible to run the Playwright process in the same
+asyncio event loop as the crawler process:
+* Playwright runs the driver in a subprocess. Source:
+  [Playwright repository](https://github.com/microsoft/playwright-python/blob/v1.44.0/playwright/_impl/_transport.py#L120-L130).
+* "On Windows, the default event loop `ProactorEventLoop` supports subprocesses,
+  whereas `SelectorEventLoop` does not". Source:
+  [Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess).
+* Twisted's `asyncio` reactor requires the `SelectorEventLoop`. Source:
+  [Twisted repository](https://github.com/twisted/twisted/blob/twisted-24.3.0/src/twisted/internet/asyncioreactor.py#L31)
+
+
 ## Supported [settings](https://docs.scrapy.org/en/latest/topics/settings.html)
 
 ### `PLAYWRIGHT_BROWSER_TYPE`
@@ -851,6 +866,12 @@ Refer to the
 [upstream docs](https://docs.scrapy.org/en/latest/topics/extensions.html#module-scrapy.extensions.memusage)
 for more information about supported settings.
 
+### Windows support
+
+Just like the [upstream Scrapy extension](https://docs.scrapy.org/en/latest/topics/extensions.html#module-scrapy.extensions.memusage), this custom memory extension does not work
+on Windows. This is because the stdlib [`resource`](https://docs.python.org/3/library/resource.html)
+module is not available.
+
 
 ## Examples
 
@@ -911,23 +932,6 @@ See the [examples](examples) directory for more.
 
 
 ## Known issues
-
-### Lack of native support for Windows
-
-This package does not work natively on Windows. This is because:
-
-* Playwright runs the driver in a subprocess. Source:
-[Playwright repository](https://github.com/microsoft/playwright-python/blob/v1.28.0/playwright/_impl/_transport.py#L120-L129).
-* "On Windows, the default event loop `ProactorEventLoop` supports subprocesses,
-whereas `SelectorEventLoop` does not". Source:
-[Python docs](https://docs.python.org/3/library/asyncio-platforms.html#asyncio-windows-subprocess).
-* Twisted's `asyncio` reactor requires the `SelectorEventLoop`. Source:
-[Twisted repository](https://github.com/twisted/twisted/blob/twisted-22.4.0/src/twisted/internet/asyncioreactor.py#L31).
-
-Some users have reported having success
-[running under WSL](https://github.com/scrapy-plugins/scrapy-playwright/issues/7#issuecomment-817394494).
-See also [#78](https://github.com/scrapy-plugins/scrapy-playwright/issues/78)
-for information about working in headful mode under WSL.
 
 ### No per-request proxy support
 Specifying a proxy via the `proxy` Request meta key is not supported.
