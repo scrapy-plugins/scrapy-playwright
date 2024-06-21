@@ -153,7 +153,6 @@ class TestMaybeAwait(IsolatedAsyncioTestCase):
 
 
 class TestGetFloatSetting(IsolatedAsyncioTestCase):
-    @pytest.mark.asyncio
     async def test_get_float_setting(self):
         settings = Settings(
             {
