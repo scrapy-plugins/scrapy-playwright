@@ -53,6 +53,8 @@ jobs:
 
     - name: Upload coverage report (Windows)
       if: runner.os == 'Windows'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri https://uploader.codecov.io/latest/windows/codecov.exe -Outfile codecov.exe
