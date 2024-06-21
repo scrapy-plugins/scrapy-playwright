@@ -2,7 +2,7 @@
 
 ### [v0.0.36](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.36) (2024-MM-DD)
 
-* Windows support
+* Windows support (#276)
 
 
 ### [v0.0.35](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.35) (2024-06-01)
