@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.35](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.35) (2024-06-01)
+
+* Update exception message check
+
+
 ### [v0.0.34](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.34) (2024-01-01)
 
 * Update dev status classifier to 4 - beta
