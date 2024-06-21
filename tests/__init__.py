@@ -13,9 +13,10 @@ logger = logging.getLogger("scrapy-playwright-tests")
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright.handler import _WindowsAdapter
+    from scrapy_playwright._utils import _WindowsAdapter
 
     def allow_windows(test_method):
+        """Wrap tests with the _WindowsAdapter class on Windows."""
         if not inspect.iscoroutinefunction(test_method):
             raise RuntimeError(f"{test_method} must be an async def method")
 
