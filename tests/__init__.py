@@ -1,29 +1,35 @@
 import inspect
+import logging
 import platform
 from contextlib import asynccontextmanager
+from functools import wraps
 
-import pytest
 from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
 
 
+logger = logging.getLogger("scrapy-playwright-tests")
+
+
 if platform.system() == "Windows":
     from scrapy_playwright.handler import _WindowsAdapter
 
-    def windows_pytest_mark_asyncio(pytest_mark_asyncio):
-        def wrapper(*args, **kwargs):
-            if args and inspect.iscoroutinefunction(args[0]):
+    def allow_windows(test_method):
+        if not inspect.iscoroutinefunction(test_method):
+            raise RuntimeError(f"{test_method} must be an async def method")
 
-                async def method_proxy(*x):
-                    await _WindowsAdapter.get_result(args[0](*x))
+        @wraps(test_method)
+        async def wrapped(self, *args, **kwargs):
+            logger.debug("Calling _WindowsAdapter.get_result for %r", self)
+            await _WindowsAdapter.get_result(test_method(self, *args, **kwargs))
 
-                return pytest_mark_asyncio(method_proxy)
-            return windows_pytest_mark_asyncio(pytest_mark_asyncio(*args, **kwargs))
+        return wrapped
 
-        return wrapper
+else:
 
-    pytest.mark.asyncio = windows_pytest_mark_asyncio(pytest.mark.asyncio)
+    def allow_windows(test_method):
+        return test_method
 
 
 @asynccontextmanager

@@ -18,7 +18,7 @@ from scrapy.http import Response
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
-from tests import make_handler, assert_correct_response
+from tests import allow_windows, make_handler, assert_correct_response
 from tests.mockserver import MockServer, StaticMockServer
 
 
@@ -41,6 +41,7 @@ class MixinTestCase:
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @allow_windows
     async def test_basic_response(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
