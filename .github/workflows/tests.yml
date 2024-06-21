@@ -47,7 +47,7 @@ jobs:
         chmod +x codecov
         ./codecov
 
-    - name: Upload coverage report
+    - name: Upload coverage report (Windows)
       if: runner.os == 'Windows'
       run: |
         $ProgressPreference = 'SilentlyContinue'
