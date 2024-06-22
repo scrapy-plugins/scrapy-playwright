@@ -114,10 +114,9 @@ default by the specific browser you're using, set the Scrapy user agent to `None
 
 ## Windows support
 
-Windows support is possible by running the Playwright process in a `ProactorEventLoop`
-in a separate execution thread.
-This is necessary because it's not possible to run the Playwright process in the same
-asyncio event loop as the crawler process:
+Windows support is possible by running Playwright in a `ProactorEventLoop` in a separate thread.
+This is necessary because it's not possible to run Playwright in the same
+asyncio event loop as the Scrapy crawler:
 * Playwright runs the driver in a subprocess. Source:
   [Playwright repository](https://github.com/microsoft/playwright-python/blob/v1.44.0/playwright/_impl/_transport.py#L120-L130).
 * "On Windows, the default event loop `ProactorEventLoop` supports subprocesses,
