@@ -121,13 +121,11 @@ if platform.system() == "Windows":
             return cls.loop
 
         @classmethod
-        async def get_result(cls, o) -> concurrent.futures.Future:
-            return asyncio.run_coroutine_threadsafe(coro=o, loop=cls.get_event_loop()).result()
+        async def get_result(cls, coro) -> concurrent.futures.Future:
+            return asyncio.run_coroutine_threadsafe(coro=coro, loop=cls.get_event_loop()).result()
 
-    def deferred_from_coro(o) -> Deferred:
-        if isinstance(o, Deferred):
-            return o
-        return scrapy.utils.defer.deferred_from_coro(_WindowsAdapter.get_result(o))
+    def _deferred_from_coro(coro) -> Deferred:
+        return scrapy.utils.defer.deferred_from_coro(_WindowsAdapter.get_result(coro))
 
 else:
-    deferred_from_coro = scrapy.utils.defer.deferred_from_coro
+    _deferred_from_coro = scrapy.utils.defer.deferred_from_coro

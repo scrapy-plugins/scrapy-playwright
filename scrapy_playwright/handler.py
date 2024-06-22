@@ -37,7 +37,7 @@ from scrapy_playwright._utils import (
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
-    deferred_from_coro,
+    _deferred_from_coro,
 )
 
 
@@ -134,7 +134,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def _engine_started(self) -> Deferred:
         """Launch the browser. Use the engine_started signal as it supports returning deferreds."""
-        return deferred_from_coro(self._launch())
+        return _deferred_from_coro(self._launch())
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
@@ -290,7 +290,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def close(self) -> Deferred:
         logger.info("Closing download handler")
         yield super().close()
-        yield deferred_from_coro(self._close())
+        yield _deferred_from_coro(self._close())
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
@@ -305,7 +305,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
-            return deferred_from_coro(self._download_request(request, spider))
+            return _deferred_from_coro(self._download_request(request, spider))
         return super().download_request(request, spider)
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
