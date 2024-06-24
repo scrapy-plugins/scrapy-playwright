@@ -10,7 +10,7 @@ from scrapy.http.response.html import HtmlResponse
 
 from scrapy_playwright.page import PageMethod
 
-from tests import make_handler, assert_correct_response
+from tests import allow_windows, make_handler, assert_correct_response
 from tests.mockserver import StaticMockServer
 
 
@@ -24,6 +24,7 @@ def get_mimetype(file):
 
 
 class TestPageMethods(IsolatedAsyncioTestCase):
+    @allow_windows
     async def test_page_methods(self):
         screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
         assert screenshot.method == "screenshot"
@@ -39,6 +40,7 @@ class MixinPageMethodTestCase:
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @allow_windows
     async def test_page_non_page_method(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -63,6 +65,7 @@ class MixinPageMethodTestCase:
                 f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
             ) in self._caplog.record_tuples
 
+    @allow_windows
     async def test_page_mixed_page_methods(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -89,6 +92,7 @@ class MixinPageMethodTestCase:
         assert not req.meta["playwright_page_methods"]["is_closed"].result
         assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
+    @allow_windows
     async def test_page_method_navigation(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -110,6 +114,7 @@ class MixinPageMethodTestCase:
             text = resp.css("p::text").get()
             assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
+    @allow_windows
     async def test_page_method_infinite_scroll(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
@@ -136,9 +141,10 @@ class MixinPageMethodTestCase:
             assert_correct_response(resp, req)
             assert len(resp.css("div.quote")) == 30
 
+    @allow_windows
     async def test_page_method_screenshot(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with NamedTemporaryFile(mode="w+b") as png_file:
+            with NamedTemporaryFile(mode="w+b", delete=False) as png_file:
                 with StaticMockServer() as server:
                     req = Request(
                         url=server.urljoin("/index.html"),
@@ -153,14 +159,16 @@ class MixinPageMethodTestCase:
 
                 png_file.file.seek(0)
                 assert png_file.file.read() == req.meta["playwright_page_methods"]["png"].result
-                assert get_mimetype(png_file) == "image/png"
+                if platform.system() != "Windows":
+                    assert get_mimetype(png_file) == "image/png"
 
+    @allow_windows
     async def test_page_method_pdf(self):
         if self.browser_type != "chromium":
             pytest.skip("PDF generation is supported only in Chromium")
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with NamedTemporaryFile(mode="w+b") as pdf_file:
+            with NamedTemporaryFile(mode="w+b", delete=False) as pdf_file:
                 with StaticMockServer() as server:
                     req = Request(
                         url=server.urljoin("/index.html"),
@@ -175,7 +183,8 @@ class MixinPageMethodTestCase:
 
                 pdf_file.file.seek(0)
                 assert pdf_file.file.read() == req.meta["playwright_page_methods"]["pdf"].result
-                assert get_mimetype(pdf_file) == "application/pdf"
+                if platform.system() != "Windows":
+                    assert get_mimetype(pdf_file) == "application/pdf"
 
 
 class TestPageMethodChromium(IsolatedAsyncioTestCase, MixinPageMethodTestCase):

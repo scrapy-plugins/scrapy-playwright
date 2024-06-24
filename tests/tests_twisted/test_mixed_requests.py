@@ -27,24 +27,28 @@ class MixedRequestsTestCase(TestCase):
         self.server.__exit__(None, None, None)
         yield self.handler.close()
 
-    def test_regular_request(self):
-        def _test(response):
+    @defer.inlineCallbacks
+    def test_download_request(self):
+        def _test_regular(response, request):
             self.assertIsInstance(response, Response)
             self.assertEqual(response.css("a::text").getall(), ["Lorem Ipsum", "Infinite Scroll"])
             self.assertEqual(response.url, request.url)
             self.assertEqual(response.status, 200)
             self.assertNotIn("playwright", response.flags)
 
-        request = Request(self.server.urljoin("/index.html"))
-        return self.handler.download_request(request, Spider("foo")).addCallback(_test)
-
-    def test_playwright_request(self):
-        def _test(response):
+        def _test_playwright(response, request):
             self.assertIsInstance(response, Response)
             self.assertEqual(response.css("a::text").getall(), ["Lorem Ipsum", "Infinite Scroll"])
             self.assertEqual(response.url, request.url)
             self.assertEqual(response.status, 200)
             self.assertIn("playwright", response.flags)
 
-        request = Request(self.server.urljoin("/index.html"), meta={"playwright": True})
-        return self.handler.download_request(request, Spider("foo")).addCallback(_test)
+        req1 = Request(self.server.urljoin("/index.html"))
+        yield self.handler.download_request(req1, Spider("foo")).addCallback(
+            _test_regular, request=req1
+        )
+
+        req2 = Request(self.server.urljoin("/index.html"), meta={"playwright": True})
+        yield self.handler.download_request(req2, Spider("foo")).addCallback(
+            _test_playwright, request=req2
+        )

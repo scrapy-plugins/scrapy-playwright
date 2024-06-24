@@ -4,7 +4,7 @@ from scrapy.settings import Settings
 
 from scrapy_playwright.handler import Config
 
-from tests import make_handler
+from tests import allow_windows, make_handler
 
 
 class TestSettings(IsolatedAsyncioTestCase):
@@ -31,6 +31,7 @@ class TestSettings(IsolatedAsyncioTestCase):
         config = Config.from_settings(Settings({"CONCURRENT_REQUESTS": 9876}))
         assert config.max_pages_per_context == 9876
 
+    @allow_windows
     async def test_max_contexts(self):
         async with make_handler({"PLAYWRIGHT_MAX_CONTEXTS": None}) as handler:
             assert not hasattr(handler, "context_semaphore")

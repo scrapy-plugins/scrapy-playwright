@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import platform
 from contextlib import suppress
 from dataclasses import dataclass
 from ipaddress import ip_address
@@ -25,7 +26,6 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.settings import Settings
-from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -38,6 +38,7 @@ from scrapy_playwright._utils import (
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
+    _deferred_from_coro,
 )
 
 
@@ -101,7 +102,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
-        verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
+        if platform.system() != "Windows":
+            verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
 
@@ -134,7 +136,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def _engine_started(self) -> Deferred:
         """Launch the browser. Use the engine_started signal as it supports returning deferreds."""
-        return deferred_from_coro(self._launch())
+        return _deferred_from_coro(self._launch())
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
@@ -290,7 +292,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def close(self) -> Deferred:
         logger.info("Closing download handler")
         yield super().close()
-        yield deferred_from_coro(self._close())
+        yield _deferred_from_coro(self._close())
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
@@ -305,7 +307,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
-            return deferred_from_coro(self._download_request(request, spider))
+            return _deferred_from_coro(self._download_request(request, spider))
         return super().download_request(request, spider)
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
