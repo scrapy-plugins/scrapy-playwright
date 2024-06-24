@@ -1,6 +1,6 @@
 # scrapy-playwright changelog
 
-### [v0.0.36](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.36) (2024-MM-DD)
+### [v0.0.36](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.36) (2024-06-24)
 
 * Windows support (#276)
 
