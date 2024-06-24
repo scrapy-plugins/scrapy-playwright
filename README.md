@@ -56,10 +56,13 @@ See the [changelog](docs/changelog.md) document.
 
 ## Activation
 
+### Download handler
+
 Replace the default `http` and/or `https` Download Handlers through
 [`DOWNLOAD_HANDLERS`](https://docs.scrapy.org/en/latest/topics/settings.html):
 
 ```python
+# settings.py
 DOWNLOAD_HANDLERS = {
     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
@@ -70,11 +73,18 @@ Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
 `http/https` handler. Unless explicitly marked (see [Basic usage](#basic-usage)),
 requests will be processed by the regular Scrapy download handler.
 
-Also, be sure to [install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
+
+### Twisted reactor
+
+When running on GNU/Linux or macOS you'll need to
+[install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
 
 ```python
+# settings.py
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
+
+This is not a requirement on Windows (see [Windows support](#windows-support))
 
 
 ## Basic usage
