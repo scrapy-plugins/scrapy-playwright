@@ -10,7 +10,7 @@ import pytest
 from playwright.async_api import async_playwright
 from scrapy import Request, Spider
 
-from tests import make_handler, assert_correct_response
+from tests import allow_windows, make_handler, assert_correct_response
 from tests.mockserver import StaticMockServer
 
 
@@ -61,6 +61,7 @@ class TestRemoteDevtools(IsolatedAsyncioTestCase):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @allow_windows
     async def test_devtools(self):
         async with remote_chromium() as devtools_url:
             settings_dict = {

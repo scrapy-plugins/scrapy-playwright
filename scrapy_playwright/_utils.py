@@ -1,11 +1,16 @@
+import asyncio
+import concurrent
 import logging
+import platform
+import threading
 from typing import Awaitable, Iterator, Optional, Tuple, Union
 
+import scrapy
 from playwright.async_api import Error, Page, Request, Response
-from scrapy import Spider
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
+from twisted.internet.defer import Deferred
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 
@@ -54,7 +59,7 @@ _NAVIGATION_ERROR_MSG = (
 
 async def _get_page_content(
     page: Page,
-    spider: Spider,
+    spider: scrapy.Spider,
     context_name: str,
     scrapy_request_url: str,
     scrapy_request_method: str,
@@ -97,3 +102,38 @@ async def _get_header_value(
         return await resource.header_value(header_name)
     except Exception:
         return None
+
+
+if platform.system() == "Windows":
+
+    class _WindowsAdapter:
+        """Utility class to redirect coroutines to an asyncio event loop running
+        in a different thread. This allows to use a ProactorEventLoop, which is
+        supported by Playwright on Windows.
+        """
+
+        loop = None
+        thread = None
+
+        @classmethod
+        def get_event_loop(cls) -> asyncio.AbstractEventLoop:
+            if cls.thread is None:
+                if cls.loop is None:
+                    policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore
+                    cls.loop = policy.new_event_loop()
+                    asyncio.set_event_loop(cls.loop)
+                if not cls.loop.is_running():
+                    cls.thread = threading.Thread(target=cls.loop.run_forever, daemon=True)
+                    cls.thread.start()
+                    logger.info("Started loop on separate thread: %s", cls.loop)
+            return cls.loop
+
+        @classmethod
+        async def get_result(cls, coro) -> concurrent.futures.Future:
+            return asyncio.run_coroutine_threadsafe(coro=coro, loop=cls.get_event_loop()).result()
+
+    def _deferred_from_coro(coro) -> Deferred:
+        return scrapy.utils.defer.deferred_from_coro(_WindowsAdapter.get_result(coro))
+
+else:
+    _deferred_from_coro = scrapy.utils.defer.deferred_from_coro

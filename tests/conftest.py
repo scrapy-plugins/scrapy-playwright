@@ -1,3 +1,20 @@
+import platform
+
+import pytest
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config):
+    # https://twistedmatrix.com/trac/ticket/9766
+    # https://github.com/pytest-dev/pytest-twisted/issues/80
+
+    if config.getoption("reactor", "default") == "asyncio" and platform.system() == "Windows":
+        import asyncio
+
+        selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
+        asyncio.set_event_loop_policy(selector_policy)
+
+
 def pytest_sessionstart(session):  # pylint: disable=unused-argument
     """
     Called after the Session object has been created and before performing

@@ -5,11 +5,12 @@ from unittest import IsolatedAsyncioTestCase
 import pytest
 from scrapy import Spider, Request
 
-from tests import make_handler
+from tests import allow_windows, make_handler
 from tests.mockserver import MockServer
 
 
 class MixinProcessHeadersTestCase:
+    @allow_windows
     async def test_user_agent(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
@@ -39,6 +40,7 @@ class MixinProcessHeadersTestCase:
                 headers = {key.lower(): value for key, value in headers.items()}
                 assert headers["user-agent"] == "foobar"
 
+    @allow_windows
     async def test_playwright_headers(self):
         """Ignore Scrapy headers"""
         settings_dict = {
@@ -63,6 +65,7 @@ class MixinProcessHeadersTestCase:
                 assert "asdf" not in req.headers
                 assert b"asdf" not in req.headers
 
+    @allow_windows
     async def test_use_custom_headers(self):
         """Custom header processing function"""
 

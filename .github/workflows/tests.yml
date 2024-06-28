@@ -13,6 +13,8 @@ jobs:
         include:
           - os: macos-latest
             python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
 
     steps:
     - uses: actions/checkout@v4
@@ -33,6 +35,8 @@ jobs:
 
     - name: Upload coverage report (Linux)
       if: runner.os == 'Linux'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         chmod +x codecov
@@ -40,7 +44,18 @@ jobs:
 
     - name: Upload coverage report (macOS)
       if: runner.os == 'macOS'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         curl -Os https://uploader.codecov.io/latest/macos/codecov
         chmod +x codecov
         ./codecov
+
+    - name: Upload coverage report (Windows)
+      if: runner.os == 'Windows'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri https://uploader.codecov.io/latest/windows/codecov.exe -Outfile codecov.exe
+        .\codecov.exe

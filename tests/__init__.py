@@ -1,8 +1,36 @@
+import inspect
+import logging
+import platform
 from contextlib import asynccontextmanager
+from functools import wraps
 
 from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
+
+
+logger = logging.getLogger("scrapy-playwright-tests")
+
+
+if platform.system() == "Windows":
+    from scrapy_playwright._utils import _WindowsAdapter
+
+    def allow_windows(test_method):
+        """Wrap tests with the _WindowsAdapter class on Windows."""
+        if not inspect.iscoroutinefunction(test_method):
+            raise RuntimeError(f"{test_method} must be an async def method")
+
+        @wraps(test_method)
+        async def wrapped(self, *args, **kwargs):
+            logger.debug("Calling _WindowsAdapter.get_result for %r", self)
+            await _WindowsAdapter.get_result(test_method(self, *args, **kwargs))
+
+        return wrapped
+
+else:
+
+    def allow_windows(test_method):
+        return test_method
 
 
 @asynccontextmanager
