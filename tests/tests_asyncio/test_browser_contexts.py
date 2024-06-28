@@ -230,6 +230,7 @@ class MixinTestCaseMultipleContexts:
             assert cookie["value"] == "qwerty"
             assert cookie["domain"] == "example.org"
 
+    @allow_windows
     async def test_close_inactive_context(self):
         spider = Spider("foo")
         async with make_handler(
