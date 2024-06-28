@@ -299,8 +299,6 @@ PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
 ### `PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL`
 Type `Optional[float]`, default `None`
 
-**_Experimental_**
-
 If set to a non-zero value, browser contexts will be automatically closed after
 spending the specified amount of seconds without open pages. Set to `None`
 (the default) to disable, i.e. contexts remain open until explicitly closed.
@@ -1088,8 +1086,3 @@ Deprecated features will be supported for at least six months
 following the release that deprecated them. After that, they
 may be removed at any time. See the [changelog](docs/changelog.md)
 for more information about deprecations and removals.
-
-
-## Experimental features
-
-Features marked as "experimental" might be modified and/or removed at any time.
