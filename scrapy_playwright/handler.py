@@ -167,9 +167,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Connecting using CDP: %s", self.config.cdp_url)
-                self.browser = await self.browser_type.connect_over_cdp(
-                    self.config.cdp_url, **self.config.cdp_kwargs
-                )
+                if self.config.browser_type_name in ["firefox", "webkit"]:
+                    self.browser = await self.browser_type.connect(
+                        self.config.cdp_url, **self.config.cdp_kwargs
+                    )
+                elif self.config.browser_type_name == "chromium":
+                    self.browser = await self.browser_type.connect_over_cdp(
+                        self.config.cdp_url, **self.config.cdp_kwargs
+                    )
+                else:
+                    raise PlaywrightError("Browser type not supported")
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
 
     async def _create_browser_context(
