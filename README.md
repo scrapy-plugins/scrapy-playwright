@@ -168,14 +168,17 @@ Type `Optional[str]`, default `None`
 The endpoint of a remote Chromium browser to connect using the
 [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/),
 via [`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp).
+
+```python
+PLAYWRIGHT_CDP_URL = "http://localhost:9222"
+```
+
 If this setting is used:
 * all non-persistent contexts will be created on the connected remote browser
 * the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
 * the `PLAYWRIGHT_BROWSER_TYPE` setting must not be set to a value different than "chromium"
 
-```python
-PLAYWRIGHT_CDP_URL = "http://localhost:9222"
-```
+**This settings CANNOT be used at the same time as `PLAYWRIGHT_CONNECT_URL`**
 
 ### `PLAYWRIGHT_CDP_KWARGS`
 Type `dict[str, Any]`, default `{}`
@@ -192,6 +195,41 @@ PLAYWRIGHT_CDP_KWARGS = {
 }
 ```
 
+### `PLAYWRIGHT_CONNECT_URL`
+Type `Optional[str]`, default `None`
+
+URL of a remote Playwright browser instance to connect using
+[`BrowserType.connect`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect).
+
+From the upstream Playwright docs:
+> When connecting to another browser launched via
+> [`BrowserType.launchServer`](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-server)
+> in Node.js, the major and minor version needs to match the client version (1.2.3 → is compatible with 1.2.x).
+
+```python
+PLAYWRIGHT_CONNECT_URL = "ws://localhost:35477/ae1fa0bc325adcfd9600d9f712e9c733"
+```
+
+If this setting is used:
+* all non-persistent contexts will be created on the connected remote browser
+* the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
+
+**This settings CANNOT be used at the same time as `PLAYWRIGHT_CDP_URL`**
+
+### `PLAYWRIGHT_CONNECT_KWARGS`
+Type `dict[str, Any]`, default `{}`
+
+Additional keyword arguments to be passed to
+[`BrowserType.connect`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect)
+when using `PLAYWRIGHT_CONNECT_URL`. The `ws_endpoint` key is always ignored,
+`PLAYWRIGHT_CONNECT_URL` is used instead.
+
+```python
+PLAYWRIGHT_CONNECT_KWARGS = {
+    "slow_mo": 1000,
+    "timeout": 10 * 1000
+}
+```
 
 ### `PLAYWRIGHT_CONTEXTS`
 Type `dict[str, dict]`, default `{}`
