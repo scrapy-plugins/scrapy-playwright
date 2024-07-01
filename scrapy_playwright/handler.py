@@ -173,7 +173,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
 
-    async def _maybe_connect_devtools(self) -> None:
+    async def _maybe_connect_remote_devtools(self) -> None:
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
                 logger.info("Connecting using CDP: %s", self.config.cdp_url)
@@ -203,25 +203,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if hasattr(self, "context_semaphore"):
             await self.context_semaphore.acquire()
         context_kwargs = context_kwargs or {}
+        persistent = remote = False
         if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
             context = await self.browser_type.launch_persistent_context(**context_kwargs)
             persistent = True
-            remote = False
         elif self.config.cdp_url:
-            await self._maybe_connect_devtools()
+            await self._maybe_connect_remote_devtools()
             context = await self.browser.new_context(**context_kwargs)
-            persistent = False
             remote = True
         elif self.config.connect_url:
             await self._maybe_connect_remote()
             context = await self.browser.new_context(**context_kwargs)
-            persistent = False
             remote = True
         else:
             await self._maybe_launch_browser()
             context = await self.browser.new_context(**context_kwargs)
-            persistent = False
-            remote = False
 
         context.on(
             "close", self._make_close_browser_context_callback(name, persistent, remote, spider)
