@@ -22,6 +22,7 @@ from playwright.async_api import (
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
+from scrapy.exceptions import NotSupported
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
@@ -67,6 +68,8 @@ class BrowserContextWrapper:
 class Config:
     cdp_url: Optional[str]
     cdp_kwargs: dict
+    connect_url: Optional[str]
+    connect_kwargs: dict
     browser_type_name: str
     launch_options: dict
     max_pages_per_context: int
@@ -76,9 +79,15 @@ class Config:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
+        if settings.get("PLAYWRIGHT_CDP_URL") and settings.get("PLAYWRIGHT_CONNECT_URL"):
+            msg = "Setting both PLAYWRIGHT_CDP_URL and PLAYWRIGHT_CONNECT_URL is not supported"
+            logger.error(msg)
+            raise NotSupported(msg)
         cfg = cls(
             cdp_url=settings.get("PLAYWRIGHT_CDP_URL"),
             cdp_kwargs=settings.getdict("PLAYWRIGHT_CDP_KWARGS") or {},
+            connect_url=settings.get("PLAYWRIGHT_CONNECT_URL"),
+            connect_kwargs=settings.getdict("PLAYWRIGHT_CONNECT_KWARGS") or {},
             browser_type_name=settings.get("PLAYWRIGHT_BROWSER_TYPE") or DEFAULT_BROWSER_TYPE,
             launch_options=settings.getdict("PLAYWRIGHT_LAUNCH_OPTIONS") or {},
             max_pages_per_context=settings.getint("PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"),
@@ -86,10 +95,11 @@ class Config:
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
+        cfg.connect_kwargs.pop("ws_endpoint", None)
         if not cfg.max_pages_per_context:
             cfg.max_pages_per_context = settings.getint("CONCURRENT_REQUESTS")
-        if cfg.cdp_url and cfg.launch_options:
-            logger.warning("PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
+        if (cfg.cdp_url or cfg.connect_url) and cfg.launch_options:
+            logger.warning("Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
         if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
             with suppress(TypeError, ValueError):
                 cfg.navigation_timeout = float(settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"])
@@ -172,6 +182,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 )
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
 
+    async def _maybe_connect_remote(self) -> None:
+        async with self.browser_launch_lock:
+            if not hasattr(self, "browser"):
+                logger.info("Connecting to remote Playwright: %s", self.config.connect_url)
+                self.browser = await self.browser_type.connect(
+                    self.config.connect_url, **self.config.connect_kwargs
+                )
+                logger.info("Connected to remote Playwright: %s", self.config.connect_kwargs)
+
     async def _create_browser_context(
         self,
         name: str,
@@ -190,6 +209,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             remote = False
         elif self.config.cdp_url:
             await self._maybe_connect_devtools()
+            context = await self.browser.new_context(**context_kwargs)
+            persistent = False
+            remote = True
+        elif self.config.connect_url:
+            await self._maybe_connect_remote()
             context = await self.browser.new_context(**context_kwargs)
             persistent = False
             remote = True

@@ -76,5 +76,5 @@ class TestRemoteDevtools(IsolatedAsyncioTestCase):
                 assert (
                     "scrapy-playwright",
                     logging.WARNING,
-                    "PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
+                    "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
