@@ -131,10 +131,7 @@ if platform.system() == "Windows":
 
         @classmethod
         def start(cls) -> None:
-            try:
-                policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
-            except AttributeError:
-                policy = asyncio.DefaultEventLoopPolicy()
+            policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
             cls._loop = policy.new_event_loop()
             asyncio.set_event_loop(cls._loop)
 
