@@ -101,6 +101,7 @@ class TestRemote(IsolatedAsyncioTestCase):
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
 
+    @allow_windows
     async def test_connect(self):
         async with remote_browser(is_chrome_devtools_protocol=False) as browser_url:
             settings_dict = {
