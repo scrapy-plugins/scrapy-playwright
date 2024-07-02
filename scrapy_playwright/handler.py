@@ -185,11 +185,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _maybe_connect_remote(self) -> None:
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
-                logger.info("Connecting to remote Playwright: %s", self.config.connect_url)
+                logger.info("Connecting to remote Playwright")
                 self.browser = await self.browser_type.connect(
                     self.config.connect_url, **self.config.connect_kwargs
                 )
-                logger.info("Connected to remote Playwright: %s", self.config.connect_kwargs)
+                logger.info("Connected to remote Playwright")
 
     async def _create_browser_context(
         self,
