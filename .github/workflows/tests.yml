@@ -29,9 +29,10 @@ jobs:
       with:
         node-version: 18
 
+    # version must match the one pinned in tox.ini
     - name: Install Playwright & Chromium Browser
       run: |
-        npm install playwright@latest
+        npm install playwright@1.44
         npx playwright install chromium --with-deps
 
     - name: Install tox
