@@ -24,6 +24,16 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Set up node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install Playwright & Chromium Browser
+      run: |
+        npm install playwright@latest
+        npx playwright install chromium --with-deps
+
     - name: Install tox
       run: pip install tox
 
