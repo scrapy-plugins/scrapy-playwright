@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging
 import platform
@@ -22,8 +23,10 @@ if platform.system() == "Windows":
 
         @wraps(test_method)
         async def wrapped(self, *args, **kwargs):
-            logger.debug("Calling _WindowsAdapter.get_result for %r", self)
-            await _ThreadedLoopAdapter.get_result(test_method(self, *args, **kwargs))
+            _ThreadedLoopAdapter.start()
+            coro = test_method(self, *args, **kwargs)
+            asyncio.run_coroutine_threadsafe(coro=coro, loop=_ThreadedLoopAdapter._loop).result()
+            _ThreadedLoopAdapter.stop()
 
         return wrapped
 
