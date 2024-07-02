@@ -96,7 +96,7 @@ async def _get_header_value(
         return None
 
 
-if platform.system() == "Windows":
+if platform.system() == "Windows" or True:
 
     class _WindowsAdapter:
         """Utility class to redirect coroutines to an asyncio event loop running
@@ -106,12 +106,29 @@ if platform.system() == "Windows":
 
         loop = None
         thread = None
+        coro_queue = asyncio.Queue()
+
+        @classmethod
+        async def handle_coro(cls, coro, future) -> None:
+            try:
+                result = await coro
+                future.set_result(result)
+            except Exception as e:
+                future.set_exception(e)
+
+        @classmethod
+        async def process_queue(cls) -> None:
+            while True:
+                coro, future = await cls.coro_queue.get()
+                asyncio.create_task(cls.handle_coro(coro, future))
+                cls.coro_queue.task_done()
 
         @classmethod
         def get_event_loop(cls) -> asyncio.AbstractEventLoop:
             if cls.thread is None:
                 if cls.loop is None:
-                    policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore
+                    # policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore
+                    policy = asyncio.DefaultEventLoopPolicy()
                     cls.loop = policy.new_event_loop()
                     asyncio.set_event_loop(cls.loop)
                 if not cls.loop.is_running():
@@ -120,13 +137,18 @@ if platform.system() == "Windows":
                     logger.info("Started loop on separate thread: %s", cls.loop)
             return cls.loop
 
-        @classmethod
-        async def get_result(cls, coro) -> concurrent.futures.Future:
-            return asyncio.run_coroutine_threadsafe(coro=coro, loop=cls.get_event_loop())
+    asyncio.run_coroutine_threadsafe(
+        coro=_WindowsAdapter.process_queue(),
+        loop=_WindowsAdapter.get_event_loop(),
+    )
 
     def _deferred_from_coro(coro) -> Deferred:
-        dfd = scrapy.utils.defer.deferred_from_coro(_WindowsAdapter.get_result(coro))
-        return dfd.addCallback(lambda future: future.result())
+        future = asyncio.Future()
+        asyncio.run_coroutine_threadsafe(
+            coro=_WindowsAdapter.coro_queue.put((coro, future)),
+            loop=_WindowsAdapter.get_event_loop(),
+        )
+        return scrapy.utils.defer.deferred_from_coro(future)
 
 else:
     _deferred_from_coro = scrapy.utils.defer.deferred_from_coro
