@@ -45,7 +45,7 @@ async def _run_chromium_devtools() -> Tuple[subprocess.Popen, str]:
 def _run_playwright_browser_server() -> Tuple[subprocess.Popen, str]:
     """Start a Playwright server in a separate process, return the process
     object and a string with its websocket endpoint.
-    Pass fixed port and ws path via env variables instead of allowing Playwright
+    Pass fixed port and ws path as arguments instead of allowing Playwright
     to choose, for some reason I was unable to capture stdout/stderr :shrug:
     """
     port = str(random.randint(60_000, 63_000))
