@@ -33,12 +33,13 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
+    _ThreadedLoopAdapter,
+    _deferred_from_coro,
     _encode_body,
     _get_header_value,
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
-    _deferred_from_coro,
 )
 
 
@@ -102,6 +103,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
+        _ThreadedLoopAdapter.start()
         if platform.system() != "Windows":
             verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
@@ -293,6 +295,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         logger.info("Closing download handler")
         yield super().close()
         yield _deferred_from_coro(self._close())
+        _ThreadedLoopAdapter.stop()
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])

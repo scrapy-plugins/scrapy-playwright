@@ -13,7 +13,7 @@ logger = logging.getLogger("scrapy-playwright-tests")
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright._utils import _WindowsAdapter
+    from scrapy_playwright._utils import _ThreadedLoopAdapter
 
     def allow_windows(test_method):
         """Wrap tests with the _WindowsAdapter class on Windows."""
@@ -23,7 +23,7 @@ if platform.system() == "Windows":
         @wraps(test_method)
         async def wrapped(self, *args, **kwargs):
             logger.debug("Calling _WindowsAdapter.get_result for %r", self)
-            await _WindowsAdapter.get_result(test_method(self, *args, **kwargs))
+            await _ThreadedLoopAdapter.get_result(test_method(self, *args, **kwargs))
 
         return wrapped
 
