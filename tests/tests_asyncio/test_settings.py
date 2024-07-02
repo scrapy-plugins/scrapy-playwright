@@ -1,5 +1,7 @@
 from unittest import IsolatedAsyncioTestCase
 
+import pytest
+from scrapy.exceptions import NotSupported
 from scrapy.settings import Settings
 
 from scrapy_playwright.handler import Config
@@ -30,6 +32,16 @@ class TestSettings(IsolatedAsyncioTestCase):
 
         config = Config.from_settings(Settings({"CONCURRENT_REQUESTS": 9876}))
         assert config.max_pages_per_context == 9876
+
+    async def test_connect_remote_urls(self):
+        with pytest.raises(NotSupported) as exc_info:
+            Config.from_settings(
+                Settings({"PLAYWRIGHT_CONNECT_URL": "asdf", "PLAYWRIGHT_CDP_URL": "qwerty"})
+            )
+        assert (
+            str(exc_info.value)
+            == "Setting both PLAYWRIGHT_CDP_URL and PLAYWRIGHT_CONNECT_URL is not supported"
+        )
 
     @allow_windows
     async def test_max_contexts(self):
