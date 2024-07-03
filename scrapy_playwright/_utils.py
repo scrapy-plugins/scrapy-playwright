@@ -7,6 +7,7 @@ from typing import Awaitable, Iterator, Optional, Tuple, Union
 import scrapy
 from playwright.async_api import Error, Page, Request, Response
 from scrapy.http.headers import Headers
+from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
 from twisted.internet.defer import Deferred
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
@@ -83,6 +84,13 @@ async def _get_page_content(
             )
             return await page.content()
         raise
+
+
+def _get_float_setting(settings: Settings, key: str) -> Optional[float]:
+    try:
+        return float(settings[key])
+    except Exception:
+        return None
 
 
 async def _get_header_value(

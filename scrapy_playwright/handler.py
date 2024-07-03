@@ -36,6 +36,7 @@ from scrapy_playwright._utils import (
     _ThreadedLoopAdapter,
     _deferred_from_coro,
     _encode_body,
+    _get_float_setting,
     _get_header_value,
     _get_page_content,
     _is_safe_close_error,
@@ -73,7 +74,7 @@ class Config:
     max_pages_per_context: int
     max_contexts: Optional[int]
     startup_context_kwargs: dict
-    navigation_timeout: Optional[float] = None
+    navigation_timeout: Optional[float]
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -85,15 +86,15 @@ class Config:
             max_pages_per_context=settings.getint("PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"),
             max_contexts=settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or None,
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
+            navigation_timeout=_get_float_setting(
+                settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
+            ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         if not cfg.max_pages_per_context:
             cfg.max_pages_per_context = settings.getint("CONCURRENT_REQUESTS")
         if cfg.cdp_url and cfg.launch_options:
             logger.warning("PLAYWRIGHT_CDP_URL is set, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
-        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
-            with suppress(TypeError, ValueError):
-                cfg.navigation_timeout = float(settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"])
         return cfg
 
 
