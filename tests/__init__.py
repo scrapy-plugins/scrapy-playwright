@@ -17,7 +17,7 @@ if platform.system() == "Windows":
     from scrapy_playwright._utils import _ThreadedLoopAdapter
 
     def allow_windows(test_method):
-        """Wrap tests with the _WindowsAdapter class on Windows."""
+        """Wrap tests with the _ThreadedLoopAdapter class on Windows."""
         if not inspect.iscoroutinefunction(test_method):
             raise RuntimeError(f"{test_method} must be an async def method")
 
