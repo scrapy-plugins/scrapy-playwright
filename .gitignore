@@ -17,3 +17,8 @@ coverage.xml
 coverage-*.xml
 coverage-asyncio/
 coverage-twisted/
+
+# nodejs stuff
+node_modules/
+package-lock.json
+package.json

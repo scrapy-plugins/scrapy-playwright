@@ -5,6 +5,7 @@ jobs:
   tests:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -28,12 +29,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 18
-
-    # version must match the one pinned in tox.ini
-    - name: Install Playwright & Chromium Browser
-      run: |
-        npm install playwright@1.44
-        npx playwright install chromium --with-deps
 
     - name: Install tox
       run: pip install tox

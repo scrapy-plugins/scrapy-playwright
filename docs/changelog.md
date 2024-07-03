@@ -1,5 +1,10 @@
 # scrapy-playwright changelog
 
+### [v0.0.37](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.37) (2024-07-03)
+
+* Improve Windows concurrency (#286)
+
+
 ### [v0.0.36](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.36) (2024-06-24)
 
 * Windows support (#276)

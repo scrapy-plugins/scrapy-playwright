@@ -34,12 +34,14 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
+    _ThreadedLoopAdapter,
+    _deferred_from_coro,
     _encode_body,
+    _get_float_setting,
     _get_header_value,
     _get_page_content,
     _is_safe_close_error,
     _maybe_await,
-    _deferred_from_coro,
 )
 
 
@@ -75,7 +77,7 @@ class Config:
     max_pages_per_context: int
     max_contexts: Optional[int]
     startup_context_kwargs: dict
-    navigation_timeout: Optional[float] = None
+    navigation_timeout: Optional[float]
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -93,6 +95,9 @@ class Config:
             max_pages_per_context=settings.getint("PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"),
             max_contexts=settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or None,
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
+            navigation_timeout=_get_float_setting(
+                settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
+            ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         cfg.connect_kwargs.pop("ws_endpoint", None)
@@ -100,9 +105,6 @@ class Config:
             cfg.max_pages_per_context = settings.getint("CONCURRENT_REQUESTS")
         if (cfg.cdp_url or cfg.connect_url) and cfg.launch_options:
             logger.warning("Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS")
-        if "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT" in settings:
-            with suppress(TypeError, ValueError):
-                cfg.navigation_timeout = float(settings["PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"])
         return cfg
 
 
@@ -112,6 +114,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
+        _ThreadedLoopAdapter.start()
         if platform.system() != "Windows":
             verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
@@ -313,6 +316,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         logger.info("Closing download handler")
         yield super().close()
         yield _deferred_from_coro(self._close())
+        _ThreadedLoopAdapter.stop()
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
