@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging
 import platform
@@ -13,17 +14,19 @@ logger = logging.getLogger("scrapy-playwright-tests")
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright._utils import _WindowsAdapter
+    from scrapy_playwright._utils import _ThreadedLoopAdapter
 
     def allow_windows(test_method):
-        """Wrap tests with the _WindowsAdapter class on Windows."""
+        """Wrap tests with the _ThreadedLoopAdapter class on Windows."""
         if not inspect.iscoroutinefunction(test_method):
             raise RuntimeError(f"{test_method} must be an async def method")
 
         @wraps(test_method)
         async def wrapped(self, *args, **kwargs):
-            logger.debug("Calling _WindowsAdapter.get_result for %r", self)
-            await _WindowsAdapter.get_result(test_method(self, *args, **kwargs))
+            _ThreadedLoopAdapter.start()
+            coro = test_method(self, *args, **kwargs)
+            asyncio.run_coroutine_threadsafe(coro=coro, loop=_ThreadedLoopAdapter._loop).result()
+            _ThreadedLoopAdapter.stop()
 
         return wrapped
 

@@ -15,11 +15,15 @@ class MixedRequestsTestCase(TestCase):
     '_download_request', which is a coroutine ('download_request' returns a Deferred).
     """
 
+    timeout_ms = 500
+
     @defer.inlineCallbacks
     def setUp(self):
         self.server = StaticMockServer()
         self.server.__enter__()
-        self.handler = ScrapyPlaywrightDownloadHandler.from_crawler(get_crawler())
+        self.handler = ScrapyPlaywrightDownloadHandler.from_crawler(
+            get_crawler(settings_dict={"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": self.timeout_ms})
+        )
         yield self.handler._engine_started()
 
     @defer.inlineCallbacks
@@ -29,26 +33,38 @@ class MixedRequestsTestCase(TestCase):
 
     @defer.inlineCallbacks
     def test_download_request(self):
-        def _test_regular(response, request):
+        def _check_regular(response, request):
             self.assertIsInstance(response, Response)
             self.assertEqual(response.css("a::text").getall(), ["Lorem Ipsum", "Infinite Scroll"])
             self.assertEqual(response.url, request.url)
             self.assertEqual(response.status, 200)
             self.assertNotIn("playwright", response.flags)
 
-        def _test_playwright(response, request):
+        def _check_playwright_ok(response, request):
             self.assertIsInstance(response, Response)
             self.assertEqual(response.css("a::text").getall(), ["Lorem Ipsum", "Infinite Scroll"])
             self.assertEqual(response.url, request.url)
             self.assertEqual(response.status, 200)
             self.assertIn("playwright", response.flags)
 
+        def _check_playwright_error(failure, url):
+            # different errors depending on the platform
+            self.assertTrue(
+                f"Page.goto: net::ERR_CONNECTION_REFUSED at {url}" in str(failure.value)
+                or f"Page.goto: Timeout {self.timeout_ms}ms exceeded" in str(failure.value)
+            )
+
         req1 = Request(self.server.urljoin("/index.html"))
         yield self.handler.download_request(req1, Spider("foo")).addCallback(
-            _test_regular, request=req1
+            _check_regular, request=req1
         )
 
         req2 = Request(self.server.urljoin("/index.html"), meta={"playwright": True})
         yield self.handler.download_request(req2, Spider("foo")).addCallback(
-            _test_playwright, request=req2
+            _check_playwright_ok, request=req2
+        )
+
+        req3 = Request("http://localhost:12345/asdf", meta={"playwright": True})
+        yield self.handler.download_request(req3, Spider("foo")).addErrback(
+            _check_playwright_error, url=req3.url
         )

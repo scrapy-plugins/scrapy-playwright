@@ -48,7 +48,7 @@ class MixinTestCaseMultipleContexts:
     async def test_contexts_max_pages(self):
         settings = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 2,
+            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1,
             "PLAYWRIGHT_CONTEXTS": {
                 "a": {"java_script_enabled": True},
                 "b": {"java_script_enabled": True},
@@ -77,7 +77,7 @@ class MixinTestCaseMultipleContexts:
                 ]
                 await asyncio.gather(*requests)
 
-            assert handler.stats.get_value("playwright/page_count/max_concurrent") == 4
+            assert handler.stats.get_value("playwright/page_count/max_concurrent") == 2
 
     @allow_windows
     async def test_max_contexts(self):

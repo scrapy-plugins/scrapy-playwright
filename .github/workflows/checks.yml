@@ -5,33 +5,29 @@ jobs:
   checks:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
         include:
-        - python-version: 3.8
-          env:
+        - env:
             TOXENV: bandit
-        - python-version: 3.8
-          env:
+        - env:
             TOXENV: black
-        - python-version: 3.8
-          env:
+        - env:
             TOXENV: flake8
-        - python-version: 3.8
-          env:
+        - env:
             TOXENV: typing
-        - python-version: 3.8
-          env:
+        - env:
             TOXENV: pylint
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.11
 
     - name: Run check
       env: ${{ matrix.env }}

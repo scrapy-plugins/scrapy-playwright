@@ -1014,7 +1014,12 @@ asyncio.run(main())
 
 ### Software versions
 
-Be sure to include which versions of Scrapy and scrapy-playwright you are using:
+Be sure to include which versions of Scrapy, Playwright and scrapy-playwright you are using:
+
+```
+$ playwright --version
+Version 1.44.0
+```
 
 ```
 $ python -c "import scrapy_playwright; print(scrapy_playwright.__version__)"
@@ -1066,6 +1071,12 @@ class ExampleSpider(scrapy.Spider):
             meta={"playwright": True},
         )
 ```
+
+#### Minimal code
+Please make the effort to reduce the code to the minimum that still displays the issue.
+It is very rare that a complete project (including middlewares, pipelines, item processing, etc)
+is really needed to reproduce an issue. Reports that do not show an actual debugging attempt
+will not be considered.
 
 ### Logs and stats
 
