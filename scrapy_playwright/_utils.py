@@ -111,10 +111,9 @@ if platform.system() == "Windows":
         @classmethod
         async def _handle_coro(cls, coro, future) -> None:
             try:
-                result = await coro
-                future.set_result(result)
-            except Exception as e:
-                future.set_exception(e)
+                future.set_result(await coro)
+            except Exception as exc:
+                future.set_exception(exc)
 
         @classmethod
         async def _process_queue(cls) -> None:
