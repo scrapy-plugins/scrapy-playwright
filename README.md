@@ -448,6 +448,8 @@ This key could be used in conjunction with `playwright_include_page` to make a c
 requests using the same page. For instance:
 
 ```python
+from playwright.async_api import Page
+
 def start_requests(self):
     yield scrapy.Request(
         url="https://httpbin.org/get",
@@ -455,7 +457,7 @@ def start_requests(self):
     )
 
 def parse(self, response, **kwargs):
-    page = response.meta["playwright_page"]
+    page: Page = response.meta["playwright_page"]
     yield scrapy.Request(
         url="https://httpbin.org/headers",
         callback=self.parse_headers,
@@ -496,6 +498,20 @@ def parse(self, response, **kwargs):
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
 
+### `playwright_suggested_filename`
+Type `Optional[str]`, read only
+
+The value of the [`Download.suggested_filename`](https://playwright.dev/python/docs/api/class-download#download-suggested-filename)
+attribute when the response is the binary contents of a
+[download](https://playwright.dev/python/docs/downloads) (e.g. a PDF file).
+Only available for responses that only caused a download. Can be accessed
+in the callback via `response.meta['playwright_suggested_filename']`
+
+```python
+def parse(self, response, **kwargs):
+    print(response.meta["playwright_suggested_filename"])
+    # 'sample_file.pdf'
+```
 
 ## Receiving Page objects in callbacks
 
@@ -514,6 +530,7 @@ necessary the spider job could get stuck because of the limit set by the
 `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` setting.
 
 ```python
+from playwright.async_api import Page
 import scrapy
 
 class AwesomeSpiderWithPage(scrapy.Spider):
@@ -528,7 +545,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     def parse_first(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         return scrapy.Request(
             url="https://example.com",
             callback=self.parse_second,
@@ -537,13 +554,13 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     async def parse_second(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         title = await page.title()  # "Example Domain"
         await page.close()
         return {"title": title}
 
     async def errback_close_page(self, failure):
-        page = failure.request.meta["playwright_page"]
+        page: Page = failure.request.meta["playwright_page"]
         await page.close()
 ```
 
