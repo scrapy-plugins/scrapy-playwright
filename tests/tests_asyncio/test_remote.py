@@ -53,7 +53,7 @@ def _run_playwright_browser_server() -> Tuple[subprocess.Popen, str]:
     launch_server_script_path = str(Path(__file__).parent.parent / "launch_browser_server.js")
     command = ["node", launch_server_script_path, port, ws_path]
     proc = subprocess.Popen(command)  # pylint: disable=consider-using-with
-    return proc, f"ws:/localhost:{port}/{ws_path}"
+    return proc, f"ws://localhost:{port}/{ws_path}"
 
 
 @asynccontextmanager
