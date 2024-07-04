@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from playwright.async_api import Page
 from scrapy import Spider, Request
 
 
@@ -96,7 +97,7 @@ class MultipleContextsSpider(Spider):
             )
 
     async def parse(self, response, **kwargs):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         context_name = response.meta["playwright_context"]
         storage_state = await page.context.storage_state()
         await page.close()

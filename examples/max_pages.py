@@ -1,3 +1,4 @@
+from playwright.async_api import Page
 from scrapy import Spider, Request
 
 
@@ -45,5 +46,5 @@ class MaxPagesPerContextContextsSpider(Spider):
         return {"url": response.url}
 
     async def errback(self, failure):
-        page = failure.request.meta["playwright_page"]
+        page: Page = failure.request.meta["playwright_page"]
         await page.close()

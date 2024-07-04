@@ -448,6 +448,8 @@ This key could be used in conjunction with `playwright_include_page` to make a c
 requests using the same page. For instance:
 
 ```python
+from playwright.async_api import Page
+
 def start_requests(self):
     yield scrapy.Request(
         url="https://httpbin.org/get",
@@ -455,7 +457,7 @@ def start_requests(self):
     )
 
 def parse(self, response, **kwargs):
-    page = response.meta["playwright_page"]
+    page: Page = response.meta["playwright_page"]
     yield scrapy.Request(
         url="https://httpbin.org/headers",
         callback=self.parse_headers,
@@ -514,6 +516,7 @@ necessary the spider job could get stuck because of the limit set by the
 `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` setting.
 
 ```python
+from playwright.async_api import Page
 import scrapy
 
 class AwesomeSpiderWithPage(scrapy.Spider):
@@ -528,7 +531,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     def parse_first(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         return scrapy.Request(
             url="https://example.com",
             callback=self.parse_second,
@@ -537,13 +540,13 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     async def parse_second(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         title = await page.title()  # "Example Domain"
         await page.close()
         return {"title": title}
 
     async def errback_close_page(self, failure):
-        page = failure.request.meta["playwright_page"]
+        page: Page = failure.request.meta["playwright_page"]
         await page.close()
 ```
 
