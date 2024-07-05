@@ -372,7 +372,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             request.meta["playwright_page"] = page
 
         start_time = time()
-        response, download = await self._get_response_and_download(request=request, page=page)
+        response, download = await self._get_response_and_download(
+            request=request, page=page, spider=spider
+        )
         if isinstance(response, PlaywrightResponse):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
@@ -440,13 +442,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
 
     async def _get_response_and_download(
-        self, request: Request, page: Page
+        self, request: Request, page: Page, spider: Spider
     ) -> Tuple[Optional[PlaywrightResponse], dict]:
         response: Optional[PlaywrightResponse] = None
         download: dict = {}  # updated in-place in _handle_download
+        download_started = asyncio.Event()
         download_ready = asyncio.Event()
 
         async def _handle_download(dwnld: Download) -> None:
+            download_started.set()
             self.stats.inc_value("playwright/download_count")
             try:
                 if failure := await dwnld.failure():
@@ -473,6 +477,32 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 and "net::ERR_ABORTED" in err.message
             ):
                 raise
+            try:
+                logger.debug(
+                    "Waiting on dowload to start for %s",
+                    request.url,
+                    extra={
+                        "spider": spider,
+                        "context_name": request.meta.get("playwright_context"),
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                    },
+                )
+                # TODO: timeout as setting
+                await asyncio.wait_for(download_started.wait(), timeout=1)
+            except asyncio.exceptions.TimeoutError:
+                raise err
+
+            logger.debug(
+                "Waiting on dowload to finish for %s",
+                request.url,
+                extra={
+                    "spider": spider,
+                    "context_name": request.meta.get("playwright_context"),
+                    "scrapy_request_url": request.url,
+                    "scrapy_request_method": request.method,
+                },
+            )
             await download_ready.wait()
         finally:
             page.remove_listener("download", _handle_download)
