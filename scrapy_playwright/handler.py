@@ -2,7 +2,7 @@ import asyncio
 import logging
 import platform
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from ipaddress import ip_address
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
@@ -105,6 +105,7 @@ class Download:
     suggested_filename: str = ""
     exception: Optional[Exception] = None
     response_status: int = 200
+    headers: dict = dataclass_field(default_factory=dict)
 
     def __bool__(self) -> bool:
         return bool(self.body) or bool(self.exception)
@@ -436,6 +437,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 url=download.url,
                 status=download.response_status,
                 body=download.body,
+                headers=Headers(download.headers),
                 request=request,
                 flags=["playwright"],
             )
@@ -477,6 +479,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         async def _handle_response(response: PlaywrightResponse) -> None:
             download.response_status = response.status
+            download.headers = await response.all_headers()
             download_started.set()
 
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
