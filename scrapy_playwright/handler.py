@@ -106,6 +106,9 @@ class Download:
     exception: Optional[Exception] = None
     response_status: int = 200
 
+    def __bool__(self) -> bool:
+        return bool(self.body) or bool(self.exception)
+
 
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     playwright_context_manager: Optional[PlaywrightContextManager] = None
@@ -380,15 +383,24 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if request.meta.get("playwright_include_page"):
             request.meta["playwright_page"] = page
 
+        # default response values
+        server_ip_address = None
+        headers = Headers()
+
         start_time = time()
-        response, download = await self._get_response_and_download(
-            request=request, page=page, spider=spider
-        )
-        if isinstance(response, PlaywrightResponse):
+
+        response, download = await self._get_response_and_download(request, page, spider)
+        if response:
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
-        elif not download.url:
+            request.meta["playwright_security_details"] = await response.security_details()
+            with suppress(KeyError, TypeError, ValueError):
+                server_addr = await response.server_addr()
+                server_ip_address = ip_address(server_addr["ipAddress"])
+        elif download:
+            request.meta["playwright_suggested_filename"] = download.suggested_filename
+        else:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -400,7 +412,6 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            headers = Headers()
 
         await self._apply_page_methods(page, request, spider)
         body_str = await _get_page_content(
@@ -412,22 +423,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         )
         request.meta["download_latency"] = time() - start_time
 
-        server_ip_address = None
-        if response is not None:
-            request.meta["playwright_security_details"] = await response.security_details()
-            with suppress(KeyError, TypeError, ValueError):
-                server_addr = await response.server_addr()
-                server_ip_address = ip_address(server_addr["ipAddress"])
-
-        if download.exception:
+        if download and download.exception:
             raise download.exception
 
         if not request.meta.get("playwright_include_page"):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
-        if download.url:
-            request.meta["playwright_suggested_filename"] = download.suggested_filename
+        if download and download.url:
             respcls = responsetypes.from_args(url=download.url, body=download.body)
             return respcls(
                 url=download.url,
@@ -452,7 +455,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _get_response_and_download(
         self, request: Request, page: Page, spider: Spider
-    ) -> Tuple[Optional[PlaywrightResponse], Download]:
+    ) -> Tuple[Optional[PlaywrightResponse], Optional[Download]]:
         response: Optional[PlaywrightResponse] = None
         download: Download = Download()  # updated in-place in _handle_download
         download_started = asyncio.Event()
@@ -521,7 +524,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page.remove_listener("download", _handle_download)
             page.remove_listener("response", _handle_response)
 
-        return response, download
+        return response, download if download else None
 
     async def _apply_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
         context_name = request.meta.get("playwright_context")
