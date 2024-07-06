@@ -10,7 +10,7 @@ from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Un
 from playwright.async_api import (
     BrowserContext,
     BrowserType,
-    Download,
+    Download as PlaywrightDownload,
     Error as PlaywrightError,
     Page,
     Playwright as AsyncPlaywright,
@@ -98,11 +98,11 @@ class Config:
         return cfg
 
 
-@dataclass(init=False)
-class _Download:
-    body: bytes
-    url: str
-    suggested_filename: str
+@dataclass()
+class Download:
+    body: bytes = b""
+    url: str = ""
+    suggested_filename: str = ""
     exception: Optional[Exception] = None
     response_status: int = 200
 
@@ -388,7 +388,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
-        elif not download.body:
+        elif not download.url:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -426,7 +426,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
-        if download:
+        if download.url:
             request.meta["playwright_suggested_filename"] = download.suggested_filename
             respcls = responsetypes.from_args(url=download.url, body=download.body)
             return respcls(
@@ -452,20 +452,19 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _get_response_and_download(
         self, request: Request, page: Page, spider: Spider
-    ) -> Tuple[Optional[PlaywrightResponse], _Download]:
+    ) -> Tuple[Optional[PlaywrightResponse], Download]:
         response: Optional[PlaywrightResponse] = None
-        download: _Download = _Download()  # updated in-place in _handle_download
+        download: Download = Download()  # updated in-place in _handle_download
         download_started = asyncio.Event()
         download_ready = asyncio.Event()
 
-        async def _handle_download(dwnld: Download) -> None:
+        async def _handle_download(dwnld: PlaywrightDownload) -> None:
             download_started.set()
             self.stats.inc_value("playwright/download_count")
             try:
                 if failure := await dwnld.failure():
                     raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
-                download_path = await dwnld.path()
-                download.body = download_path.read_bytes()
+                download.body = (await dwnld.path()).read_bytes()
                 download.url = dwnld.url
                 download.suggested_filename = dwnld.suggested_filename
             except Exception as ex:
