@@ -98,6 +98,15 @@ class Config:
         return cfg
 
 
+@dataclass(init=False)
+class _Download:
+    body: bytes
+    url: str
+    suggested_filename: str
+    exception: Optional[Exception] = None
+    response_status: int = 200
+
+
 class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     playwright_context_manager: Optional[PlaywrightContextManager] = None
     playwright: Optional[AsyncPlaywright] = None
@@ -379,7 +388,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
-        else:
+        elif not download.body:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -410,20 +419,20 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 server_addr = await response.server_addr()
                 server_ip_address = ip_address(server_addr["ipAddress"])
 
-        if download.get("exception"):
-            raise download["exception"]
+        if download.exception:
+            raise download.exception
 
         if not request.meta.get("playwright_include_page"):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
         if download:
-            request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
-            respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
+            request.meta["playwright_suggested_filename"] = download.suggested_filename
+            respcls = responsetypes.from_args(url=download.url, body=download.body)
             return respcls(
-                url=download["url"],
-                status=200,
-                body=download["bytes"],
+                url=download.url,
+                status=download.response_status,
+                body=download.body,
                 request=request,
                 flags=["playwright"],
             )
@@ -443,9 +452,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _get_response_and_download(
         self, request: Request, page: Page, spider: Spider
-    ) -> Tuple[Optional[PlaywrightResponse], dict]:
+    ) -> Tuple[Optional[PlaywrightResponse], _Download]:
         response: Optional[PlaywrightResponse] = None
-        download: dict = {}  # updated in-place in _handle_download
+        download: _Download = _Download()  # updated in-place in _handle_download
         download_started = asyncio.Event()
         download_ready = asyncio.Event()
 
@@ -456,16 +465,16 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 if failure := await dwnld.failure():
                     raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
                 download_path = await dwnld.path()
-                download["bytes"] = download_path.read_bytes()
-                download["url"] = dwnld.url
-                download["suggested_filename"] = dwnld.suggested_filename
+                download.body = download_path.read_bytes()
+                download.url = dwnld.url
+                download.suggested_filename = dwnld.suggested_filename
             except Exception as ex:
-                download["exception"] = ex
+                download.exception = ex
             finally:
                 download_ready.set()
 
         async def _handle_response(response: PlaywrightResponse) -> None:
-            download["response_status"] = response.status
+            download.response_status = response.status
             download_started.set()
 
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
@@ -484,7 +493,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 raise
 
             logger.debug(
-                "Navigating to %s failed, waiting on dowload to start",
+                "Navigating to %s failed",
                 request.url,
                 extra={
                     "spider": spider,
@@ -495,12 +504,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
             await download_started.wait()
 
-            if response_status := download.pop("response_status", None):
-                if response_status == 204:
-                    raise err
+            if download.response_status == 204:
+                raise err
 
             logger.debug(
-                "Waiting on dowload to finish for %s",
+                "Waiting on download to finish for %s",
                 request.url,
                 extra={
                     "spider": spider,
