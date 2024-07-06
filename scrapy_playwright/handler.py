@@ -464,9 +464,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             finally:
                 download_ready.set()
 
+        async def _handle_response(response: PlaywrightResponse) -> None:
+            download["response_status"] = response.status
+            download_started.set()
+
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
         page_goto_kwargs.pop("url", None)
         page.on("download", _handle_download)
+        page.on("response", _handle_response)
         try:
             response = await page.goto(url=request.url, **page_goto_kwargs)
         except PlaywrightError as err:
@@ -477,21 +482,22 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 and "net::ERR_ABORTED" in err.message
             ):
                 raise
-            try:
-                logger.debug(
-                    "Waiting on dowload to start for %s",
-                    request.url,
-                    extra={
-                        "spider": spider,
-                        "context_name": request.meta.get("playwright_context"),
-                        "scrapy_request_url": request.url,
-                        "scrapy_request_method": request.method,
-                    },
-                )
-                # TODO: timeout as setting
-                await asyncio.wait_for(download_started.wait(), timeout=1)
-            except asyncio.exceptions.TimeoutError:
-                raise err
+
+            logger.debug(
+                "Navigating to %s failed, waiting on dowload to start",
+                request.url,
+                extra={
+                    "spider": spider,
+                    "context_name": request.meta.get("playwright_context"),
+                    "scrapy_request_url": request.url,
+                    "scrapy_request_method": request.method,
+                },
+            )
+            await download_started.wait()
+
+            if response_status := download.pop("response_status", None):
+                if response_status == 204:
+                    raise err
 
             logger.debug(
                 "Waiting on dowload to finish for %s",
@@ -506,6 +512,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await download_ready.wait()
         finally:
             page.remove_listener("download", _handle_download)
+            page.remove_listener("response", _handle_response)
 
         return response, download
 
