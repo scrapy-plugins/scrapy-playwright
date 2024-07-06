@@ -498,6 +498,19 @@ def parse(self, response, **kwargs):
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
 
+### `playwright_suggested_filename`
+Type `Optional[str]`, read only
+
+The value of the [`Download.suggested_filename`](https://playwright.dev/python/docs/api/class-download#download-suggested-filename)
+attribute when the response is the binary contents of a download (e.g. a PDF file)
+Only available for responses that only caused a download. Could be accessed
+in the callback via `response.meta['playwright_suggested_filename']`
+
+```python
+def parse(self, response, **kwargs):
+    print(response.meta["playwright_suggested_filename"])
+    # 'sample_file.pdf'
+```
 
 ## Receiving Page objects in callbacks
 
