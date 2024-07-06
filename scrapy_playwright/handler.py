@@ -377,7 +377,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
-        else:
+        elif not download.get("bytes"):
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -482,7 +482,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 raise
 
             logger.debug(
-                "Navigating to %s failed, waiting on dowload to start",
+                "Navigating to %s failed",
                 request.url,
                 extra={
                     "spider": spider,
