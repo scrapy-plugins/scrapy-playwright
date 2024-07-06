@@ -465,6 +465,23 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
 
+    @allow_windows
+    async def test_fail_status_204(self):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                request = Request(
+                    url=server.urljoin("/status/204"),
+                    meta={"playwright": True},
+                )
+                with pytest.raises(PlaywrightError) as excinfo:
+                    await handler._download_request(request, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Closing page due to failed request: {request}"
+                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+                ) in self._caplog.record_tuples
+
 
 class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "chromium"
