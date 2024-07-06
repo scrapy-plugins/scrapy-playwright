@@ -59,6 +59,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
+        elif parsed_path.path == "/status/204":
+            self.send_response(204)
+            self.end_headers()
         elif parsed_path.path == "/redirect2":
             self.send_response(302)
             self.send_header("Content-Length", "0")
