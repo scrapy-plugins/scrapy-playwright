@@ -175,6 +175,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 logger.info("Launching browser %s", self.browser_type.name)
                 self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
+                self.browser.on(
+                    "disconnected",
+                    self._make_browser_disconnected_callback(self.browser_type.name, False),
+                )
 
     async def _maybe_connect_remote_devtools(self) -> None:
         async with self.browser_launch_lock:
@@ -184,6 +188,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.cdp_url, **self.config.cdp_kwargs
                 )
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
+                self.browser.on(
+                    "disconnected",
+                    self._make_browser_disconnected_callback(self.browser_type.name, True),
+                )
 
     async def _maybe_connect_remote(self) -> None:
         async with self.browser_launch_lock:
@@ -193,6 +201,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.connect_url, **self.config.connect_kwargs
                 )
                 logger.info("Connected to remote Playwright")
+                self.browser.on(
+                    "disconnected",
+                    self._make_browser_disconnected_callback(self.browser_type.name, True),
+                )
 
     async def _create_browser_context(
         self,
@@ -613,6 +625,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
 
         return close_browser_context_callback
+
+    def _make_browser_disconnected_callback(self, name: str, remote: bool) -> Callable:
+        async def browser_disconnected_callback() -> None:
+            await asyncio.gather(
+                *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
+            )
+            del self.browser
+            logger.debug(
+                "Browser %s disconnected (remote=%s)",
+                name,
+                remote,
+                extra={"browser_name": name, "remote": remote},
+            )
+
+        return browser_disconnected_callback
 
     def _make_request_handler(
         self,
