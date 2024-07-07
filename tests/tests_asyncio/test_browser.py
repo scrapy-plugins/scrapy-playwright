@@ -13,7 +13,6 @@ from unittest import IsolatedAsyncioTestCase
 import pytest
 from playwright.async_api import async_playwright
 from scrapy import Request, Spider
-from scrapy.http import Response
 
 from tests import allow_windows, make_handler, assert_correct_response
 from tests.mockserver import StaticMockServer
@@ -158,7 +157,7 @@ class TestBrowserReconnect(IsolatedAsyncioTestCase):
                 (
                     "scrapy-playwright",
                     logging.DEBUG,
-                    "Browser chromium disconnected (remote=False)",
+                    "Browser chromium disconnected",
                 )
             )
             == 2  # one mid-crawl after calling Browser.close() manually, one at the end
