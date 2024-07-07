@@ -386,7 +386,7 @@ class MixinTestCase:
         assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
     @allow_windows
-    async def test_download_file(self):
+    async def test_download_file_ok(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
         }
@@ -399,6 +399,7 @@ class MixinTestCase:
                 response = await handler._download_request(request, Spider("foo"))
                 assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
                 assert response.body.startswith(b"%PDF-1.5")
+                assert response.headers.get("Content-Type") == b"application/pdf"
                 assert handler.stats.get_value("playwright/download_count") == 1
 
     @allow_windows
