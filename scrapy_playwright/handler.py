@@ -78,6 +78,7 @@ class Config:
     max_contexts: Optional[int]
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
+    restart_disconnected_browser: bool
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -97,6 +98,9 @@ class Config:
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
             navigation_timeout=_get_float_setting(
                 settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
+            ),
+            restart_disconnected_browser=settings.getbool(
+                "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER", default=True
             ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
@@ -631,13 +635,15 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await asyncio.gather(
                 *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
             )
-            del self.browser
             logger.debug(
-                "Browser %s disconnected (remote=%s)",
+                "Browser %s disconnected (remote=%s, restart=%s)",
                 name,
                 remote,
+                self.config.restart_disconnected_browser,
                 extra={"browser_name": name, "remote": remote},
             )
+            if self.config.restart_disconnected_browser:
+                del self.browser
 
         return browser_disconnected_callback
 
