@@ -42,7 +42,7 @@ async def _run_chromium_devtools() -> Tuple[subprocess.Popen, str]:
         return proc, devtools_url
 
 
-def _run_playwright_browser_server() -> Tuple[subprocess.Popen, str]:
+def _run_chromium_browser_server() -> Tuple[subprocess.Popen, str]:
     """Start a Playwright server in a separate process, return the process
     object and a string with its websocket endpoint.
     Pass fixed port and ws path as arguments instead of allowing Playwright
@@ -50,21 +50,21 @@ def _run_playwright_browser_server() -> Tuple[subprocess.Popen, str]:
     """
     port = str(random.randint(60_000, 63_000))
     ws_path = str(uuid.uuid4())
-    launch_server_script_path = str(Path(__file__).parent.parent / "launch_browser_server.js")
+    launch_server_script_path = str(Path(__file__).parent.parent / "launch_chromium_server.js")
     command = ["node", launch_server_script_path, port, ws_path]
     proc = subprocess.Popen(command)  # pylint: disable=consider-using-with
     return proc, f"ws://localhost:{port}/{ws_path}"
 
 
 @asynccontextmanager
-async def remote_browser(is_chrome_devtools_protocol: bool = True):
+async def remote_chromium(with_devtools_protocol: bool = True):
     """Launch a remote browser that lasts while in the context."""
     proc = url = None
     try:
-        if is_chrome_devtools_protocol:
+        if with_devtools_protocol:
             proc, url = await _run_chromium_devtools()
         else:
-            proc, url = _run_playwright_browser_server()
+            proc, url = _run_chromium_browser_server()
             await asyncio.sleep(1)  # allow some time for the browser to start
     except Exception:
         pass
@@ -77,7 +77,7 @@ async def remote_browser(is_chrome_devtools_protocol: bool = True):
             proc.communicate()
 
 
-class TestRemote(IsolatedAsyncioTestCase):
+class TestRemoteBrowser(IsolatedAsyncioTestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         caplog.set_level(logging.DEBUG)
@@ -85,7 +85,7 @@ class TestRemote(IsolatedAsyncioTestCase):
 
     @allow_windows
     async def test_connect_devtools(self):
-        async with remote_browser(is_chrome_devtools_protocol=True) as devtools_url:
+        async with remote_chromium(with_devtools_protocol=True) as devtools_url:
             settings_dict = {
                 "PLAYWRIGHT_CDP_URL": devtools_url,
                 "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
@@ -103,7 +103,7 @@ class TestRemote(IsolatedAsyncioTestCase):
 
     @allow_windows
     async def test_connect(self):
-        async with remote_browser(is_chrome_devtools_protocol=False) as browser_url:
+        async with remote_chromium(with_devtools_protocol=False) as browser_url:
             settings_dict = {
                 "PLAYWRIGHT_CONNECT_URL": browser_url,
                 "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
