@@ -636,10 +636,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
             )
             logger.debug(
-                "Browser %s disconnected (remote=%s, restart=%s)",
+                "Browser %s disconnected (remote=%s)",
                 name,
                 remote,
-                self.config.restart_disconnected_browser,
                 extra={"browser_name": name, "remote": remote},
             )
             if self.config.restart_disconnected_browser:

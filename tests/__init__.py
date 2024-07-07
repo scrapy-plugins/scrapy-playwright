@@ -4,6 +4,7 @@ import logging
 import platform
 from contextlib import asynccontextmanager
 from functools import wraps
+from typing import Optional
 
 from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
@@ -37,12 +38,13 @@ else:
 
 
 @asynccontextmanager
-async def make_handler(settings_dict: dict):
+async def make_handler(settings_dict: Optional[dict] = None):
     """Convenience function to obtain an initialized handler and close it gracefully"""
     from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 
-    settings_dict.setdefault("TELNETCONSOLE_ENABLED", False)
-    crawler = get_crawler(settings_dict=settings_dict)
+    settings: dict = settings_dict or {}
+    settings.setdefault("TELNETCONSOLE_ENABLED", False)
+    crawler = get_crawler(settings_dict=settings)
     handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
     try:
         await handler._launch()

@@ -13,6 +13,7 @@ from unittest import IsolatedAsyncioTestCase
 import pytest
 from playwright.async_api import async_playwright
 from scrapy import Request, Spider
+from scrapy.http import Response
 
 from tests import allow_windows, make_handler, assert_correct_response
 from tests.mockserver import StaticMockServer
@@ -128,3 +129,47 @@ class TestRemoteBrowser(IsolatedAsyncioTestCase):
                     logging.WARNING,
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
+
+
+class TestBrowserReconnect(IsolatedAsyncioTestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._caplog = caplog
+
+    @allow_windows
+    async def test_restart_browser(self):
+        spider = Spider("foo")
+        async with make_handler() as handler:
+            with StaticMockServer() as server:
+                req1 = Request(
+                    server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_include_page": True},
+                )
+                resp1 = await handler._download_request(req1, spider)
+                page = resp1.meta["playwright_page"]
+                await page.context.browser.close()
+                req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
+                resp2 = await handler._download_request(req2, spider)
+        assert_correct_response(resp1, req1)
+        assert_correct_response(resp2, req2)
+        assert (
+            self._caplog.record_tuples.count(
+                (
+                    "scrapy-playwright",
+                    logging.DEBUG,
+                    "Browser chromium disconnected (remote=False)",
+                )
+            )
+            == 2  # one mid-crawl after calling Browser.close() manually, one at the end
+        )
+        assert (
+            self._caplog.record_tuples.count(
+                (
+                    "scrapy-playwright",
+                    logging.INFO,
+                    "Launching browser chromium",
+                )
+            )
+            == 2  # one at the beginning, one after calling Browser.close() manually
+        )
