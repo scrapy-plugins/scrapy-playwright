@@ -2,7 +2,7 @@ import asyncio
 import logging
 import platform
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from ipaddress import ip_address
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
@@ -10,7 +10,7 @@ from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Un
 from playwright.async_api import (
     BrowserContext,
     BrowserType,
-    Download,
+    Download as PlaywrightDownload,
     Error as PlaywrightError,
     Page,
     Playwright as AsyncPlaywright,
@@ -64,6 +64,19 @@ class BrowserContextWrapper:
     context: BrowserContext
     semaphore: asyncio.Semaphore
     persistent: bool
+
+
+@dataclass
+class Download:
+    body: bytes = b""
+    url: str = ""
+    suggested_filename: str = ""
+    exception: Optional[Exception] = None
+    response_status: int = 200
+    headers: dict = dataclass_field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return bool(self.body) or bool(self.exception)
 
 
 @dataclass
@@ -397,7 +410,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
             headers.pop("Content-Encoding", None)
-        elif not download.get("bytes"):
+        elif not download:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -428,20 +441,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 server_addr = await response.server_addr()
                 server_ip_address = ip_address(server_addr["ipAddress"])
 
-        if download.get("exception"):
-            raise download["exception"]
+        if download and download.exception:
+            raise download.exception
 
         if not request.meta.get("playwright_include_page"):
             await page.close()
             self.stats.inc_value("playwright/page_count/closed")
 
-        if download.get("bytes"):
-            request.meta["playwright_suggested_filename"] = download.get("suggested_filename")
-            respcls = responsetypes.from_args(url=download["url"], body=download["bytes"])
+        if download:
+            request.meta["playwright_suggested_filename"] = download.suggested_filename
+            respcls = responsetypes.from_args(url=download.url, body=download.body)
             return respcls(
-                url=download["url"],
-                status=200,
-                body=download["bytes"],
+                url=download.url,
+                status=download.response_status,
+                headers=Headers(download.headers),
+                body=download.body,
                 request=request,
                 flags=["playwright"],
             )
@@ -461,29 +475,29 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     async def _get_response_and_download(
         self, request: Request, page: Page, spider: Spider
-    ) -> Tuple[Optional[PlaywrightResponse], dict]:
+    ) -> Tuple[Optional[PlaywrightResponse], Optional[Download]]:
         response: Optional[PlaywrightResponse] = None
-        download: dict = {}  # updated in-place in _handle_download
+        download: Download = Download()  # updated in-place in _handle_download
         download_started = asyncio.Event()
         download_ready = asyncio.Event()
 
-        async def _handle_download(dwnld: Download) -> None:
+        async def _handle_download(dwnld: PlaywrightDownload) -> None:
             download_started.set()
             self.stats.inc_value("playwright/download_count")
             try:
                 if failure := await dwnld.failure():
                     raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
-                download_path = await dwnld.path()
-                download["bytes"] = download_path.read_bytes()
-                download["url"] = dwnld.url
-                download["suggested_filename"] = dwnld.suggested_filename
+                download.body = (await dwnld.path()).read_bytes()
+                download.url = dwnld.url
+                download.suggested_filename = dwnld.suggested_filename
             except Exception as ex:
-                download["exception"] = ex
+                download.exception = ex
             finally:
                 download_ready.set()
 
         async def _handle_response(response: PlaywrightResponse) -> None:
-            download["response_status"] = response.status
+            download.response_status = response.status
+            download.headers = await response.all_headers()
             download_started.set()
 
         page_goto_kwargs = request.meta.get("playwright_page_goto_kwargs") or {}
@@ -513,7 +527,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             )
             await download_started.wait()
 
-            if download.get("response_status") == 204:
+            if download.response_status == 204:
                 raise err
 
             logger.debug(
@@ -531,7 +545,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page.remove_listener("download", _handle_download)
             page.remove_listener("response", _handle_response)
 
-        return response, download
+        return response, download if download else None
 
     async def _apply_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
         context_name = request.meta.get("playwright_context")
