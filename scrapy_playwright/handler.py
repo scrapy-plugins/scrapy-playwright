@@ -179,10 +179,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 logger.info("Launching browser %s", self.browser_type.name)
                 self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
-                self.browser.on(
-                    "disconnected",
-                    self._browser_disconnected_callback,
-                )
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote_devtools(self) -> None:
         async with self.browser_launch_lock:
@@ -192,10 +189,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.cdp_url, **self.config.cdp_kwargs
                 )
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
-                self.browser.on(
-                    "disconnected",
-                    self._browser_disconnected_callback,
-                )
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote(self) -> None:
         async with self.browser_launch_lock:
@@ -205,10 +199,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.connect_url, **self.config.connect_kwargs
                 )
                 logger.info("Connected to remote Playwright")
-                self.browser.on(
-                    "disconnected",
-                    self._browser_disconnected_callback,
-                )
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _create_browser_context(
         self,
@@ -605,7 +596,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         await asyncio.gather(
             *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
         )
-        logger.debug("Browser %s disconnected", self.config.browser_type_name)
+        logger.debug("Browser %s disconnected", self.browser.browser_type.name)
         if self.config.restart_disconnected_browser:
             del self.browser
 
