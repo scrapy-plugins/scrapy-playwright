@@ -10,4 +10,5 @@ const { chromium } = require('playwright');  // Or 'webkit' or 'firefox'.
         port: process.argv[2],
         wsPath: process.argv[3]
     });
+    console.log(browserServer.wsEndpoint())
 })();

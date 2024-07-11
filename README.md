@@ -324,6 +324,17 @@ def custom_headers(
 PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
 ```
 
+### `PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER`
+Type `bool`, default `True`
+
+Whether the browser will be restarted if it gets disconnected, for instance if the local
+browser crashes or a remote connection times out.
+Implemented by listening to the
+[`disconnected` Browser event](https://playwright.dev/python/docs/api/class-browser#browser-event-disconnected),
+for this reason it does not apply to persistent contexts since
+[BrowserType.launch_persistent_context](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)
+returns the context directly.
+
 ### `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`
 Type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting
 

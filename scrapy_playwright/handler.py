@@ -91,6 +91,7 @@ class Config:
     max_contexts: Optional[int]
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
+    restart_disconnected_browser: bool
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -110,6 +111,9 @@ class Config:
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
             navigation_timeout=_get_float_setting(
                 settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
+            ),
+            restart_disconnected_browser=settings.getbool(
+                "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER", default=True
             ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
@@ -188,6 +192,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 logger.info("Launching browser %s", self.browser_type.name)
                 self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote_devtools(self) -> None:
         async with self.browser_launch_lock:
@@ -197,6 +202,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.cdp_url, **self.config.cdp_kwargs
                 )
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote(self) -> None:
         async with self.browser_launch_lock:
@@ -206,6 +212,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.connect_url, **self.config.connect_kwargs
                 )
                 logger.info("Connected to remote Playwright")
+                self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _create_browser_context(
         self,
@@ -598,6 +605,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(stats_prefix)
         self.stats.inc_value(f"{stats_prefix}/resource_type/{response.request.resource_type}")
         self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
+
+    async def _browser_disconnected_callback(self) -> None:
+        await asyncio.gather(
+            *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
+        )
+        logger.debug("Browser disconnected")
+        if self.config.restart_disconnected_browser:
+            del self.browser
 
     def _make_close_page_callback(self, context_name: str) -> Callable:
         def close_page_callback() -> None:
