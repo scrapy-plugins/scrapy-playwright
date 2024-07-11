@@ -157,7 +157,7 @@ class TestBrowserReconnect(IsolatedAsyncioTestCase):
                 (
                     "scrapy-playwright",
                     logging.DEBUG,
-                    "Browser chromium disconnected",
+                    "Browser disconnected",
                 )
             )
             == 2  # one mid-crawl after calling Browser.close() manually, one at the end

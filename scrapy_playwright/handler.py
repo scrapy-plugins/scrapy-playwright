@@ -596,7 +596,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         await asyncio.gather(
             *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
         )
-        logger.debug("Browser %s disconnected", self.browser.browser_type.name)
+        logger.debug("Browser disconnected")
         if self.config.restart_disconnected_browser:
             del self.browser
 
