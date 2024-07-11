@@ -364,6 +364,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             page=page, request=request, spider=spider, context_name=context_name
         )
 
+        # We need to identify the Playwright request that matches the Scrapy request
+        # in order to override method and body if necessary.
+        # Checking the URL and Request.is_navigation_request() is not enough, e.g.
+        # requests produced by submitting forms can produce false positives.
+        # Let's track only the first request that matches the above conditions.
+        initial_request_done = asyncio.Event()
+
         await page.unroute("**")
         await page.route(
             "**",
@@ -375,6 +382,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 body=request.body,
                 encoding=request.encoding,
                 spider=spider,
+                initial_request_done=initial_request_done,
             ),
         )
 
@@ -652,6 +660,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         body: Optional[bytes],
         encoding: str,
         spider: Spider,
+        initial_request_done: asyncio.Event,
     ) -> Callable:
         async def _request_handler(route: Route, playwright_request: PlaywrightRequest) -> None:
             """Override request headers, method and body."""
@@ -691,7 +700,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             if (
                 playwright_request.url.rstrip("/") == url.rstrip("/")
                 and playwright_request.is_navigation_request()
+                and not initial_request_done.is_set()
             ):
+                initial_request_done.set()
                 if method.upper() != playwright_request.method.upper():
                     overrides["method"] = method
                 if body:
