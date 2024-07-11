@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import platform
 import tempfile
 from pathlib import Path
@@ -11,10 +12,15 @@ from scrapy import Spider, Request
 from scrapy_playwright.page import PageMethod
 
 from tests import allow_windows, make_handler
-from tests.mockserver import StaticMockServer
+from tests.mockserver import MockServer, StaticMockServer
 
 
 class MixinTestCaseMultipleContexts:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        self._caplog = caplog
+
     @allow_windows
     async def test_context_kwargs(self):
         settings_dict = {
@@ -223,6 +229,33 @@ class MixinTestCaseMultipleContexts:
             assert cookie["name"] == "asdf"
             assert cookie["value"] == "qwerty"
             assert cookie["domain"] == "example.org"
+
+    @allow_windows
+    async def test_close_inactive_context(self):
+        spider = Spider("foo")
+        async with make_handler(
+            {
+                "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+                "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL": 0.5,
+            }
+        ) as handler:
+            assert len(handler.context_wrappers) == 0
+            with MockServer() as server:
+                await handler._download_request(
+                    Request(server.urljoin("/headers"), meta={"playwright": True}), spider
+                )
+                assert len(handler.context_wrappers) == 1
+                await asyncio.sleep(0.3)
+                await handler._download_request(
+                    Request(server.urljoin("/delay/1"), meta={"playwright": True}), spider
+                )
+                await asyncio.sleep(0.7)
+                assert len(handler.context_wrappers) == 0
+                assert (
+                    "scrapy-playwright",
+                    logging.INFO,
+                    "[Context=default] Closing inactive browser context",
+                ) in self._caplog.record_tuples
 
 
 class TestCaseMultipleContextsChromium(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
