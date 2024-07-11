@@ -1,5 +1,12 @@
 # scrapy-playwright changelog
 
+### [v0.0.39](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.39) (2024-07-11)
+
+* Return proper status and headers for downloads (#293)
+* Restart on browser crash (#295)
+* Override method and/or body only for the first matching request (#297)
+
+
 ### [v0.0.38](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.38) (2024-07-06)
 
 * Fix freezing on responses with status 204 (#292)
