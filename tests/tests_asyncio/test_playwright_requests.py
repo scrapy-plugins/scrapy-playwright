@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import platform
@@ -112,6 +113,7 @@ class MixinTestCase:
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             scrapy_request = Request(url="https://example.org", method="GET")
             spider = Spider("foo")
+            initial_request_done = asyncio.Event()
             req_handler = handler._make_request_handler(
                 context_name=DEFAULT_CONTEXT_NAME,
                 method=scrapy_request.method,
@@ -120,6 +122,7 @@ class MixinTestCase:
                 body=None,
                 encoding="utf-8",
                 spider=spider,
+                initial_request_done=initial_request_done,
             )
             route = MagicMock()
             playwright_request = AsyncMock()
@@ -386,7 +389,7 @@ class MixinTestCase:
         assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
     @allow_windows
-    async def test_download_file(self):
+    async def test_download_file_ok(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
         }
@@ -399,6 +402,7 @@ class MixinTestCase:
                 response = await handler._download_request(request, Spider("foo"))
                 assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
                 assert response.body.startswith(b"%PDF-1.5")
+                assert response.headers.get("Content-Type") == b"application/pdf"
                 assert handler.stats.get_value("playwright/download_count") == 1
 
     @allow_windows
@@ -457,6 +461,23 @@ class MixinTestCase:
                     },
                 )
                 with pytest.raises(RuntimeError) as excinfo:
+                    await handler._download_request(request, Spider("foo"))
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Closing page due to failed request: {request}"
+                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+                ) in self._caplog.record_tuples
+
+    @allow_windows
+    async def test_fail_status_204(self):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                request = Request(
+                    url=server.urljoin("/status/204"),
+                    meta={"playwright": True},
+                )
+                with pytest.raises(PlaywrightError) as excinfo:
                     await handler._download_request(request, Spider("foo"))
                 assert (
                     "scrapy-playwright",

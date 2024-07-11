@@ -168,14 +168,17 @@ Type `Optional[str]`, default `None`
 The endpoint of a remote Chromium browser to connect using the
 [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/),
 via [`BrowserType.connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp).
+
+```python
+PLAYWRIGHT_CDP_URL = "http://localhost:9222"
+```
+
 If this setting is used:
 * all non-persistent contexts will be created on the connected remote browser
 * the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
 * the `PLAYWRIGHT_BROWSER_TYPE` setting must not be set to a value different than "chromium"
 
-```python
-PLAYWRIGHT_CDP_URL = "http://localhost:9222"
-```
+**This settings CANNOT be used at the same time as `PLAYWRIGHT_CONNECT_URL`**
 
 ### `PLAYWRIGHT_CDP_KWARGS`
 Type `dict[str, Any]`, default `{}`
@@ -192,6 +195,41 @@ PLAYWRIGHT_CDP_KWARGS = {
 }
 ```
 
+### `PLAYWRIGHT_CONNECT_URL`
+Type `Optional[str]`, default `None`
+
+URL of a remote Playwright browser instance to connect using
+[`BrowserType.connect`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect).
+
+From the upstream Playwright docs:
+> When connecting to another browser launched via
+> [`BrowserType.launchServer`](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-server)
+> in Node.js, the major and minor version needs to match the client version (1.2.3 → is compatible with 1.2.x).
+
+```python
+PLAYWRIGHT_CONNECT_URL = "ws://localhost:35477/ae1fa0bc325adcfd9600d9f712e9c733"
+```
+
+If this setting is used:
+* all non-persistent contexts will be created on the connected remote browser
+* the `PLAYWRIGHT_LAUNCH_OPTIONS` setting is ignored
+
+**This settings CANNOT be used at the same time as `PLAYWRIGHT_CDP_URL`**
+
+### `PLAYWRIGHT_CONNECT_KWARGS`
+Type `dict[str, Any]`, default `{}`
+
+Additional keyword arguments to be passed to
+[`BrowserType.connect`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect)
+when using `PLAYWRIGHT_CONNECT_URL`. The `ws_endpoint` key is always ignored,
+`PLAYWRIGHT_CONNECT_URL` is used instead.
+
+```python
+PLAYWRIGHT_CONNECT_KWARGS = {
+    "slow_mo": 1000,
+    "timeout": 10 * 1000
+}
+```
 
 ### `PLAYWRIGHT_CONTEXTS`
 Type `dict[str, dict]`, default `{}`
@@ -285,6 +323,17 @@ def custom_headers(
 
 PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
 ```
+
+### `PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER`
+Type `bool`, default `True`
+
+Whether the browser will be restarted if it gets disconnected, for instance if the local
+browser crashes or a remote connection times out.
+Implemented by listening to the
+[`disconnected` Browser event](https://playwright.dev/python/docs/api/class-browser#browser-event-disconnected),
+for this reason it does not apply to persistent contexts since
+[BrowserType.launch_persistent_context](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)
+returns the context directly.
 
 ### `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT`
 Type `int`, defaults to the value of Scrapy's `CONCURRENT_REQUESTS` setting
@@ -459,6 +508,8 @@ This key could be used in conjunction with `playwright_include_page` to make a c
 requests using the same page. For instance:
 
 ```python
+from playwright.async_api import Page
+
 def start_requests(self):
     yield scrapy.Request(
         url="https://httpbin.org/get",
@@ -466,7 +517,7 @@ def start_requests(self):
     )
 
 def parse(self, response, **kwargs):
-    page = response.meta["playwright_page"]
+    page: Page = response.meta["playwright_page"]
     yield scrapy.Request(
         url="https://httpbin.org/headers",
         callback=self.parse_headers,
@@ -507,6 +558,20 @@ def parse(self, response, **kwargs):
     # {'issuer': 'DigiCert TLS RSA SHA256 2020 CA1', 'protocol': 'TLS 1.3', 'subjectName': 'www.example.org', 'validFrom': 1647216000, 'validTo': 1678838399}
 ```
 
+### `playwright_suggested_filename`
+Type `Optional[str]`, read only
+
+The value of the [`Download.suggested_filename`](https://playwright.dev/python/docs/api/class-download#download-suggested-filename)
+attribute when the response is the binary contents of a
+[download](https://playwright.dev/python/docs/downloads) (e.g. a PDF file).
+Only available for responses that only caused a download. Can be accessed
+in the callback via `response.meta['playwright_suggested_filename']`
+
+```python
+def parse(self, response, **kwargs):
+    print(response.meta["playwright_suggested_filename"])
+    # 'sample_file.pdf'
+```
 
 ## Receiving Page objects in callbacks
 
@@ -525,6 +590,7 @@ necessary the spider job could get stuck because of the limit set by the
 `PLAYWRIGHT_MAX_PAGES_PER_CONTEXT` setting.
 
 ```python
+from playwright.async_api import Page
 import scrapy
 
 class AwesomeSpiderWithPage(scrapy.Spider):
@@ -539,7 +605,7 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     def parse_first(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         return scrapy.Request(
             url="https://example.com",
             callback=self.parse_second,
@@ -548,13 +614,13 @@ class AwesomeSpiderWithPage(scrapy.Spider):
         )
 
     async def parse_second(self, response):
-        page = response.meta["playwright_page"]
+        page: Page = response.meta["playwright_page"]
         title = await page.title()  # "Example Domain"
         await page.close()
         return {"title": title}
 
     async def errback_close_page(self, failure):
-        page = failure.request.meta["playwright_page"]
+        page: Page = failure.request.meta["playwright_page"]
         await page.close()
 ```
 
