@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import platform
@@ -112,6 +113,7 @@ class MixinTestCase:
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             scrapy_request = Request(url="https://example.org", method="GET")
             spider = Spider("foo")
+            initial_request_done = asyncio.Event()
             req_handler = handler._make_request_handler(
                 context_name=DEFAULT_CONTEXT_NAME,
                 method=scrapy_request.method,
@@ -120,6 +122,7 @@ class MixinTestCase:
                 body=None,
                 encoding="utf-8",
                 spider=spider,
+                initial_request_done=initial_request_done,
             )
             route = MagicMock()
             playwright_request = AsyncMock()
