@@ -76,15 +76,14 @@ requests will be processed by the regular Scrapy download handler.
 
 ### Twisted reactor
 
-When running on GNU/Linux or macOS you'll need to
-[install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
+[Install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
 
 ```python
 # settings.py
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-This is not a requirement on Windows (see [Windows support](#windows-support))
+This is the default in new projects since [Scrapy 2.7](https://github.com/scrapy/scrapy/releases/tag/2.7.0).
 
 
 ## Basic usage
