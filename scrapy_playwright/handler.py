@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import platform
 from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
 from ipaddress import ip_address
@@ -132,8 +131,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
         _ThreadedLoopAdapter.start()
-        if platform.system() != "Windows":
-            verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
+        verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
 
