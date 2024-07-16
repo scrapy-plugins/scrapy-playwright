@@ -281,14 +281,12 @@ PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 10 * 1000  # 10 seconds
 ### `PLAYWRIGHT_PROCESS_REQUEST_HEADERS`
 Type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`
 
-A function (or the path to a function) that processes headers for a given request
-and returns a dictionary with the headers to be used (note that, depending on the browser,
-additional default headers could be sent as well). Coroutine functions (`async def`) are
-supported.
+A function (or the path to a function) that processes a Playwright request and returns a
+dictionary with headers to be overridden (note that, depending on the browser, additional
+default headers could be sent as well). Coroutine functions (`async def`) are supported.
 
-This will be called at least once for each Scrapy request (receiving said request and the
-corresponding Playwright request), but it could be called additional times if the given
-resource generates more requests (e.g. to retrieve assets like images or scripts).
+This will be called at least once for each Scrapy request, but it could be called additional times
+if Playwright generates more requests (e.g. to retrieve assets like images or scripts).
 
 The function must return a `dict` object, and receives the following positional arguments:
 
