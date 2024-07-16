@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import logging
+import platform
 import warnings
 from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
@@ -28,6 +29,7 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.settings import Settings
+from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -36,7 +38,6 @@ from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
     _ThreadedLoopAdapter,
-    _deferred_from_coro,
     _encode_body,
     _get_float_setting,
     _get_header_value,
@@ -93,6 +94,7 @@ class Config:
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
     restart_disconnected_browser: bool
+    use_threaded_loop: bool
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -116,6 +118,8 @@ class Config:
             restart_disconnected_browser=settings.getbool(
                 "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER", default=True
             ),
+            use_threaded_loop=platform.system() == "Windows"
+            or settings.getbool("_PLAYWRIGHT_THREADED_LOOP", False),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         cfg.connect_kwargs.pop("ws_endpoint", None)
@@ -132,12 +136,13 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         super().__init__(settings=crawler.settings, crawler=crawler)
-        _ThreadedLoopAdapter.start()
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
-
         self.config = Config.from_settings(crawler.settings)
+
+        if self.config.use_threaded_loop:
+            _ThreadedLoopAdapter.start(id(self))
 
         self.browser_launch_lock = asyncio.Lock()
         self.context_launch_lock = asyncio.Lock()
@@ -164,9 +169,14 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def from_crawler(cls: Type[PlaywrightHandler], crawler: Crawler) -> PlaywrightHandler:
         return cls(crawler)
 
+    def _deferred_from_coro(self, coro: Awaitable) -> Deferred:
+        if self.config.use_threaded_loop:
+            return _ThreadedLoopAdapter._deferred_from_coro(coro)
+        return deferred_from_coro(coro)
+
     def _engine_started(self) -> Deferred:
         """Launch the browser. Use the engine_started signal as it supports returning deferreds."""
-        return _deferred_from_coro(self._launch())
+        return self._deferred_from_coro(self._launch())
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
@@ -335,8 +345,9 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     def close(self) -> Deferred:
         logger.info("Closing download handler")
         yield super().close()
-        yield _deferred_from_coro(self._close())
-        _ThreadedLoopAdapter.stop()
+        yield self._deferred_from_coro(self._close())
+        if self.config.use_threaded_loop:
+            _ThreadedLoopAdapter.stop(id(self))
 
     async def _close(self) -> None:
         await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
@@ -351,7 +362,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
-            return _deferred_from_coro(self._download_request(request, spider))
+            return self._deferred_from_coro(self._download_request(request, spider))
         return super().download_request(request, spider)
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
