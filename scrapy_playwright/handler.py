@@ -6,6 +6,7 @@ from ipaddress import ip_address
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
+from playwright._impl._errors import TargetClosedError
 from playwright.async_api import (
     BrowserContext,
     BrowserType,
@@ -91,6 +92,7 @@ class Config:
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
     restart_disconnected_browser: bool
+    target_closed_max_retries: int = 3
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -190,6 +192,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 logger.info("Launching browser %s", self.browser_type.name)
                 self.browser = await self.browser_type.launch(**self.config.launch_options)
                 logger.info("Browser %s launched", self.browser_type.name)
+                self.stats.inc_value("playwright/browser_count")
                 self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote_devtools(self) -> None:
@@ -200,6 +203,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.cdp_url, **self.config.cdp_kwargs
                 )
                 logger.info("Connected using CDP: %s", self.config.cdp_url)
+                self.stats.inc_value("playwright/browser_count")
                 self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _maybe_connect_remote(self) -> None:
@@ -210,6 +214,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                     self.config.connect_url, **self.config.connect_kwargs
                 )
                 logger.info("Connected to remote Playwright")
+                self.stats.inc_value("playwright/browser_count")
                 self.browser.on("disconnected", self._browser_disconnected_callback)
 
     async def _create_browser_context(
@@ -337,7 +342,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         _ThreadedLoopAdapter.stop()
 
     async def _close(self) -> None:
-        await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
+        with suppress(TargetClosedError):
+            await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
         self.context_wrappers.clear()
         if hasattr(self, "browser"):
             logger.info("Closing browser")
@@ -353,8 +359,28 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         return super().download_request(request, spider)
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
+        counter = 0
+        while True:
+            try:
+                return await self._download_request_with_retry(request=request, spider=spider)
+            except TargetClosedError as ex:
+                counter += 1
+                if counter > self.config.target_closed_max_retries:
+                    raise ex
+                logger.debug(
+                    "Target closed, retrying to create page for %s",
+                    request,
+                    extra={
+                        "spider": spider,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                        "exception": ex,
+                    },
+                )
+
+    async def _download_request_with_retry(self, request: Request, spider: Spider) -> Response:
         page = request.meta.get("playwright_page")
-        if not isinstance(page, Page):
+        if not isinstance(page, Page) or page.is_closed():
             page = await self._create_page(request=request, spider=spider)
         context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
 
@@ -613,9 +639,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.stats.inc_value(f"{stats_prefix}/method/{response.request.method}")
 
     async def _browser_disconnected_callback(self) -> None:
-        await asyncio.gather(
-            *[ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()]
-        )
+        close_context_coros = [
+            ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()
+        ]
+        self.context_wrappers.clear()
+        with suppress(TargetClosedError):
+            await asyncio.gather(*close_context_coros)
         logger.debug("Browser disconnected")
         if self.config.restart_disconnected_browser:
             del self.browser
