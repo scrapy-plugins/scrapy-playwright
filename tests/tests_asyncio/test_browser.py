@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import platform
 import random
 import re
 import signal
@@ -82,12 +83,6 @@ async def remote_chromium(with_devtools_protocol: bool = True):
             proc.communicate()
 
 
-def kill_chrome():
-    for proc in psutil.process_iter(["pid", "name"]):
-        if proc.info["name"] == "chrome":
-            os.kill(proc.info["pid"], signal.SIGKILL)
-
-
 class TestBrowserRemoteChromium(IsolatedAsyncioTestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
@@ -149,6 +144,12 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @staticmethod
+    def kill_chrome():
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.info["name"] == "chrome":
+                os.kill(proc.info["pid"], signal.SIGKILL)
+
     @allow_windows
     async def test_browser_closed_restart(self):
         spider = Spider("foo")
@@ -186,7 +187,10 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after calling Browser.close() manually
         )
 
-    @allow_windows
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
     async def test_browser_crashed_restart(self):
         spider = Spider("foo")
         async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
@@ -196,7 +200,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
                     meta={"playwright": True, "playwright_include_page": True},
                 )
                 resp1 = await handler._download_request(req1, spider)
-                thread = Thread(target=kill_chrome, daemon=True)
+                thread = Thread(target=self.kill_chrome, daemon=True)
                 thread.start()
                 req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
                 req3 = Request(server.urljoin("/lorem_ipsum.html"), meta={"playwright": True})
@@ -230,7 +234,10 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after killing the broser process
         )
 
-    @allow_windows
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
     async def test_browser_crashed_do_not_restart(self):
         spider = Spider("foo")
         settings_dict = {
@@ -246,7 +253,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
                 )
                 resp1 = await handler._download_request(req1, spider)
                 assert_correct_response(resp1, req1)
-                thread = Thread(target=kill_chrome, daemon=True)
+                thread = Thread(target=self.kill_chrome, daemon=True)
                 thread.start()
                 req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
                 req3 = Request(server.urljoin("/lorem_ipsum.html"), meta={"playwright": True})
