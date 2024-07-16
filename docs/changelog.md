@@ -1,5 +1,12 @@
 # scrapy-playwright changelog
 
+
+### [v0.0.40](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.40) (2024-07-16)
+
+* Enforce asyncio reactor in all platforms (#298)
+* Allow multiple handlers in separate thread (#299)
+
+
 ### [v0.0.39](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.39) (2024-07-11)
 
 * Return proper status and headers for downloads (#293)
