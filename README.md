@@ -331,7 +331,7 @@ PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
 
 #### Deprecated argument handling
 
-In version 0.0.39 and earlier arguments were passed to the function positionally,
+In version 0.0.39 and earlier, arguments were passed to the function positionally,
 and only the Scrapy headers were passed instead of a dictionary with data about the
 Scrapy request.
 This is deprecated since version 0.0.40, and support for this way of handling arguments
