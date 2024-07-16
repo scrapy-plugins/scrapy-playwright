@@ -322,11 +322,8 @@ async def custom_headers(
     scrapy_request_data: dict,
 ) -> Dict[str, str]:
     headers = await playwright_request.all_headers()
-    if browser_type == "firefox":
-        headers["User-Agent"] = "asdf"
-    else:
-        scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
-        headers["Content-Type"] = scrapy_headers.get("Content-Type")
+    scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
+    headers["Cookie"] = scrapy_headers.get("Cookie")
     return headers
 
 PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
