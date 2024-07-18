@@ -1,6 +1,8 @@
 import asyncio
+import inspect
 import logging
 import platform
+import warnings
 from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
 from ipaddress import ip_address
@@ -22,7 +24,7 @@ from playwright.async_api import (
 from scrapy import Spider, signals
 from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
 from scrapy.crawler import Crawler
-from scrapy.exceptions import NotSupported
+from scrapy.exceptions import NotSupported, ScrapyDeprecationWarning
 from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
@@ -698,10 +700,40 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
             if self.process_request_headers is None:
                 final_headers = await playwright_request.all_headers()
-            else:
+            elif (sig := inspect.signature(self.process_request_headers)) and (
+                "browser_type_name" in sig.parameters
+                and "playwright_request" in sig.parameters
+                and "scrapy_request_data" in sig.parameters
+            ):
                 overrides["headers"] = final_headers = await _maybe_await(
                     self.process_request_headers(
-                        self.config.browser_type_name, playwright_request, headers
+                        browser_type_name=self.config.browser_type_name,
+                        playwright_request=playwright_request,
+                        scrapy_request_data={
+                            "method": method,
+                            "url": url,
+                            "headers": headers,
+                            "body": body,
+                            "encoding": encoding,
+                        },
+                    )
+                )
+            else:
+                warnings.warn(
+                    "Accepting positional arguments in the function passed to the"
+                    " PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting is deprecated. The function"
+                    " should accept three (3) keyword arguments instead:"
+                    " browser_type_name: str,"
+                    " playwright_request: playwright.async_api.Request,"
+                    " scrapy_request_data: dict",
+                    category=ScrapyDeprecationWarning,
+                    stacklevel=1,
+                )
+                overrides["headers"] = final_headers = await _maybe_await(
+                    self.process_request_headers(
+                        self.config.browser_type_name,
+                        playwright_request,
+                        headers,
                     )
                 )
 

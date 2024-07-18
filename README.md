@@ -288,12 +288,17 @@ default headers could be sent as well). Coroutine functions (`async def`) are su
 This will be called at least once for each Scrapy request, but it could be called additional times
 if Playwright generates more requests (e.g. to retrieve assets like images or scripts).
 
-The function must return a `dict` object, and receives the following positional arguments:
+The function must return a `Dict[str, str]` object, and receives the following three **keyword** arguments:
 
 ```python
-- browser_type: str
+- browser_type_name: str
 - playwright_request: playwright.async_api.Request
-- scrapy_headers: scrapy.http.headers.Headers
+- scrapy_request_data: dict
+    * method: str
+    * url: str
+    * headers: scrapy.http.headers.Headers
+    * body: Optional[bytes]
+    * encoding: str
 ```
 
 The default function (`scrapy_playwright.headers.use_scrapy_headers`) tries to
@@ -308,6 +313,38 @@ set by Playwright will be sent. Keep in mind that in this case, headers passed
 via the `Request.headers` attribute or set by Scrapy components are ignored
 (including cookies set via the `Request.cookies` attribute).
 
+Example:
+```python
+async def custom_headers(
+    *,
+    browser_type_name: str,
+    playwright_request: playwright.async_api.Request,
+    scrapy_request_data: dict,
+) -> Dict[str, str]:
+    headers = await playwright_request.all_headers()
+    scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
+    headers["Cookie"] = scrapy_headers.get("Cookie")
+    return headers
+
+PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
+```
+
+#### Deprecated argument handling
+
+In version 0.0.40 and earlier, arguments were passed to the function positionally,
+and only the Scrapy headers were passed instead of a dictionary with data about the
+Scrapy request.
+This is deprecated since version 0.0.41, and support for this way of handling arguments
+will eventually be removed in accordance with the [Deprecation policy](#deprecation-policy).
+
+Passed arguments:
+```python
+- browser_type: str
+- playwright_request: playwright.async_api.Request
+- scrapy_headers: scrapy.http.headers.Headers
+```
+
+Example:
 ```python
 def custom_headers(
     browser_type: str,
