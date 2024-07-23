@@ -187,7 +187,10 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after calling Browser.close() manually
         )
 
-    @pytest.mark.skipif(platform.system() != "Linux")
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
     async def test_browser_crashed_restart(self):
         spider = Spider("foo")
         async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
@@ -231,7 +234,10 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after killing the broser process
         )
 
-    @pytest.mark.skipif(platform.system() != "Linux")
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
     async def test_browser_crashed_do_not_restart(self):
         spider = Spider("foo")
         settings_dict = {
