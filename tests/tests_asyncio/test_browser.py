@@ -147,7 +147,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
     @staticmethod
     def kill_chrome():
         for proc in psutil.process_iter(["pid", "name"]):
-            if proc.info["name"] == "chrome":
+            if proc.info["name"].lower() in ("chrome", "chromium"):
                 os.kill(proc.info["pid"], signal.SIGKILL)
 
     @allow_windows
