@@ -1,16 +1,22 @@
 import asyncio
 import logging
+import os
+import platform
 import random
 import re
+import signal
 import subprocess
 import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from threading import Thread
 from typing import Tuple
 from unittest import IsolatedAsyncioTestCase
 
+import psutil
 import pytest
+from playwright._impl._errors import TargetClosedError
 from playwright.async_api import async_playwright
 from scrapy import Request, Spider
 
@@ -77,7 +83,7 @@ async def remote_chromium(with_devtools_protocol: bool = True):
             proc.communicate()
 
 
-class TestRemoteBrowser(IsolatedAsyncioTestCase):
+class TestBrowserRemoteChromium(IsolatedAsyncioTestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         caplog.set_level(logging.DEBUG)
@@ -87,6 +93,7 @@ class TestRemoteBrowser(IsolatedAsyncioTestCase):
     async def test_connect_devtools(self):
         async with remote_chromium(with_devtools_protocol=True) as devtools_url:
             settings_dict = {
+                "PLAYWRIGHT_BROWSER_TYPE": "chromium",
                 "PLAYWRIGHT_CDP_URL": devtools_url,
                 "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
             }
@@ -105,6 +112,7 @@ class TestRemoteBrowser(IsolatedAsyncioTestCase):
     async def test_connect(self):
         async with remote_chromium(with_devtools_protocol=False) as browser_url:
             settings_dict = {
+                "PLAYWRIGHT_BROWSER_TYPE": "chromium",
                 "PLAYWRIGHT_CONNECT_URL": browser_url,
                 "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
             }
@@ -130,16 +138,22 @@ class TestRemoteBrowser(IsolatedAsyncioTestCase):
                 ) in self._caplog.record_tuples
 
 
-class TestBrowserReconnect(IsolatedAsyncioTestCase):
+class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         caplog.set_level(logging.DEBUG)
         self._caplog = caplog
 
+    @staticmethod
+    def kill_chrome():
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.info["name"].lower() in ("chrome", "chromium"):
+                os.kill(proc.info["pid"], signal.SIGKILL)
+
     @allow_windows
-    async def test_restart_browser(self):
+    async def test_browser_closed_restart(self):
         spider = Spider("foo")
-        async with make_handler() as handler:
+        async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
             with StaticMockServer() as server:
                 req1 = Request(
                     server.urljoin("/index.html"),
@@ -172,3 +186,80 @@ class TestBrowserReconnect(IsolatedAsyncioTestCase):
             )
             == 2  # one at the beginning, one after calling Browser.close() manually
         )
+
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
+    async def test_browser_crashed_restart(self):
+        spider = Spider("foo")
+        async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
+            with StaticMockServer() as server:
+                req1 = Request(
+                    server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_include_page": True},
+                )
+                resp1 = await handler._download_request(req1, spider)
+                thread = Thread(target=self.kill_chrome, daemon=True)
+                thread.start()
+                req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
+                req3 = Request(server.urljoin("/lorem_ipsum.html"), meta={"playwright": True})
+                req4 = Request(server.urljoin("/scroll.html"), meta={"playwright": True})
+                resp2 = await handler._download_request(req2, spider)
+                resp3 = await handler._download_request(req3, spider)
+                resp4 = await handler._download_request(req4, spider)
+                thread.join()
+        assert_correct_response(resp1, req1)
+        assert_correct_response(resp2, req2)
+        assert_correct_response(resp3, req3)
+        assert_correct_response(resp4, req4)
+        assert (
+            self._caplog.record_tuples.count(
+                (
+                    "scrapy-playwright",
+                    logging.DEBUG,
+                    "Browser disconnected",
+                )
+            )
+            == 2  # one mid-crawl after killing the browser process, one at the end
+        )
+        assert (
+            self._caplog.record_tuples.count(
+                (
+                    "scrapy-playwright",
+                    logging.INFO,
+                    "Launching browser chromium",
+                )
+            )
+            == 2  # one at the beginning, one after killing the broser process
+        )
+
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="os.kill does not work as expected on Windows",
+    )
+    async def test_browser_crashed_do_not_restart(self):
+        spider = Spider("foo")
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+            "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER": False,
+        }
+        async with make_handler(settings_dict=settings_dict) as handler:
+            with StaticMockServer() as server:
+                await asyncio.sleep(1)  # allow time for the browser to fully launch
+                req1 = Request(
+                    server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_include_page": True},
+                )
+                resp1 = await handler._download_request(req1, spider)
+                assert_correct_response(resp1, req1)
+                thread = Thread(target=self.kill_chrome, daemon=True)
+                thread.start()
+                req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
+                req3 = Request(server.urljoin("/lorem_ipsum.html"), meta={"playwright": True})
+                req4 = Request(server.urljoin("/scroll.html"), meta={"playwright": True})
+                with pytest.raises(TargetClosedError):
+                    await handler._download_request(req2, spider)
+                    await handler._download_request(req3, spider)
+                    await handler._download_request(req4, spider)
+                thread.join()
