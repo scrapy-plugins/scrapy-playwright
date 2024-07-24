@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Awaitable, Callable
+from typing import Callable
 
 from ._utils import _ThreadedLoopAdapter
 
@@ -10,7 +10,7 @@ async def _run_async_gen(asyncgen):
         yield item
 
 
-def use_threaded_loop(callback: Awaitable) -> Callable:
+def use_threaded_loop(callback) -> Callable:
     """Wrap a coroutine callback so that Playwright coroutines are executed in
     the threaded event loop.
 
