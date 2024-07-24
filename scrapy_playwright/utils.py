@@ -1,5 +1,6 @@
 import asyncio
-
+import functools
+import inspect
 from typing import Awaitable
 
 from ._utils import _ThreadedLoopAdapter
@@ -24,3 +25,18 @@ def ensure_future(coro: Awaitable) -> asyncio.Future:
     ```
     """
     return _ThreadedLoopAdapter._ensure_future(coro)
+
+
+def use_threaded_loop(callback):
+    if not (inspect.iscoroutinefunction(callback) or inspect.isasyncgenfunction(callback)):
+        raise RuntimeError(
+            f"Cannot decorate callback '{callback.__name__}' with 'use_threaded_loop':"
+            " callback must be a coroutine function or an async generator"
+        )
+
+    @functools.wraps(callback)
+    async def wrapper(*args, **kwargs):
+        future: asyncio.Future = _ThreadedLoopAdapter._ensure_future(callback(*args, **kwargs))
+        return await future
+
+    return wrapper
