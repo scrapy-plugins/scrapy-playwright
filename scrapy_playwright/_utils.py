@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 import platform
 import threading
@@ -8,6 +9,7 @@ import scrapy
 from playwright.async_api import Error, Page, Request, Response
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
+from scrapy.utils.asyncgen import collect_asyncgen
 from scrapy.utils.python import to_unicode
 from twisted.internet.defer import Deferred
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
@@ -117,6 +119,7 @@ class _ThreadedLoopAdapter:
     @classmethod
     async def _handle_coro(cls, coro, future) -> None:
         try:
+            coro = collect_asyncgen(coro) if inspect.isasyncgen(coro) else coro
             future.set_result(await coro)
         except Exception as exc:
             future.set_exception(exc)
