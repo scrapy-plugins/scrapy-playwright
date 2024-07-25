@@ -142,7 +142,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.config = Config.from_settings(crawler.settings)
 
         if self.config.use_threaded_loop:
+            logger.warning("Starting threaded loop")
             _ThreadedLoopAdapter.start(id(self))
+        else:
+            logger.warning("NOT starting threaded loop")
 
         self.browser_launch_lock = asyncio.Lock()
         self.context_launch_lock = asyncio.Lock()
