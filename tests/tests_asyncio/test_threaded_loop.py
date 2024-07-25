@@ -5,7 +5,8 @@ import pytest
 import scrapy
 from playwright.async_api import Page
 from scrapy import signals
-from scrapy.crawler import Crawler, CrawlerProcess
+from scrapy.crawler import CrawlerProcess
+from scrapy.utils.test import get_crawler
 from scrapy_playwright.utils import use_threaded_loop
 
 from tests.mockserver import StaticMockServer
@@ -55,9 +56,9 @@ class ThreadedLoopSpiderTestCase(TestCase):
 
         with StaticMockServer() as server:
             index_url = server.urljoin("/index.html")
-            crawler = Crawler(
+            crawler = get_crawler(
                 spidercls=ThreadedLoopSpider,
-                settings={
+                settings_dict={
                     "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
                     "DOWNLOAD_HANDLERS": {
                         "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
