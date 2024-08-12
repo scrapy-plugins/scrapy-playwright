@@ -583,7 +583,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 raise err
 
             logger.debug(
-                "Waiting on dowload to finish for %s",
+                "Waiting on download to finish for %s",
                 request.url,
                 extra={
                     "spider": spider,
