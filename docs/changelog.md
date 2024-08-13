@@ -1,6 +1,13 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.41](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.41) (2024-08-13)
+
+* Keyword arguments for PLAYWRIGHT_PROCESS_REQUEST_HEADERS, pass additional Request fields (#303)
+* Retry to create page on browser crash (#305)
+* Fix typo in log message (#312)
+
+
 ### [v0.0.40](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.40) (2024-07-16)
 
 * Enforce asyncio reactor in all platforms (#298)
