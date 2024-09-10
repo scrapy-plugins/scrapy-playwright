@@ -97,6 +97,7 @@ class Config:
     restart_disconnected_browser: bool
     target_closed_max_retries: int = 3
     use_threaded_loop: bool = False
+    request_response_logger_enabled: bool = True
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -122,6 +123,9 @@ class Config:
             ),
             use_threaded_loop=platform.system() == "Windows"
             or settings.getbool("_PLAYWRIGHT_THREADED_LOOP", False),
+            request_response_logger_enabled=settings.getbool(
+                "PLAYWRIGHT_REQUEST_RESPONSE_LOGGER_ENABLED", default=True
+            ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         cfg.connect_kwargs.pop("ws_endpoint", None)
@@ -323,10 +327,11 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
-        page.on("request", _make_request_logger(context_name, spider))
-        page.on("response", _make_response_logger(context_name, spider))
         page.on("request", self._increment_request_stats)
         page.on("response", self._increment_response_stats)
+        if self.config.request_response_logger_enabled:
+            page.on("request", _make_request_logger(context_name, spider))
+            page.on("response", _make_response_logger(context_name, spider))
 
         return page
 

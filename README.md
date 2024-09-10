@@ -401,6 +401,14 @@ def should_abort_request(request):
 PLAYWRIGHT_ABORT_REQUEST = should_abort_request
 ```
 
+### `PLAYWRIGHT_REQUEST_RESPONSE_LOGGER_ENABLED`
+Type `bool`, default `True`
+
+Whether or not to emit debug-level log lines for Playwright request & responses.
+```python
+PLAYWRIGHT_REQUEST_RESPONSE_LOGGER_ENABLED = False
+```
+
 ### General note about settings
 For settings that accept object paths as strings, passing callable objects is
 only supported when using Scrapy>=2.4. With prior versions, only strings are
