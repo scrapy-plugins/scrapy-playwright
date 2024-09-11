@@ -3,7 +3,9 @@
 
 ### [v0.0.41](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.41) (2024-08-13)
 
-* Keyword arguments for PLAYWRIGHT_PROCESS_REQUEST_HEADERS, pass additional Request fields (#303)
+* Keyword arguments for PLAYWRIGHT_PROCESS_REQUEST_HEADERS, pass additional Request data (#303).
+  Deprecated positional argument handling for the function passed to the PLAYWRIGHT_PROCESS_REQUEST_HEADERS
+  setting, arguments should now be handled by keyword.
 * Retry to create page on browser crash (#305)
 * Fix typo in log message (#312)
 
