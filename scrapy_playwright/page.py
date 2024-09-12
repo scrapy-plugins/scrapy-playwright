@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable
 
 
 __all__ = ["PageMethod"]
@@ -10,8 +10,8 @@ class PageMethod:
     Playwright page, such as "click", "screenshot", "evaluate", etc.
     """
 
-    def __init__(self, method: str, *args, **kwargs) -> None:
-        self.method: str = method
+    def __init__(self, method: str | Callable, *args, **kwargs) -> None:
+        self.method: str | Callable = method
         self.args: tuple = args
         self.kwargs: dict = kwargs
         self.result: Any = None
