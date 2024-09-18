@@ -191,11 +191,11 @@ class MixinPageMethodTestCase:
     async def test_page_method_callable(self):
 
         async def scroll_page(page: Page) -> None:
-            await page.wait_for_selector(selector="div.quote"),
-            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)"),
-            await page.wait_for_selector(selector="div.quote:nth-child(11)"),
-            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)"),
-            await page.wait_for_selector(selector="div.quote:nth-child(21)"),
+            await page.wait_for_selector(selector="div.quote")
+            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
+            await page.wait_for_selector(selector="div.quote:nth-child(11)")
+            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
+            await page.wait_for_selector(selector="div.quote:nth-child(21)")
             return page.url
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
