@@ -11,7 +11,8 @@ class PageMethod:
     Represents a method to be called (and awaited if necessary) on a
     Playwright page, such as "click", "screenshot", "evaluate", etc.
 
-    If a callable is received, it will be called with the page as its only argument.
+    If a callable is received, it will be called with the page as its first argument.
+    Any additional arguments are passed positionally to the callable after the page.
     """
 
     def __init__(self, method: Union[str, Callable[[Page], Any]], *args, **kwargs) -> None:
