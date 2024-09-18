@@ -8,6 +8,7 @@ import pytest
 from scrapy import Spider, Request
 from scrapy.http.response.html import HtmlResponse
 
+from playwright.async_api import Page
 from scrapy_playwright.page import PageMethod
 
 from tests import allow_windows, make_handler, assert_correct_response
@@ -185,6 +186,34 @@ class MixinPageMethodTestCase:
                 assert pdf_file.file.read() == req.meta["playwright_page_methods"]["pdf"].result
                 if platform.system() != "Windows":
                     assert get_mimetype(pdf_file) == "application/pdf"
+
+    @allow_windows
+    async def test_page_method_callable(self):
+
+        async def scroll_page(page: Page) -> None:
+            await page.wait_for_selector(selector="div.quote"),
+            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)"),
+            await page.wait_for_selector(selector="div.quote:nth-child(11)"),
+            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)"),
+            await page.wait_for_selector(selector="div.quote:nth-child(21)"),
+            return page.url
+
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                req = Request(
+                    url=server.urljoin("/scroll.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_page_methods": {
+                            "callable": PageMethod(scroll_page),
+                        },
+                    },
+                )
+                resp = await handler._download_request(req, Spider("foo"))
+
+            assert_correct_response(resp, req)
+            assert len(resp.css("div.quote")) == 30
+            assert resp.meta["playwright_page_methods"]["callable"].result == resp.url
 
 
 class TestPageMethodChromium(IsolatedAsyncioTestCase, MixinPageMethodTestCase):
