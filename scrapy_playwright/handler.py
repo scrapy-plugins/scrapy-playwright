@@ -503,10 +503,12 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         if download:
             request.meta["playwright_suggested_filename"] = download.suggested_filename
             respcls = responsetypes.from_args(url=download.url, body=download.body)
+            download_headers = Headers(download.headers)
+            download_headers.pop("Content-Encoding", None)
             return respcls(
                 url=download.url,
                 status=download.response_status,
-                headers=Headers(download.headers),
+                headers=download_headers,
                 body=download.body,
                 request=request,
                 flags=["playwright"],
