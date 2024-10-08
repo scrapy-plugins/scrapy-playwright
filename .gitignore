@@ -22,3 +22,5 @@ coverage-twisted/
 node_modules/
 package-lock.json
 package.json
+
+.idea
