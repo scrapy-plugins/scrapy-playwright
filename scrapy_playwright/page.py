@@ -1,7 +1,5 @@
 from typing import Any, Callable, Union
 
-from playwright.async_api import Page
-
 
 __all__ = ["PageMethod"]
 
