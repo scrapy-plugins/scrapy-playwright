@@ -190,7 +190,7 @@ class MixinPageMethodTestCase:
     @allow_windows
     async def test_page_method_callable(self):
 
-        async def scroll_page(page: Page) -> None:
+        async def scroll_page(page: Page) -> str:
             await page.wait_for_selector(selector="div.quote")
             await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
             await page.wait_for_selector(selector="div.quote:nth-child(11)")
