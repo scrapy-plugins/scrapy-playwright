@@ -844,10 +844,12 @@ down or clicking links) and you want to handle only the final result in your cal
 
 ### `PageMethod` class
 
-#### `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
+#### `scrapy_playwright.page.PageMethod(method: str | callable, *args, **kwargs)`:
 
 Represents a method to be called (and awaited if necessary) on a
 `playwright.page.Page` object (e.g. "click", "screenshot", "evaluate", etc).
+It's also possible to pass callable objects that will be invoked as callbacks
+and receive Playwright Page as argument.
 `method` is the name of the method, `*args` and `**kwargs`
 are passed when calling such method. The return value
 will be stored in the `PageMethod.result` attribute.
@@ -885,8 +887,34 @@ async def parse(self, response, **kwargs):
     await page.close()
 ```
 
+### Passing callable objects
 
-### Supported methods
+If a `PageMethod` receives a callable object as its first argument, it will be
+called with the page as its first argument. Any additional arguments are passed
+to the callable after the page.
+
+```python
+async def scroll_page(page: Page) -> str:
+    await page.wait_for_selector(selector="div.quote")
+    await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
+    await page.wait_for_selector(selector="div.quote:nth-child(11)")
+    return page.url
+
+
+class MySpyder(scrapy.Spider):
+    name = "scroll"
+
+    def start_requests(self):
+        yield Request(
+            url="https://quotes.toscrape.com/scroll",
+            meta={
+                "playwright": True,
+                "playwright_page_methods": [PageMethod(scroll_page)],
+            },
+        )
+```
+
+### Supported Playwright methods
 
 Refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
 to see available methods.

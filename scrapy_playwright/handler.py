@@ -5,6 +5,7 @@ import platform
 import warnings
 from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
+from functools import partial
 from ipaddress import ip_address
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
@@ -607,7 +608,10 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         for pm in page_methods:
             if isinstance(pm, PageMethod):
                 try:
-                    method = getattr(page, pm.method)
+                    if callable(pm.method):
+                        method = partial(pm.method, page)
+                    else:
+                        method = getattr(page, pm.method)
                 except AttributeError as ex:
                     logger.warning(
                         "Ignoring %r: could not find method",
