@@ -389,6 +389,58 @@ class MixinTestCase:
         assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
     @allow_windows
+    @patch("scrapy_playwright.handler._make_request_logger")
+    async def test_request_logger_disabled(self, make_request_logger: MagicMock):
+        self._caplog.set_level(logging.DEBUG + 1, "scrapy-playwright")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
+                await handler._download_request(req, Spider("foo"))
+
+        debug_message = (
+            f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"
+        )
+        assert not any(rec.message == debug_message for rec in self._caplog.records)
+        make_request_logger.assert_not_called()
+
+    @allow_windows
+    async def test_request_logger_enabled(self):
+        self._caplog.set_level(logging.DEBUG, "scrapy-playwright")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
+                await handler._download_request(req, Spider("foo"))
+
+        debug_message = (
+            f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"
+        )
+        assert any(rec.message == debug_message for rec in self._caplog.records)
+
+    @allow_windows
+    @patch("scrapy_playwright.handler._make_response_logger")
+    async def test_response_logger_disabled(self, make_response_logger: MagicMock):
+        self._caplog.set_level(logging.DEBUG + 1, "scrapy-playwright")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
+                response = await handler._download_request(req, Spider("foo"))
+
+        debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
+        assert not any(rec.message == debug_message for rec in self._caplog.records)
+        make_response_logger.assert_not_called()
+
+    @allow_windows
+    async def test_response_logger_enabled(self):
+        self._caplog.set_level(logging.DEBUG, "scrapy-playwright")
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                request = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
+                response = await handler._download_request(request, Spider("foo"))
+
+        debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
+        assert any(rec.message == debug_message for rec in self._caplog.records)
+
+    @allow_windows
     async def test_download_file_ok(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
