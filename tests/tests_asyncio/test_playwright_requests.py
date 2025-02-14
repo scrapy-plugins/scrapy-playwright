@@ -14,7 +14,6 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from scrapy import Spider, Request, FormRequest
-from scrapy.http import Response
 
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
@@ -28,7 +27,7 @@ class DialogSpider(Spider):
 
     name = "dialog"
 
-    def parse(self, response: Response, **kwargs) -> None:
+    def parse(self, **_kwargs) -> None:
         return None
 
     async def handle_dialog(self, dialog: Dialog) -> None:
@@ -37,6 +36,8 @@ class DialogSpider(Spider):
 
 
 class MixinTestCase:
+    browser_type: str
+
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         caplog.set_level(logging.DEBUG)
