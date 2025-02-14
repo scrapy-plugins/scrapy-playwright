@@ -8,13 +8,13 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
+      os: ubuntu-22.04
       matrix:
-        os: [ubuntu-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
-          - os: macos-latest
+          - os: macos-14
             python-version: "3.12"
-          - os: windows-latest
+          - os: windows-2022
             python-version: "3.12"
 
     steps:
