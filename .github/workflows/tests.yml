@@ -8,8 +8,8 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      os: ubuntu-22.04
       matrix:
+        os: [ubuntu-22.04]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           - os: macos-14
