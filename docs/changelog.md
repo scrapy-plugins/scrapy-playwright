@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.43](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.43) (2025-02-22)
+
+* Only register request and response loggers when needed (#336)
+
+
 ### [v0.0.42](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.42) (2024-11-06)
 
 * Allow custom PageMethod callbacks (#318)
