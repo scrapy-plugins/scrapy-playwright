@@ -2,7 +2,7 @@
 // usage:
 //   node launch_browser_server.js PORT WS_PATH
 
-const { chromium } = require('playwright');  // Or 'webkit' or 'firefox'.
+const { chromium } = require('patchright');  // Or 'webkit' or 'firefox'.
 
 (async () => {
     const browserServer = await chromium.launchServer({
