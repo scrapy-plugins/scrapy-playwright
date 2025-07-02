@@ -5,7 +5,7 @@ import threading
 from typing import Awaitable, Dict, Iterator, Optional, Tuple, Union
 
 import scrapy
-from playwright.async_api import Error, Page, Request, Response
+from patchright.async_api import Error, Page, Request, Response
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
