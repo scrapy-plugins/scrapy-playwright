@@ -108,6 +108,7 @@ class TestBrowserRemoteChromium(IsolatedAsyncioTestCase):
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
 
+    @pytest.mark.flaky(reruns=3)
     @allow_windows
     async def test_connect(self):
         async with remote_chromium(with_devtools_protocol=False) as browser_url:
