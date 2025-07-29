@@ -142,7 +142,6 @@ class _ThreadedLoopAdapter:
             if platform.system() == "Windows":
                 policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
             cls._loop = policy.new_event_loop()
-            asyncio.set_event_loop(cls._loop)
 
         if not getattr(cls, "_thread", None):
             cls._thread = threading.Thread(target=cls._loop.run_forever, daemon=True)
