@@ -9,7 +9,6 @@ from playwright.async_api import Error, Page, Request, Response
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.python import failure
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
@@ -118,6 +117,8 @@ class _ThreadedLoopAdapter:
 
     @classmethod
     async def _handle_coro(cls, coro: Awaitable, dfd: Deferred) -> None:
+        from twisted.internet import reactor
+
         try:
             result = await coro
         except Exception as exc:
