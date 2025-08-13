@@ -100,7 +100,7 @@ class Config:
     restart_disconnected_browser: bool
     target_closed_max_retries: int = 3
     use_threaded_loop: bool = False
-    close_context_interval: Optional[float]
+    close_context_interval: Optional[float] = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
