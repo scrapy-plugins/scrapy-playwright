@@ -1,6 +1,11 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.44](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.44) (2025-08-13)
+
+* Fix crawl getting stuck on Windows with Scrapy>=2.13 (#351)
+
+
 ### [v0.0.43](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.43) (2025-02-22)
 
 * Only register request and response loggers when needed (#336)
