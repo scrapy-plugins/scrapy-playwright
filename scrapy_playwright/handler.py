@@ -66,8 +66,10 @@ PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
 @dataclass
 class BrowserContextWrapper:
     context: BrowserContext
-    semaphore: asyncio.Semaphore
     persistent: bool
+    semaphore: asyncio.Semaphore  # limit amount of pages
+    inactive: asyncio.Event
+    waiting_close: asyncio.Event
 
 
 @dataclass
@@ -98,6 +100,7 @@ class Config:
     restart_disconnected_browser: bool
     target_closed_max_retries: int = 3
     use_threaded_loop: bool = False
+    close_context_interval: Optional[float] = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "Config":
@@ -123,6 +126,9 @@ class Config:
             ),
             use_threaded_loop=platform.system() == "Windows"
             or settings.getbool("_PLAYWRIGHT_THREADED_LOOP", False),
+            close_context_interval=_get_float_setting(
+                settings, "PLAYWRIGHT_CLOSE_CONTEXT_INTERVAL"
+            ),
         )
         cfg.cdp_kwargs.pop("endpoint_url", None)
         cfg.connect_kwargs.pop("ws_endpoint", None)
@@ -280,11 +286,33 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             context.set_default_navigation_timeout(self.config.navigation_timeout)
         self.context_wrappers[name] = BrowserContextWrapper(
             context=context,
-            semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
             persistent=persistent,
+            semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
+            inactive=asyncio.Event(),
+            waiting_close=asyncio.Event(),
         )
+        if self.config.close_context_interval is not None:
+            asyncio.create_task(self._maybe_close_inactive_context(name=name, spider=spider))
         self._set_max_concurrent_context_count()
         return self.context_wrappers[name]
+
+    async def _maybe_close_inactive_context(
+        self, name: str, spider: Optional[Spider] = None
+    ) -> None:
+        """Close a context if it has had no pages for a certain amount of time."""
+        while name in self.context_wrappers:
+            context_wrapper = self.context_wrappers[name]
+            await context_wrapper.inactive.wait()
+            context_wrapper.waiting_close.set()
+            await asyncio.sleep(self.config.close_context_interval)  # type: ignore [arg-type]
+            if context_wrapper.waiting_close.is_set() and not context_wrapper.context.pages:
+                logger.info(
+                    "[Context=%s] Closing inactive browser context",
+                    name,
+                    extra={"spider": spider, "context_name": name},
+                )
+                await context_wrapper.context.close()
+                break
 
     async def _create_page(self, request: Request, spider: Spider) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
@@ -301,6 +329,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
                 )
 
         await ctx_wrapper.semaphore.acquire()
+        ctx_wrapper.inactive.clear()
+        ctx_wrapper.waiting_close.clear()
         page = await ctx_wrapper.context.new_page()
         self.stats.inc_value("playwright/page_count")
         total_page_count = self._get_total_page_count()
@@ -357,6 +387,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             _ThreadedLoopAdapter.stop(id(self))
 
     async def _close(self) -> None:
+        logger.info("Closing %i contexts", len(self.context_wrappers))
         with suppress(TargetClosedError):
             await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
         self.context_wrappers.clear()
@@ -673,6 +704,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         def close_page_callback() -> None:
             if context_name in self.context_wrappers:
                 self.context_wrappers[context_name].semaphore.release()
+                if not self.context_wrappers[context_name].context.pages:
+                    self.context_wrappers[context_name].inactive.set()
 
         return close_page_callback
 
