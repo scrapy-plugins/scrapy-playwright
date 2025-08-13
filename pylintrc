@@ -20,3 +20,6 @@ disable=
 [FORMAT]
 expected-line-ending-format=LF
 max-line-length=99
+
+[MASTER]
+ignored-classes=twisted.internet.reactor
