@@ -2,7 +2,7 @@ import asyncio
 import logging
 import platform
 import threading
-from typing import Awaitable, Iterator, Optional, Tuple, Union
+from typing import Awaitable, Dict, Iterator, Optional, Tuple, Union
 
 import scrapy
 from playwright.async_api import Error, Page, Request, Response
@@ -10,6 +10,7 @@ from scrapy.http.headers import Headers
 from scrapy.settings import Settings
 from scrapy.utils.python import to_unicode
 from twisted.internet.defer import Deferred
+from twisted.python import failure
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 
@@ -103,68 +104,61 @@ async def _get_header_value(
         return None
 
 
-if platform.system() == "Windows":
+class _ThreadedLoopAdapter:
+    """Utility class to start an asyncio event loop in a new thread and redirect coroutines.
+    This allows to run Playwright in a different loop than the Scrapy crawler, allowing to
+    use ProactorEventLoop which is supported by Playwright on Windows.
+    """
 
-    class _ThreadedLoopAdapter:
-        """Utility class to start an asyncio event loop in a new thread and redirect coroutines.
-        This allows to run Playwright in a different loop than the Scrapy crawler, allowing to
-        use ProactorEventLoop which is supported by Playwright on Windows.
-        """
+    _loop: asyncio.AbstractEventLoop
+    _thread: threading.Thread
+    _coro_queue: asyncio.Queue = asyncio.Queue()
+    _stop_events: Dict[int, asyncio.Event] = {}
 
-        _loop: asyncio.AbstractEventLoop
-        _thread: threading.Thread
-        _coro_queue: asyncio.Queue = asyncio.Queue()
-        _stop_event: asyncio.Event = asyncio.Event()
+    @classmethod
+    async def _handle_coro(cls, coro: Awaitable, dfd: Deferred) -> None:
+        from twisted.internet import reactor
 
-        @classmethod
-        async def _handle_coro(cls, coro, future) -> None:
-            try:
-                future.set_result(await coro)
-            except Exception as exc:
-                future.set_exception(exc)
+        try:
+            result = await coro
+        except Exception as exc:
+            reactor.callFromThread(dfd.errback, failure.Failure(exc))
+        else:
+            reactor.callFromThread(dfd.callback, result)
 
-        @classmethod
-        async def _process_queue(cls) -> None:
-            while not cls._stop_event.is_set():
-                coro, future = await cls._coro_queue.get()
-                asyncio.create_task(cls._handle_coro(coro, future))
-                cls._coro_queue.task_done()
+    @classmethod
+    async def _process_queue(cls) -> None:
+        while any(not ev.is_set() for ev in cls._stop_events.values()):
+            coro, dfd = await cls._coro_queue.get()
+            asyncio.create_task(cls._handle_coro(coro, dfd))
+            cls._coro_queue.task_done()
 
-        @classmethod
-        def _deferred_from_coro(cls, coro) -> Deferred:
-            future: asyncio.Future = asyncio.Future()
-            asyncio.run_coroutine_threadsafe(cls._coro_queue.put((coro, future)), cls._loop)
-            return scrapy.utils.defer.deferred_from_coro(future)
+    @classmethod
+    def _deferred_from_coro(cls, coro) -> Deferred:
+        dfd: Deferred = Deferred()
+        asyncio.run_coroutine_threadsafe(cls._coro_queue.put((coro, dfd)), cls._loop)
+        return dfd
 
-        @classmethod
-        def start(cls) -> None:
-            policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
+    @classmethod
+    def start(cls, caller_id: int) -> None:
+        cls._stop_events[caller_id] = asyncio.Event()
+        if not getattr(cls, "_loop", None):
+            policy = asyncio.DefaultEventLoopPolicy()
+            if platform.system() == "Windows":
+                policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
             cls._loop = policy.new_event_loop()
-            asyncio.set_event_loop(cls._loop)
 
+        if not getattr(cls, "_thread", None):
             cls._thread = threading.Thread(target=cls._loop.run_forever, daemon=True)
             cls._thread.start()
             logger.info("Started loop on separate thread: %s", cls._loop)
-
             asyncio.run_coroutine_threadsafe(cls._process_queue(), cls._loop)
 
-        @classmethod
-        def stop(cls) -> None:
-            cls._stop_event.set()
+    @classmethod
+    def stop(cls, caller_id: int) -> None:
+        """Wait until all handlers are closed to stop the event loop and join the thread."""
+        cls._stop_events[caller_id].set()
+        if all(ev.is_set() for ev in cls._stop_events.values()):
             asyncio.run_coroutine_threadsafe(cls._coro_queue.join(), cls._loop)
             cls._loop.call_soon_threadsafe(cls._loop.stop)
             cls._thread.join()
-
-    _deferred_from_coro = _ThreadedLoopAdapter._deferred_from_coro
-else:
-
-    class _ThreadedLoopAdapter:  # type: ignore[no-redef]
-        @classmethod
-        def start(cls) -> None:
-            pass
-
-        @classmethod
-        def stop(cls) -> None:
-            pass
-
-    _deferred_from_coro = scrapy.utils.defer.deferred_from_coro

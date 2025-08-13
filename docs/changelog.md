@@ -1,5 +1,37 @@
 # scrapy-playwright changelog
 
+
+### [v0.0.44](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.44) (2025-08-13)
+
+* Fix crawl getting stuck on Windows with Scrapy>=2.13 (#351)
+
+
+### [v0.0.43](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.43) (2025-02-22)
+
+* Only register request and response loggers when needed (#336)
+
+
+### [v0.0.42](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.42) (2024-11-06)
+
+* Allow custom PageMethod callbacks (#318)
+* Fix download errors caused by Content-Encoding header (#322)
+
+
+### [v0.0.41](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.41) (2024-08-13)
+
+* Keyword arguments for PLAYWRIGHT_PROCESS_REQUEST_HEADERS, pass additional Request data (#303).
+  Deprecated positional argument handling for the function passed to the PLAYWRIGHT_PROCESS_REQUEST_HEADERS
+  setting, arguments should now be handled by keyword.
+* Retry to create page on browser crash (#305)
+* Fix typo in log message (#312)
+
+
+### [v0.0.40](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.40) (2024-07-16)
+
+* Enforce asyncio reactor in all platforms (#298)
+* Allow multiple handlers in separate thread (#299)
+
+
 ### [v0.0.39](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.39) (2024-07-11)
 
 * Return proper status and headers for downloads (#293)

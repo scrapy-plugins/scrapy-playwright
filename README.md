@@ -22,7 +22,7 @@ to integrate `asyncio`-based projects such as `Playwright`.
 
 ### Minimum required versions
 
-* Python >= 3.8
+* Python >= 3.9
 * Scrapy >= 2.0 (!= 2.4.0)
 * Playwright >= 1.15
 
@@ -76,15 +76,14 @@ requests will be processed by the regular Scrapy download handler.
 
 ### Twisted reactor
 
-When running on GNU/Linux or macOS you'll need to
-[install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
+[Install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
 
 ```python
 # settings.py
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 ```
 
-This is not a requirement on Windows (see [Windows support](#windows-support))
+This is the default in new projects since [Scrapy 2.7](https://github.com/scrapy/scrapy/releases/tag/2.7.0).
 
 
 ## Basic usage
@@ -282,21 +281,24 @@ PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 10 * 1000  # 10 seconds
 ### `PLAYWRIGHT_PROCESS_REQUEST_HEADERS`
 Type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`
 
-A function (or the path to a function) that processes headers for a given request
-and returns a dictionary with the headers to be used (note that, depending on the browser,
-additional default headers could be sent as well). Coroutine functions (`async def`) are
-supported.
+A function (or the path to a function) that processes a Playwright request and returns a
+dictionary with headers to be overridden (note that, depending on the browser, additional
+default headers could be sent as well). Coroutine functions (`async def`) are supported.
 
-This will be called at least once for each Scrapy request (receiving said request and the
-corresponding Playwright request), but it could be called additional times if the given
-resource generates more requests (e.g. to retrieve assets like images or scripts).
+This will be called at least once for each Scrapy request, but it could be called additional times
+if Playwright generates more requests (e.g. to retrieve assets like images or scripts).
 
-The function must return a `dict` object, and receives the following positional arguments:
+The function must return a `Dict[str, str]` object, and receives the following three **keyword** arguments:
 
 ```python
-- browser_type: str
+- browser_type_name: str
 - playwright_request: playwright.async_api.Request
-- scrapy_headers: scrapy.http.headers.Headers
+- scrapy_request_data: dict
+    * method: str
+    * url: str
+    * headers: scrapy.http.headers.Headers
+    * body: Optional[bytes]
+    * encoding: str
 ```
 
 The default function (`scrapy_playwright.headers.use_scrapy_headers`) tries to
@@ -311,6 +313,38 @@ set by Playwright will be sent. Keep in mind that in this case, headers passed
 via the `Request.headers` attribute or set by Scrapy components are ignored
 (including cookies set via the `Request.cookies` attribute).
 
+Example:
+```python
+async def custom_headers(
+    *,
+    browser_type_name: str,
+    playwright_request: playwright.async_api.Request,
+    scrapy_request_data: dict,
+) -> Dict[str, str]:
+    headers = await playwright_request.all_headers()
+    scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
+    headers["Cookie"] = scrapy_headers.get("Cookie")
+    return headers
+
+PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
+```
+
+#### Deprecated argument handling
+
+In version 0.0.40 and earlier, arguments were passed to the function positionally,
+and only the Scrapy headers were passed instead of a dictionary with data about the
+Scrapy request.
+This is deprecated since version 0.0.41, and support for this way of handling arguments
+will eventually be removed in accordance with the [Deprecation policy](#deprecation-policy).
+
+Passed arguments:
+```python
+- browser_type: str
+- playwright_request: playwright.async_api.Request
+- scrapy_headers: scrapy.http.headers.Headers
+```
+
+Example:
 ```python
 def custom_headers(
     browser_type: str,
@@ -827,10 +861,12 @@ down or clicking links) and you want to handle only the final result in your cal
 
 ### `PageMethod` class
 
-#### `scrapy_playwright.page.PageMethod(method: str, *args, **kwargs)`:
+#### `scrapy_playwright.page.PageMethod(method: str | callable, *args, **kwargs)`:
 
 Represents a method to be called (and awaited if necessary) on a
 `playwright.page.Page` object (e.g. "click", "screenshot", "evaluate", etc).
+It's also possible to pass callable objects that will be invoked as callbacks
+and receive Playwright Page as argument.
 `method` is the name of the method, `*args` and `**kwargs`
 are passed when calling such method. The return value
 will be stored in the `PageMethod.result` attribute.
@@ -868,8 +904,34 @@ async def parse(self, response, **kwargs):
     await page.close()
 ```
 
+### Passing callable objects
 
-### Supported methods
+If a `PageMethod` receives a callable object as its first argument, it will be
+called with the page as its first argument. Any additional arguments are passed
+to the callable after the page.
+
+```python
+async def scroll_page(page: Page) -> str:
+    await page.wait_for_selector(selector="div.quote")
+    await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
+    await page.wait_for_selector(selector="div.quote:nth-child(11)")
+    return page.url
+
+
+class MySpyder(scrapy.Spider):
+    name = "scroll"
+
+    def start_requests(self):
+        yield Request(
+            url="https://quotes.toscrape.com/scroll",
+            meta={
+                "playwright": True,
+                "playwright_page_methods": [PageMethod(scroll_page)],
+            },
+        )
+```
+
+### Supported Playwright methods
 
 Refer to the [upstream docs for the `Page` class](https://playwright.dev/python/docs/api/class-page)
 to see available methods.
