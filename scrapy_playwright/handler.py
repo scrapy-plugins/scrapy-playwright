@@ -24,7 +24,7 @@ from playwright.async_api import (
     Route,
 )
 from scrapy import Spider, signals
-from scrapy.core.downloader.handlers.http import HTTPDownloadHandler
+from scrapy.core.downloader.handlers.http11 import HTTP11DownloadHandler
 from scrapy.crawler import Crawler
 from scrapy.exceptions import NotSupported, ScrapyDeprecationWarning
 from scrapy.http import Request, Response
@@ -133,7 +133,7 @@ class Config:
         return cfg
 
 
-class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
+class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     playwright_context_manager: Optional[PlaywrightContextManager] = None
     playwright: Optional[AsyncPlaywright] = None
 
