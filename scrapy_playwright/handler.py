@@ -400,7 +400,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     else:
 
-        def download_request(  # type: ignore[misc] # pylint: disable=invalid-overridden-method,arguments-differ
+        def download_request(  # type: ignore[misc] # pylint: disable=invalid-overridden-method,arguments-differ # noqa: E501
             self, request: Request, spider: Spider
         ) -> Deferred:
             if request.meta.get("playwright"):
