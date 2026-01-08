@@ -52,6 +52,9 @@ from scrapy_playwright._utils import (
 __all__ = ["ScrapyPlaywrightDownloadHandler"]
 
 
+_SCRAPY_ASYNC_API = scrapy_version_info >= (2, 14, 0)
+
+
 PlaywrightHandler = TypeVar("PlaywrightHandler", bound="ScrapyPlaywrightDownloadHandler")
 
 
@@ -138,7 +141,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     playwright: Optional[AsyncPlaywright] = None
 
     def __init__(self, crawler: Crawler) -> None:
-        if scrapy_version_info >= (2, 14, 0):
+        if _SCRAPY_ASYNC_API:
             super().__init__(crawler=crawler)  # pylint: disable=no-value-for-parameter
         else:
             super().__init__(settings=crawler.settings, crawler=crawler)
@@ -374,6 +377,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     def download_request(self, request: Request, spider: Spider) -> Deferred:
         if request.meta.get("playwright"):
             return self._deferred_from_coro(self._download_request(request, spider))
+        if _SCRAPY_ASYNC_API:
+            return super().download_request(request)
         return super().download_request(request, spider)
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
