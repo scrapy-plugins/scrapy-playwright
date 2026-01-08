@@ -23,7 +23,7 @@ from playwright.async_api import (
     Response as PlaywrightResponse,
     Route,
 )
-from scrapy import Spider, signals
+from scrapy import Spider, signals, version_info as scrapy_version_info
 from scrapy.core.downloader.handlers.http11 import HTTP11DownloadHandler
 from scrapy.crawler import Crawler
 from scrapy.exceptions import NotSupported, ScrapyDeprecationWarning
@@ -138,7 +138,10 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     playwright: Optional[AsyncPlaywright] = None
 
     def __init__(self, crawler: Crawler) -> None:
-        super().__init__(settings=crawler.settings, crawler=crawler)
+        if scrapy_version_info >= (2, 14, 0):
+            super().__init__(crawler=crawler)
+        else:
+            super().__init__(settings=crawler.settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
