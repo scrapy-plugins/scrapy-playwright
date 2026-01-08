@@ -1,4 +1,5 @@
-from scrapy import Spider
+import pytest
+from scrapy import Spider, version_info as scrapy_version_info
 from scrapy.http import Request, Response
 from scrapy.utils.test import get_crawler
 from twisted.internet import defer
@@ -8,11 +9,18 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from tests.mockserver import StaticMockServer
 
 
+@pytest.mark.skipif(
+    scrapy_version_info >= (2, 14, 0),
+    reason="Does not apply to Scrapy >= 2.14.0"
+)
 class MixedRequestsTestCase(TestCase):
     """
-    This test case ensures the handler's 'download_request' method works as expected, and
+    This test case ensures the handler's 'download_request' method works as expected and
     non-playwright requests are processed correctly. The rest of the tests directly call
     '_download_request', which is a coroutine ('download_request' returns a Deferred).
+
+    Update: since Scrapy 2.14.0, the default download handler uses the async API, returning a
+    coroutine from the 'download_request' method, making this test case obsolete.
     """
 
     timeout_ms = 500
