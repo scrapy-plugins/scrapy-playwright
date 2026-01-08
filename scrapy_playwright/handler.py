@@ -31,7 +31,7 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.settings import Settings
-from scrapy.utils.defer import deferred_from_coro
+from scrapy.utils.defer import deferred_from_coro, maybe_deferred_to_future
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -142,9 +142,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         if _SCRAPY_ASYNC_API:
-            super().__init__(crawler=crawler)  # pylint: disable=no-value-for-parameter
+            super().__init__(crawler=crawler)
         else:
-            super().__init__(settings=crawler.settings, crawler=crawler)
+            super().__init__(  # pylint: disable=unexpected-keyword-arg
+                settings=crawler.settings, crawler=crawler
+            )
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
@@ -354,13 +356,24 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 "playwright/context_count/max_concurrent", len(self.context_wrappers)
             )
 
-    @inlineCallbacks
-    def close(self) -> Deferred:
-        logger.info("Closing download handler")
-        yield super().close()
-        yield self._deferred_from_coro(self._close())
-        if self.config.use_threaded_loop:
-            _ThreadedLoopAdapter.stop(id(self))
+    if _SCRAPY_ASYNC_API:
+
+        async def close(self) -> None:
+            logger.info("Closing download handler")
+            await super().close()
+            await self._close()
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
+
+    else:
+
+        @inlineCallbacks
+        def close(self) -> Deferred:  # pylint: disable=invalid-overridden-method
+            logger.info("Closing download handler")
+            yield super().close()
+            yield self._deferred_from_coro(self._close())
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
 
     async def _close(self) -> None:
         with suppress(TargetClosedError):
@@ -374,12 +387,27 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         if self.playwright:
             await self.playwright.stop()
 
-    def download_request(self, request: Request, spider: Spider) -> Deferred:
-        if request.meta.get("playwright"):
-            return self._deferred_from_coro(self._download_request(request, spider))
-        if _SCRAPY_ASYNC_API:
-            return super().download_request(request)
-        return super().download_request(request, spider)
+    if _SCRAPY_ASYNC_API:
+
+        async def download_request(self, request: Request) -> Response:
+            if request.meta.get("playwright"):
+                return await maybe_deferred_to_future(
+                    self._deferred_from_coro(self._download_request(request, self._crawler.spider))
+                )
+            return await super().download_request(  # pylint: disable=no-value-for-parameter
+                request
+            )
+
+    else:
+
+        def download_request(  # type: ignore[misc] # pylint: disable=invalid-overridden-method,arguments-differ
+            self, request: Request, spider: Spider
+        ) -> Deferred:
+            if request.meta.get("playwright"):
+                return self._deferred_from_coro(self._download_request(request, spider))
+            return super().download_request(  # pylint: disable=unexpected-keyword-arg
+                request=request, spider=spider
+            )
 
     async def _download_request(self, request: Request, spider: Spider) -> Response:
         counter = 0
