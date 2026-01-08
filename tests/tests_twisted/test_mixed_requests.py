@@ -9,10 +9,7 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 from tests.mockserver import StaticMockServer
 
 
-@pytest.mark.skipif(
-    scrapy_version_info >= (2, 14, 0),
-    reason="Does not apply to Scrapy >= 2.14.0"
-)
+@pytest.mark.skipif(scrapy_version_info >= (2, 14, 0), reason="Does not apply to Scrapy >= 2.14.0")
 class MixedRequestsTestCase(TestCase):
     """
     This test case ensures the handler's 'download_request' method works as expected and
