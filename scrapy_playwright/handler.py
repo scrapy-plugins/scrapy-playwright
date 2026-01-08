@@ -139,7 +139,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     def __init__(self, crawler: Crawler) -> None:
         if scrapy_version_info >= (2, 14, 0):
-            super().__init__(crawler=crawler)
+            super().__init__(crawler=crawler)  # pylint: disable=no-value-for-parameter
         else:
             super().__init__(settings=crawler.settings, crawler=crawler)
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
