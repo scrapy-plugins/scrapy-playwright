@@ -499,7 +499,7 @@ class MixinTestCase:
     @allow_windows
     async def test_download_file_failure(self):
         if self.browser_type != "chromium":
-            pytest.skip()
+            pytest.skip("Test only on Chromium")
 
         async def cancel_download(download):
             await download.cancel()
