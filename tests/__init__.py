@@ -10,6 +10,8 @@ from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
 
+from scrapy_playwright.handler import _SCRAPY_ASYNC_API
+
 
 logger = logging.getLogger("scrapy-playwright-tests")
 
@@ -54,7 +56,10 @@ async def make_handler(settings_dict: Optional[dict] = None):
     else:
         yield handler
     finally:
-        await handler._close()
+        if _SCRAPY_ASYNC_API:
+            await handler.close()
+        else:
+            await handler._close()
 
 
 def assert_correct_response(response: HtmlResponse, request: Request) -> None:
