@@ -87,8 +87,11 @@ jobs:
     - name: Install tox
       run: pip install tox
 
-    - name: Run tests with pinned versions
+    - name: Run asyncio tests with pinned versions
       run: tox -e py-pinned
+
+    - name: Run twisted tests with pinned versions
+      run: tox -e py-pinned-twisted
 
     - name: Upload coverage report
       env:

@@ -55,7 +55,7 @@ class MixedRequestsTestCase(TestCase):
         def _check_playwright_error(failure, url):
             # different errors depending on the platform
             self.assertTrue(
-                f"Page.goto: net::ERR_CONNECTION_REFUSED at {url}" in str(failure.value)
+                f"net::ERR_CONNECTION_REFUSED at {url}" in str(failure.value)
                 or f"Page.goto: Timeout {self.timeout_ms}ms exceeded" in str(failure.value)
             )
 
