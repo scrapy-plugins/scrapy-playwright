@@ -15,7 +15,7 @@ from playwright.async_api import (
 )
 from scrapy import Spider, Request, FormRequest
 
-from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
+from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME, _SCRAPY_ASYNC_API
 from scrapy_playwright.page import PageMethod
 
 from tests import allow_windows, make_handler, assert_correct_response
@@ -51,11 +51,21 @@ class MixinTestCase:
                 req = Request(server.urljoin("/index.html"), meta=meta)
                 resp = await handler._download_request(req, Spider("foo"))
 
+                if _SCRAPY_ASYNC_API:
+                    req2 = Request(server.urljoin("/gallery.html"), meta=meta)
+                    resp2 = await handler.download_request(req2)
+
             assert_correct_response(resp, req)
             assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
             assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
             assert resp.meta["playwright_page"].url == resp.url
             await resp.meta["playwright_page"].close()
+
+            if _SCRAPY_ASYNC_API:
+                assert_correct_response(resp2, req2)
+                assert isinstance(resp2.meta["playwright_page"], PlaywrightPage)
+                assert resp2.meta["playwright_page"].url == resp2.url
+                await resp2.meta["playwright_page"].close()
 
     @allow_windows
     async def test_post_request(self):
