@@ -146,7 +146,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
     @staticmethod
     def kill_chrome():
         for proc in psutil.process_iter(["pid", "name"]):
-            started_time = proc.create_time()  # seconds since since January 1, 1970 UTC
+            started_time = proc.create_time()  # seconds since January 1, 1970 UTC
             # only consider processes started in the last 10 seconds
             if not started_time >= time.time() - 10:
                 continue
