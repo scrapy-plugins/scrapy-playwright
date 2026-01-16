@@ -1,10 +1,8 @@
 import asyncio
 import logging
-import os
 import platform
 import random
 import re
-import signal
 import subprocess
 import time
 import uuid
@@ -148,8 +146,14 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
     @staticmethod
     def kill_chrome():
         for proc in psutil.process_iter(["pid", "name"]):
-            if proc.info["name"].lower() in ("chrome", "chromium"):
-                os.kill(proc.info["pid"], signal.SIGKILL)
+            started_time = proc.create_time()  # seconds since January 1, 1970 UTC
+            # only consider processes started in the last 10 seconds
+            if not started_time >= time.time() - 10:
+                continue
+            name = proc.info["name"].lower()
+            if "chrome" in name or "chromium" in name:
+                proc.kill()
+                print("Killed process:", proc)
 
     @allow_windows
     async def test_browser_closed_restart(self):

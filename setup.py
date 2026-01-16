@@ -22,7 +22,6 @@ setuptools.setup(
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -33,9 +32,9 @@ setuptools.setup(
         "Topic :: Software Development :: Libraries :: Application Frameworks",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=[
-        "scrapy>=2.0,!=2.4.0",
-        "playwright>=1.15",
+        "scrapy>=2.7",
+        "playwright>=1.40",
     ],
 )

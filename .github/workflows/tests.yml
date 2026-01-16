@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
         include:
           - os: macos-14
             python-version: "3.12"
@@ -65,3 +65,38 @@ jobs:
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri https://uploader.codecov.io/latest/windows/codecov.exe -Outfile codecov.exe
         .\codecov.exe
+
+  tests-pinned:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Set up node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Run asyncio tests with pinned versions
+      run: tox -e py-pinned
+
+    - name: Run twisted tests with pinned versions
+      run: tox -e py-pinned-twisted
+
+    - name: Upload coverage report
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        chmod +x codecov
+        ./codecov
