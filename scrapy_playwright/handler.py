@@ -141,14 +141,15 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     playwright: Optional[AsyncPlaywright] = None
 
     def __init__(self, crawler: Crawler) -> None:
+        verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         if _SCRAPY_ASYNC_API:
             super().__init__(crawler=crawler)
+            crawler.signals.connect(self._launch, signals.engine_started)
         else:
             super().__init__(  # pylint: disable=unexpected-keyword-arg
                 settings=crawler.settings, crawler=crawler
             )
-        verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
-        crawler.signals.connect(self._engine_started, signals.engine_started)
+            crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
         self.config = Config.from_settings(crawler.settings)
 
