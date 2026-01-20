@@ -189,16 +189,16 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             return _ThreadedLoopAdapter._deferred_from_coro(coro)
         return deferred_from_coro(coro)
 
-    def _future_from_coro(self, coro: Awaitable) -> asyncio.Future:
+    def _maybe_future_from_coro(self, coro: Awaitable) -> Awaitable | asyncio.Future:
         if self.config.use_threaded_loop:
             return _ThreadedLoopAdapter._future_from_coro(coro)
-        return asyncio.ensure_future(coro)
+        return coro
 
     def _engine_started(self) -> Deferred:
         return self._deferred_from_coro(self._launch())
 
     async def _maybe_launch_in_thread(self) -> None:
-        await self._future_from_coro(self._launch())
+        await self._maybe_future_from_coro(self._launch())
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
@@ -372,7 +372,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         async def close(self) -> None:
             logger.info("Closing download handler")
             await super().close()
-            await self._future_from_coro(self._close())
+            await self._maybe_future_from_coro(self._close())
             if self.config.use_threaded_loop:
                 _ThreadedLoopAdapter.stop(id(self))
 
@@ -403,7 +403,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         async def download_request(self, request: Request) -> Response:
             if request.meta.get("playwright"):
                 coro = self._download_request(request)
-                return await self._future_from_coro(coro)
+                return await self._maybe_future_from_coro(coro)
             return await super().download_request(  # pylint: disable=no-value-for-parameter
                 request
             )
