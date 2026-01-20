@@ -26,11 +26,10 @@ if platform.system() == "Windows":
 
         @wraps(test_method)
         async def wrapped(self, *args, **kwargs):
-            caller_id = 1234
-            _ThreadedLoopAdapter.start(caller_id)
+            _ThreadedLoopAdapter.start(id(test_method))
             coro = test_method(self, *args, **kwargs)
-            asyncio.run_coroutine_threadsafe(coro=coro, loop=_ThreadedLoopAdapter._loop).result()
-            _ThreadedLoopAdapter.stop(caller_id)
+            future = asyncio.run_coroutine_threadsafe(coro=coro, loop=_ThreadedLoopAdapter._loop)
+            return future.result()
 
         return wrapped
 
