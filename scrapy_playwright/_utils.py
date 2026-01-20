@@ -158,14 +158,14 @@ class _ThreadedLoopAdapter:
             cls._coro_queue.task_done()
 
     @classmethod
-    def _deferred_from_coro(cls, coro) -> Deferred:
+    def _deferred_from_coro(cls, coro: Awaitable) -> Deferred:
         dfd: Deferred = Deferred()
         queue_item = _QueueItem(coro=coro, promise=dfd)
         asyncio.run_coroutine_threadsafe(cls._coro_queue.put(queue_item), cls._loop)
         return dfd
 
     @classmethod
-    def _future_from_coro(cls, coro) -> asyncio.Future:
+    def _future_from_coro(cls, coro: Awaitable) -> asyncio.Future:
         target_loop = asyncio.get_running_loop()  # Scrapy thread loop
         future: asyncio.Future = asyncio.Future()
         queue_item = _QueueItem(coro=coro, promise=future, loop=target_loop)
