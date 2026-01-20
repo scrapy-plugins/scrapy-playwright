@@ -363,6 +363,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             logger.info("Closing download handler")
             await super().close()
             await self._close()
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
 
     else:
 
@@ -371,6 +373,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             logger.info("Closing download handler")
             yield super().close()
             yield self._deferred_from_coro(self._close())
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
 
     async def _close(self) -> None:
         with suppress(TargetClosedError):
@@ -383,8 +387,6 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             await self.playwright_context_manager.__aexit__()
         if self.playwright:
             await self.playwright.stop()
-        if self.config.use_threaded_loop:
-            _ThreadedLoopAdapter.stop(id(self))
 
     if _SCRAPY_ASYNC_API:
 

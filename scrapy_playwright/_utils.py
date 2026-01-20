@@ -140,8 +140,11 @@ class _ThreadedLoopAdapter:
         return dfd
 
     @classmethod
-    def start(cls, caller_id: int) -> None:
-        cls._stop_events[caller_id] = asyncio.Event()
+    def start(cls, download_handler_id: int) -> None:
+        """Start the event loop in a new thread if not already started.
+        Should be called from the Scrapy thread.
+        """
+        cls._stop_events[download_handler_id] = asyncio.Event()
         if not getattr(cls, "_loop", None):
             policy = asyncio.DefaultEventLoopPolicy()
             if platform.system() == "Windows":
@@ -155,9 +158,11 @@ class _ThreadedLoopAdapter:
             asyncio.run_coroutine_threadsafe(cls._process_queue(), cls._loop)
 
     @classmethod
-    def stop(cls, caller_id: int) -> None:
-        """Wait until all handlers are closed to stop the event loop and join the thread."""
-        cls._stop_events[caller_id].set()
+    def stop(cls, download_handler_id: int) -> None:
+        """Wait until all handlers are closed to stop the event loop and join the thread.
+        Should be called from the Scrapy thread.
+        """
+        cls._stop_events[download_handler_id].set()
         if all(ev.is_set() for ev in cls._stop_events.values()):
             asyncio.run_coroutine_threadsafe(cls._coro_queue.join(), cls._loop)
             cls._loop.call_soon_threadsafe(cls._loop.stop)
