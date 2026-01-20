@@ -2,6 +2,7 @@ import asyncio
 import logging
 import platform
 import threading
+from dataclasses import dataclass
 from typing import Awaitable, Dict, Iterator, Optional, Tuple, Union
 
 import scrapy
@@ -104,6 +105,13 @@ async def _get_header_value(
         return None
 
 
+@dataclass
+class _QueueItem:
+    coro: Awaitable
+    promise: Deferred | asyncio.Future
+    loop: asyncio.AbstractEventLoop | None = None
+
+
 class _ThreadedLoopAdapter:
     """Utility class to start an asyncio event loop in a new thread and redirect coroutines.
     This allows to run Playwright in a different loop than the Scrapy crawler, allowing to
@@ -116,28 +124,53 @@ class _ThreadedLoopAdapter:
     _stop_events: Dict[int, asyncio.Event] = {}
 
     @classmethod
-    async def _handle_coro(cls, coro: Awaitable, dfd: Deferred) -> None:
+    async def _handle_coro_deferred(cls, queue_item: _QueueItem) -> None:
         from twisted.internet import reactor
 
+        dfd: Deferred = queue_item.promise
+
         try:
-            result = await coro
+            result = await queue_item.coro
         except Exception as exc:
             reactor.callFromThread(dfd.errback, failure.Failure(exc))
         else:
             reactor.callFromThread(dfd.callback, result)
 
     @classmethod
+    async def _handle_coro_future(cls, queue_item: _QueueItem) -> None:
+        future: asyncio.Future = queue_item.promise
+        assert queue_item.loop is not None  # typing
+        try:
+            result = await queue_item.coro
+        except Exception as exc:
+            queue_item.loop.call_soon_threadsafe(future.set_exception, exc)
+        else:
+            queue_item.loop.call_soon_threadsafe(future.set_result, result)
+
+    @classmethod
     async def _process_queue(cls) -> None:
         while any(not ev.is_set() for ev in cls._stop_events.values()):
-            coro, dfd = await cls._coro_queue.get()
-            asyncio.create_task(cls._handle_coro(coro, dfd))
+            queue_item = await cls._coro_queue.get()
+            if isinstance(queue_item.promise, asyncio.Future):
+                asyncio.create_task(cls._handle_coro_future(queue_item))
+            elif isinstance(queue_item.promise, Deferred):
+                asyncio.create_task(cls._handle_coro_deferred(queue_item))
             cls._coro_queue.task_done()
 
     @classmethod
     def _deferred_from_coro(cls, coro) -> Deferred:
         dfd: Deferred = Deferred()
-        asyncio.run_coroutine_threadsafe(cls._coro_queue.put((coro, dfd)), cls._loop)
+        queue_item = _QueueItem(coro=coro, promise=dfd)
+        asyncio.run_coroutine_threadsafe(cls._coro_queue.put(queue_item), cls._loop)
         return dfd
+
+    @classmethod
+    def _future_from_coro(cls, coro) -> asyncio.Future:
+        target_loop = asyncio.get_running_loop()  # Scrapy thread loop
+        future: asyncio.Future = asyncio.Future()
+        queue_item = _QueueItem(coro=coro, promise=future, loop=target_loop)
+        asyncio.run_coroutine_threadsafe(cls._coro_queue.put(queue_item), cls._loop)
+        return future
 
     @classmethod
     def start(cls, download_handler_id: int) -> None:
