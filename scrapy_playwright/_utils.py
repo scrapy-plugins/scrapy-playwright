@@ -139,13 +139,13 @@ class _ThreadedLoopAdapter:
     @classmethod
     async def _handle_coro_future(cls, queue_item: _QueueItem) -> None:
         future: asyncio.Future = queue_item.promise
-        assert queue_item.loop is not None  # typing
+        loop: asyncio.AbstractEventLoop = queue_item.loop  # type: ignore[assignment]
         try:
             result = await queue_item.coro
         except Exception as exc:
-            queue_item.loop.call_soon_threadsafe(future.set_exception, exc)
+            loop.call_soon_threadsafe(future.set_exception, exc)
         else:
-            queue_item.loop.call_soon_threadsafe(future.set_result, result)
+            loop.call_soon_threadsafe(future.set_result, result)
 
     @classmethod
     async def _process_queue(cls) -> None:
