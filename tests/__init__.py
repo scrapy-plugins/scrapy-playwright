@@ -10,6 +10,8 @@ from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
 
+from scrapy_playwright.handler import _SCRAPY_ASYNC_API
+
 
 logger = logging.getLogger("scrapy-playwright-tests")
 
@@ -24,11 +26,9 @@ if platform.system() == "Windows":
 
         @wraps(test_method)
         async def wrapped(self, *args, **kwargs):
-            caller_id = 1234
-            _ThreadedLoopAdapter.start(caller_id)
+            _ThreadedLoopAdapter.start(id(test_method))
             coro = test_method(self, *args, **kwargs)
             asyncio.run_coroutine_threadsafe(coro=coro, loop=_ThreadedLoopAdapter._loop).result()
-            _ThreadedLoopAdapter.stop(caller_id)
 
         return wrapped
 
@@ -48,13 +48,16 @@ async def make_handler(settings_dict: Optional[dict] = None):
     crawler = get_crawler(settings_dict=settings)
     handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
     try:
-        await handler._launch()
+        await handler._maybe_launch_in_thread()
     except:  # noqa (E722), pylint: disable=bare-except
         pass
     else:
         yield handler
     finally:
-        await handler._close()
+        if _SCRAPY_ASYNC_API:
+            await handler.close()
+        else:
+            await handler._close()
 
 
 def assert_correct_response(response: HtmlResponse, request: Request) -> None:

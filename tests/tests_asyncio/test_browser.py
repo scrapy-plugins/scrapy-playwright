@@ -1,10 +1,7 @@
 import asyncio
 import logging
-import os
-import platform
 import random
 import re
-import signal
 import subprocess
 import time
 import uuid
@@ -108,7 +105,6 @@ class TestBrowserRemoteChromium(IsolatedAsyncioTestCase):
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
 
-    @pytest.mark.flaky(reruns=3)
     @allow_windows
     async def test_connect(self):
         async with remote_chromium(with_devtools_protocol=False) as browser_url:
@@ -148,8 +144,14 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
     @staticmethod
     def kill_chrome():
         for proc in psutil.process_iter(["pid", "name"]):
-            if proc.info["name"].lower() in ("chrome", "chromium"):
-                os.kill(proc.info["pid"], signal.SIGKILL)
+            started_time = proc.create_time()  # seconds since January 1, 1970 UTC
+            # only consider processes started in the last 10 seconds
+            if not started_time >= time.time() - 10:
+                continue
+            name = proc.info["name"].lower()
+            if "chrome" in name or "chromium" in name:
+                proc.kill()
+                print("Killed process:", proc)
 
     @allow_windows
     async def test_browser_closed_restart(self):
@@ -188,10 +190,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after calling Browser.close() manually
         )
 
-    @pytest.mark.skipif(
-        platform.system() == "Windows",
-        reason="os.kill does not work as expected on Windows",
-    )
+    @allow_windows
     async def test_browser_crashed_restart(self):
         spider = Spider("foo")
         async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
@@ -235,10 +234,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after killing the broser process
         )
 
-    @pytest.mark.skipif(
-        platform.system() == "Windows",
-        reason="os.kill does not work as expected on Windows",
-    )
+    @allow_windows
     async def test_browser_crashed_do_not_restart(self):
         spider = Spider("foo")
         settings_dict = {

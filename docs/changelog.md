@@ -1,6 +1,16 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.46](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.46) (2026-01-21)
+
+* Threaded loop updates & fixes (#361)
+
+
+### [v0.0.45](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.45) (2026-01-16)
+
+* Scrapy 2.14 compatibility (#356, #359)
+
+
 ### [v0.0.44](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.44) (2025-08-13)
 
 * Fix crawl getting stuck on Windows with Scrapy>=2.13 (#351)
