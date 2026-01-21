@@ -65,4 +65,7 @@ def assert_correct_response(response: HtmlResponse, request: Request) -> None:
     assert response.request is request
     assert response.url == request.url
     assert response.status == 200
-    assert "playwright" in response.flags
+    if "playwright" in request.meta:
+        assert "playwright" in response.flags
+    else:
+        assert "playwright" not in response.flags

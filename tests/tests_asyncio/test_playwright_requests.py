@@ -67,6 +67,17 @@ class MixinTestCase:
                 assert resp2.meta["playwright_page"].url == resp2.url
                 await resp2.meta["playwright_page"].close()
 
+    @pytest.mark.skipif(not _SCRAPY_ASYNC_API, reason="Requires Scrapy async API")
+    @allow_windows
+    async def test_non_playwright_request_fallback(self):
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            req = Request("http://example.com")  # non-playwright request
+            with patch.object(
+                handler.__class__.__bases__[0], "download_request", new_callable=AsyncMock
+            ) as mock_parent_download:
+                await handler.download_request(req)
+                mock_parent_download.assert_called_once_with(req)
+
     @allow_windows
     async def test_post_request(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
