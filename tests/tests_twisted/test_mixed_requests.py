@@ -56,7 +56,7 @@ class MixedRequestsTestCase(TestCase):
             # different errors depending on the platform
             self.assertTrue(
                 f"net::ERR_CONNECTION_REFUSED at {url}" in str(failure.value)
-                or f"Page.goto: Timeout {self.timeout_ms}ms exceeded" in str(failure.value)
+                or f"Timeout {self.timeout_ms}ms exceeded" in str(failure.value)
             )
 
         req1 = Request(self.server.urljoin("/index.html"))

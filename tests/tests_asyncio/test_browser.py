@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import platform
 import random
 import re
 import subprocess
@@ -106,7 +105,6 @@ class TestBrowserRemoteChromium(IsolatedAsyncioTestCase):
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self._caplog.record_tuples
 
-    @pytest.mark.flaky(reruns=3)
     @allow_windows
     async def test_connect(self):
         async with remote_chromium(with_devtools_protocol=False) as browser_url:
@@ -192,10 +190,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after calling Browser.close() manually
         )
 
-    @pytest.mark.skipif(
-        platform.system() == "Windows",
-        reason="os.kill does not work as expected on Windows",
-    )
+    @allow_windows
     async def test_browser_crashed_restart(self):
         spider = Spider("foo")
         async with make_handler(settings_dict={"PLAYWRIGHT_BROWSER_TYPE": "chromium"}) as handler:
@@ -239,10 +234,7 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
             == 2  # one at the beginning, one after killing the broser process
         )
 
-    @pytest.mark.skipif(
-        platform.system() == "Windows",
-        reason="os.kill does not work as expected on Windows",
-    )
+    @allow_windows
     async def test_browser_crashed_do_not_restart(self):
         spider = Spider("foo")
         settings_dict = {

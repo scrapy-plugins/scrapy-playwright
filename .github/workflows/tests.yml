@@ -39,6 +39,14 @@ jobs:
     - name: Run twisted tests
       run: tox -e py-twisted
 
+    - name: Run pinned dependency tests (Windows, asyncio tests)
+      if: runner.os == 'Windows'
+      run: tox -e py-pinned
+
+    - name: Run pinned dependency tests (Windows, Twisted tests)
+      if: runner.os == 'Windows'
+      run: tox -e py-pinned-twisted
+
     - name: Upload coverage report (Linux)
       if: runner.os == 'Linux'
       env:

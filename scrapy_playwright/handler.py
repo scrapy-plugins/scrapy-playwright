@@ -31,7 +31,7 @@ from scrapy.http import Request, Response
 from scrapy.http.headers import Headers
 from scrapy.responsetypes import responsetypes
 from scrapy.settings import Settings
-from scrapy.utils.defer import deferred_from_coro, maybe_deferred_to_future
+from scrapy.utils.defer import deferred_from_coro
 from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -144,17 +144,20 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
         if _SCRAPY_ASYNC_API:
             super().__init__(crawler=crawler)
-            crawler.signals.connect(self._launch, signals.engine_started)
         else:
             super().__init__(  # pylint: disable=unexpected-keyword-arg
                 settings=crawler.settings, crawler=crawler
             )
-            crawler.signals.connect(self._engine_started, signals.engine_started)
         self.stats = crawler.stats
         self.config = Config.from_settings(crawler.settings)
 
         if self.config.use_threaded_loop:
             _ThreadedLoopAdapter.start(id(self))
+
+        if _SCRAPY_ASYNC_API:
+            crawler.signals.connect(self._maybe_launch_in_thread, signals.engine_started)
+        else:
+            crawler.signals.connect(self._engine_started, signals.engine_started)
 
         self.browser_launch_lock = asyncio.Lock()
         self.context_launch_lock = asyncio.Lock()
@@ -186,9 +189,16 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             return _ThreadedLoopAdapter._deferred_from_coro(coro)
         return deferred_from_coro(coro)
 
+    def _maybe_future_from_coro(self, coro: Awaitable) -> Awaitable | asyncio.Future:
+        if self.config.use_threaded_loop:
+            return _ThreadedLoopAdapter._future_from_coro(coro)
+        return coro
+
     def _engine_started(self) -> Deferred:
-        """Launch the browser. Use the engine_started signal as it supports returning deferreds."""
         return self._deferred_from_coro(self._launch())
+
+    async def _maybe_launch_in_thread(self) -> None:
+        await self._maybe_future_from_coro(self._launch())
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
@@ -362,7 +372,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         async def close(self) -> None:
             logger.info("Closing download handler")
             await super().close()
-            await self._close()
+            await self._maybe_future_from_coro(self._close())
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
 
     else:
 
@@ -371,6 +383,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             logger.info("Closing download handler")
             yield super().close()
             yield self._deferred_from_coro(self._close())
+            if self.config.use_threaded_loop:
+                _ThreadedLoopAdapter.stop(id(self))
 
     async def _close(self) -> None:
         with suppress(TargetClosedError):
@@ -383,16 +397,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             await self.playwright_context_manager.__aexit__()
         if self.playwright:
             await self.playwright.stop()
-        if self.config.use_threaded_loop:
-            _ThreadedLoopAdapter.stop(id(self))
 
     if _SCRAPY_ASYNC_API:
 
         async def download_request(self, request: Request) -> Response:
             if request.meta.get("playwright"):
-                return await maybe_deferred_to_future(
-                    self._deferred_from_coro(self._download_request(request, self._crawler.spider))
-                )
+                coro = self._download_request(request)
+                return await self._maybe_future_from_coro(coro)
             return await super().download_request(  # pylint: disable=no-value-for-parameter
                 request
             )
@@ -408,7 +419,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 request=request, spider=spider
             )
 
-    async def _download_request(self, request: Request, spider: Spider) -> Response:
+    async def _download_request(self, request: Request, spider: Spider | None = None) -> Response:
+        spider = spider or self._crawler.spider
         counter = 0
         while True:
             try:
