@@ -104,43 +104,6 @@ class MixinProcessHeadersTestCase:
                 assert headers.get("user-agent") not in (self.browser_type, "foobar")
                 assert "asdf" not in headers
 
-    @allow_windows
-    async def test_use_custom_headers_deprecated_arg_handling(self):
-        """Custom header processing function that receives deprecated args"""
-
-        async def deprecated_args(
-            browser_name, pw_req, headers  # pylint: disable=unused-argument
-        ) -> dict:
-            return {"foo": "bar"}
-
-        settings_dict = {
-            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
-            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": deprecated_args,
-        }
-        async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                    headers={"User-Agent": "foobar", "Asdf": "qwerty"},
-                )
-                with warnings.catch_warnings(record=True) as warning_list:
-                    resp = await handler._download_request(req, Spider("foo"))
-                headers = json.loads(resp.css("pre::text").get())
-                headers = {key.lower(): value for key, value in headers.items()}
-                assert headers["foo"] == "bar"
-                assert headers.get("user-agent") not in (self.browser_type, "foobar")
-                assert "asdf" not in headers
-                assert str(warning_list[0].message) == (
-                    "Accepting positional arguments in the function passed to the"
-                    " PLAYWRIGHT_PROCESS_REQUEST_HEADERS setting is deprecated. The function"
-                    " should accept three (3) keyword arguments instead:"
-                    " browser_type_name: str,"
-                    " playwright_request: playwright.async_api.Request,"
-                    " scrapy_request_data: dict"
-                )
-
 
 class TestProcessHeadersChromium(IsolatedAsyncioTestCase, MixinProcessHeadersTestCase):
     browser_type = "chromium"
