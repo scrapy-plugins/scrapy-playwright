@@ -571,6 +571,32 @@ class MixinTestCase:
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
 
+    @allow_windows
+    async def test_response_attributes_when_playwright_error(self):
+        collected_error = PlaywrightError(
+            "The object has been collected to prevent unbounded heap growth."
+        )
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with MockServer() as server:
+                request = Request(
+                    url=server.urljoin("/headers"),
+                    meta={"playwright": True},
+                )
+                with patch(
+                    "playwright.async_api._generated.Response.security_details",
+                    new_callable=AsyncMock,
+                    side_effect=collected_error,
+                ), patch(
+                    "playwright.async_api._generated.Response.server_addr",
+                    new_callable=AsyncMock,
+                    side_effect=collected_error,
+                ):
+                    response = await handler._download_request(request, Spider("foo"))
+
+        assert response.status == 200
+        assert "playwright_security_details" not in request.meta
+        assert response.ip_address is None
+
 
 class TestCaseChromium(IsolatedAsyncioTestCase, MixinTestCase):
     browser_type = "chromium"
