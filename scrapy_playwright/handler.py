@@ -535,7 +535,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
         server_ip_address = None
         if response is not None:
-            request.meta["playwright_security_details"] = await response.security_details()
+            with suppress(PlaywrightError):
+                request.meta["playwright_security_details"] = await response.security_details()
             with suppress(KeyError, TypeError, ValueError):
                 server_addr = await response.server_addr()
                 server_ip_address = ip_address(server_addr["ipAddress"])
