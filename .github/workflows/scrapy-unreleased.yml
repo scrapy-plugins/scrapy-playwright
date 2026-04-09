@@ -1,0 +1,42 @@
+# This runs the tests for the unreleased Scrapy master branch.
+# It doesn't run by default, to run it label your PR with the "test-scrapy-unreleased" label.
+name: Tests with unreleased Scrapy
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, labeled ]
+
+jobs:
+  tests:
+    if: contains(github.event.pull_request.labels.*.name, 'test-scrapy-unreleased')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install tox
+      run: pip install tox
+
+    - name: Run asyncio tests
+      run: tox -e py-scrapy-unreleased
+
+    - name: Run twisted tests
+      run: tox -e py-twisted-scrapy-unreleased
