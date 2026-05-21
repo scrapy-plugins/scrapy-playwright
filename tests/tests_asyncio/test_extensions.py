@@ -39,7 +39,7 @@ class MockMemoryInfo:
     platform.system() == "Windows",
     reason="resource stdlib module is not available on Windows",
 )
-@patch("scrapy.extensions.memusage.MailSender")
+@patch("scrapy.extensions.memusage.MailSender", create=True)
 class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
     async def test_process_availability(self, _MailSender):
         """The main node process should be accessible from the context manager"""
