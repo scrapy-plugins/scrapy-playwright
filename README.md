@@ -58,7 +58,7 @@ See the [changelog](docs/changelog.md) document.
 
 ### Download handler
 
-Replace the default `http` and/or `https` Download Handlers through
+Replace the default `https` and/or `http` Download Handlers through
 [`DOWNLOAD_HANDLERS`](https://docs.scrapy.org/en/latest/topics/settings.html):
 
 ```python
@@ -702,7 +702,7 @@ instance, hence keyword arguments passed in the
 setting do not apply.
 
 **Important:** when `ScrapyPlaywrightDownloadHandler` is registered for both
-`http` and `https` schemes (the typical setup), Scrapy creates one independent
+`http` and `https` schemes, Scrapy creates one independent
 handler instance per scheme. Both instances read the same `PLAYWRIGHT_CONTEXTS`
 setting and will each try to open the same `user_data_dir`, which causes an
 error because the browser only allows one process per profile directory.
