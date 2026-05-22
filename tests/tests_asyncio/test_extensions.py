@@ -1,16 +1,29 @@
 import platform
+import warnings
 from asyncio.subprocess import Process as AsyncioProcess
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import MagicMock, patch
 
 import pytest
-import scrapy.extensions.memusage as _memusage
 from playwright.async_api import PlaywrightContextManager
 from scrapy.exceptions import NotConfigured
 from scrapy.extensions.memusage import MemoryUsage
 
 from scrapy_playwright.memusage import ScrapyPlaywrightMemoryUsageExtension
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
+
+
+# scrapy.mail is deprecated since Scrapy 2.15 and may be removed in a future
+# release. Import it once here (suppressing the warning) so that setUp can
+# patch MailSender.from_crawler on the class object itself — which works
+# regardless of whether the class is imported at module level (Scrapy < 2.15)
+# or locally inside MemoryUsage.__init__ (Scrapy >= 2.15).
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    try:
+        from scrapy.mail import MailSender as _MailSender
+    except ImportError:
+        _MailSender = None  # type: ignore[assignment,misc]
 
 
 SCHEMA_PID_MAP = {"http": 123, "https": 456}
@@ -42,10 +55,8 @@ class MockMemoryInfo:
 )
 class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
     def setUp(self):
-        # MailSender was removed in Scrapy 2.15; patch it only on older versions to prevent
-        # MemoryUsage.__init__ from trying to instantiate it with a MagicMock crawler.
-        if hasattr(_memusage, "MailSender"):
-            self._mail_sender_patcher = patch("scrapy.extensions.memusage.MailSender")
+        if _MailSender is not None:
+            self._mail_sender_patcher = patch.object(_MailSender, "from_crawler")
             self._mail_sender_patcher.start()
         else:
             self._mail_sender_patcher = None
