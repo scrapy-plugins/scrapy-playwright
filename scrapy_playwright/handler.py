@@ -706,9 +706,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         close_context_coros = [
             ctx_wrapper.context.close() for ctx_wrapper in self.context_wrappers.values()
         ]
-        self.context_wrappers.clear()
         with suppress(TargetClosedError):
             await asyncio.gather(*close_context_coros)
+        self.context_wrappers.clear()
         logger.debug("Browser disconnected")
         if self.config.restart_disconnected_browser:
             del self.browser
