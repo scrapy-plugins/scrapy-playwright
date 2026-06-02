@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from playwright.async_api import PlaywrightContextManager
 from scrapy.exceptions import NotConfigured
-from scrapy.extensions.memusage import MemoryUsage
+from scrapy.extensions import memusage
 
 from scrapy_playwright.memusage import ScrapyPlaywrightMemoryUsageExtension
 from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
@@ -15,15 +15,13 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 
 # scrapy.mail is deprecated since Scrapy 2.15 and may be removed in a future
 # release. Import it once here (suppressing the warning) so that setUp can
-# patch MailSender.from_crawler on the class object itself — which works
-# regardless of whether the class is imported at module level (Scrapy < 2.15)
-# or locally inside MemoryUsage.__init__ (Scrapy >= 2.15).
+# patch MailSender on the class object itself where needed.
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     try:
-        from scrapy.mail import MailSender as _MailSender  # pylint: disable=ungrouped-imports
+        from scrapy.mail import MailSender  # pylint: disable=ungrouped-imports
     except ImportError:
-        _MailSender = None  # type: ignore[assignment,misc]
+        MailSender = None  # type: ignore[assignment,misc]
 
 
 SCHEMA_PID_MAP = {"http": 123, "https": 456}
@@ -55,11 +53,14 @@ class MockMemoryInfo:
 )
 class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
     def setUp(self):
-        if _MailSender is not None:
-            self._mail_sender_patcher = patch.object(_MailSender, "from_crawler")
+        if MailSender is None:
+            self._mail_sender_patcher = None
+        elif hasattr(memusage, "MailSender"):
+            self._mail_sender_patcher = patch("scrapy.extensions.memusage.MailSender")
             self._mail_sender_patcher.start()
         else:
-            self._mail_sender_patcher = None
+            self._mail_sender_patcher = patch.object(MailSender, "from_crawler")
+            self._mail_sender_patcher.start()
 
     def tearDown(self):
         if self._mail_sender_patcher is not None:
@@ -113,6 +114,6 @@ class TestMemoryUsageExtension(IsolatedAsyncioTestCase):
     async def test_get_virtual_size_sum(self):
         crawler = MagicMock()
         extension = ScrapyPlaywrightMemoryUsageExtension(crawler)
-        parent_cls_extension = MemoryUsage(crawler)
+        parent_cls_extension = memusage.MemoryUsage(crawler)
         extension._get_total_playwright_process_memory = MagicMock(return_value=123)
         assert extension.get_virtual_size() == parent_cls_extension.get_virtual_size() + 123
