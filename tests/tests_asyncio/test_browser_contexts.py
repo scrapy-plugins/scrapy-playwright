@@ -3,11 +3,17 @@ import platform
 import tempfile
 from pathlib import Path
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from playwright.async_api import Browser, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import (
+    Browser,
+    Error as PlaywrightError,
+    TimeoutError as PlaywrightTimeoutError,
+)
 from scrapy import Spider, Request
+from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
 from tests import allow_windows, make_handler
@@ -223,6 +229,50 @@ class MixinTestCaseMultipleContexts:
             assert cookie["name"] == "asdf"
             assert cookie["value"] == "qwerty"
             assert cookie["domain"] == "example.org"
+
+    @allow_windows
+    async def test_page_semaphore_not_leaked_on_new_page_failure(self):
+        """Failures in new_page() should not leak semaphores causing
+        the context to be unusable until the browser is restarted.
+        """
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1,
+        }
+        async with make_handler(settings) as handler:
+            with StaticMockServer() as server:
+                await handler._download_request(
+                    Request(server.urljoin("/index.html"), meta={"playwright": True}),
+                    Spider("foo"),
+                )
+
+                ctx_wrapper = handler.context_wrappers[DEFAULT_CONTEXT_NAME]
+                assert ctx_wrapper.semaphore._value == 1
+
+                with patch.object(
+                    ctx_wrapper.context,
+                    "new_page",
+                    new_callable=AsyncMock,
+                    side_effect=PlaywrightError("simulated failure"),
+                ):
+                    with pytest.raises(PlaywrightError):
+                        await handler._create_page(
+                            request=Request(
+                                server.urljoin("/index.html"), meta={"playwright": True}
+                            ),
+                            spider=Spider("foo"),
+                        )
+
+                assert ctx_wrapper.semaphore._value == 1
+
+                # context should still be usable after the failure
+                await asyncio.wait_for(
+                    handler._download_request(
+                        Request(server.urljoin("/index.html"), meta={"playwright": True}),
+                        Spider("foo"),
+                    ),
+                    timeout=10.0,
+                )
 
 
 class TestCaseMultipleContextsChromium(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):
