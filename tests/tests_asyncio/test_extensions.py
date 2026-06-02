@@ -21,7 +21,7 @@ from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     try:
-        from scrapy.mail import MailSender as _MailSender
+        from scrapy.mail import MailSender as _MailSender  # pylint: disable=ungrouped-imports
     except ImportError:
         _MailSender = None  # type: ignore[assignment,misc]
 
