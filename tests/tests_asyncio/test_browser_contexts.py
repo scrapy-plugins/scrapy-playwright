@@ -3,10 +3,15 @@ import platform
 import tempfile
 from pathlib import Path
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from playwright.async_api import Browser, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import (
+    Browser,
+    Error as PlaywrightError,
+    TimeoutError as PlaywrightTimeoutError,
+)
 from scrapy import Spider, Request
 from scrapy_playwright.page import PageMethod
 
@@ -188,6 +193,52 @@ class MixinTestCaseMultipleContexts:
             assert handler.context_wrappers["persistent"].persistent
             assert not handler.context_wrappers["non-persistent"].persistent
             assert isinstance(handler.browser, Browser)
+
+    @allow_windows
+    async def test_context_semaphore_not_leaked_on_context_creation_failure(self):
+        """Failure on context creation must not leak a semaphore slot,
+        causing subsequent context creation to hang.
+        """
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_MAX_CONTEXTS": 1,
+        }
+        async with make_handler(settings) as handler:
+            assert hasattr(handler, "context_semaphore")
+            assert handler.context_semaphore._value == 1
+
+            with StaticMockServer() as server:
+                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
+                await handler._download_request(req, Spider("foo"))
+                assert handler.context_semaphore._value == 0
+
+                await handler.context_wrappers["default"].context.close()
+                await asyncio.sleep(0)  # allow the close task to release the semaphore
+                assert handler.context_semaphore._value == 1
+
+                with patch.object(
+                    handler.browser,
+                    "new_context",
+                    new_callable=AsyncMock,
+                    side_effect=PlaywrightError("simulated new_context failure"),
+                ):
+                    with pytest.raises(PlaywrightError):
+                        await handler._create_browser_context(
+                            name="failing-ctx",
+                            context_kwargs={},
+                            spider=Spider("foo"),
+                        )
+
+                assert handler.context_semaphore._value == 1
+
+                req2 = Request(
+                    server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_context": "default2"},
+                )
+                await asyncio.wait_for(
+                    handler._download_request(req2, Spider("foo")),
+                    timeout=15.0,
+                )
 
     @allow_windows
     async def test_contexts_dynamic(self):

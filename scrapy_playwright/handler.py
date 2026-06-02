@@ -256,24 +256,31 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         """Create a new context, also launching a local browser or connecting
         to a remote one if necessary.
         """
+        acquired = False
         if hasattr(self, "context_semaphore"):
             await self.context_semaphore.acquire()
-        context_kwargs = context_kwargs or {}
-        persistent = remote = False
-        if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
-            context = await self.browser_type.launch_persistent_context(**context_kwargs)
-            persistent = True
-        elif self.config.cdp_url:
-            await self._maybe_connect_remote_devtools()
-            context = await self.browser.new_context(**context_kwargs)
-            remote = True
-        elif self.config.connect_url:
-            await self._maybe_connect_remote()
-            context = await self.browser.new_context(**context_kwargs)
-            remote = True
-        else:
-            await self._maybe_launch_browser()
-            context = await self.browser.new_context(**context_kwargs)
+            acquired = True
+        try:
+            context_kwargs = context_kwargs or {}
+            persistent = remote = False
+            if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
+                context = await self.browser_type.launch_persistent_context(**context_kwargs)
+                persistent = True
+            elif self.config.cdp_url:
+                await self._maybe_connect_remote_devtools()
+                context = await self.browser.new_context(**context_kwargs)
+                remote = True
+            elif self.config.connect_url:
+                await self._maybe_connect_remote()
+                context = await self.browser.new_context(**context_kwargs)
+                remote = True
+            else:
+                await self._maybe_launch_browser()
+                context = await self.browser.new_context(**context_kwargs)
+        except Exception:
+            if acquired:
+                self.context_semaphore.release()
+            raise
 
         context.on(
             "close", self._make_close_browser_context_callback(name, persistent, remote, spider)
