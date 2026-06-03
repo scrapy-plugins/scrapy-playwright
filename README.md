@@ -58,16 +58,20 @@ See the [changelog](docs/changelog.md) document.
 
 ### Download handler
 
-Replace the default `http` and/or `https` Download Handlers through
+Replace the default `https` and/or `http` Download Handlers through
 [`DOWNLOAD_HANDLERS`](https://docs.scrapy.org/en/latest/topics/settings.html):
 
 ```python
 # settings.py
 DOWNLOAD_HANDLERS = {
-    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
 }
 ```
+
+Registering the handler for `https` is usually enough, since most modern sites
+use HTTPS. Enable the `http` handler only if you need to process plain HTTP
+URLs with Playwright.
 
 Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
 `http/https` handler. Unless explicitly marked (see [Basic usage](#basic-usage)),
@@ -696,6 +700,34 @@ Note that persistent contexts are launched independently from the main browser
 instance, hence keyword arguments passed in the
 [`PLAYWRIGHT_LAUNCH_OPTIONS`](#playwright_launch_options)
 setting do not apply.
+
+**Important:** when `ScrapyPlaywrightDownloadHandler` is registered for both
+`http` and `https` schemes, Scrapy creates one independent
+handler instance per scheme. Both instances read the same `PLAYWRIGHT_CONTEXTS`
+setting and will each try to open the same `user_data_dir`, which causes an
+error because the browser only allows one process per profile directory.
+
+To avoid this, make every `user_data_dir` value unique across handler
+instances — for example by including a random suffix:
+
+```python
+import uuid
+
+PLAYWRIGHT_CONTEXTS = {
+    "persistent": {
+        "user_data_dir": f"/path/to/dir-{uuid.uuid4()}",
+        "context_arg1": "value",
+    },
+}
+```
+
+Alternatively, register the handler for only one scheme (typically `https`):
+
+```python
+DOWNLOAD_HANDLERS = {
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+```
 
 ### Creating contexts while crawling
 
