@@ -8,11 +8,17 @@ def pytest_configure(config):
     # https://twistedmatrix.com/trac/ticket/9766
     # https://github.com/pytest-dev/pytest-twisted/issues/80
 
-    if config.getoption("reactor", "default") == "asyncio" and platform.system() == "Windows":
-        import asyncio
+    import asyncio
 
+    if config.getoption("reactor", "default") == "asyncio" and platform.system() == "Windows":
         selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
         asyncio.set_event_loop_policy(selector_policy)
+
+    # Ensure there's a running event loop for the tests
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
 
 
 def pytest_sessionstart(session):  # pylint: disable=unused-argument
