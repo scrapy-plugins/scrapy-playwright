@@ -59,7 +59,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
-        if parsed_path.path == "/asdf":
+        elif parsed_path.path == "/asdf":
             self._send_json({"asdf": "asdf"})
         elif parsed_path.path == "/status/204":
             self.send_response(204)
