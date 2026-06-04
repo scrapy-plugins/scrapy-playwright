@@ -318,7 +318,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 )
 
         await ctx_wrapper.semaphore.acquire()
-        page = await ctx_wrapper.context.new_page()
+        try:
+            page = await ctx_wrapper.context.new_page()
+        except Exception:
+            ctx_wrapper.semaphore.release()
+            raise
         self.stats.inc_value("playwright/page_count")
         total_page_count = self._get_total_page_count()
         logger.debug(
