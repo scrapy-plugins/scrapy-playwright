@@ -511,7 +511,8 @@ class MixinTestCase:
     async def test_download_file_delay_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 10,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
@@ -581,7 +582,7 @@ class MixinTestCase:
         on the download_started event, hence blocking forever.
 
         Current behaviour is to propagate the original Playwright Error after
-        {PLAYWRIGHT_DOWNLOAD_TIMEOUT} seconds. The test wraps the call in
+        {PLAYWRIGHT_DOWNLOAD_TIMEOUT} milliseconds. The test wraps the call in
         ``asyncio.wait_for``, a TimeoutError here means a deadlock is occurring.
         """
         if self.browser_type != "chromium":
@@ -592,14 +593,14 @@ class MixinTestCase:
 
         settings = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 1,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
         }
         async with make_handler(settings) as handler:
             request = Request("https://example.com", meta={"playwright": True})
             with pytest.raises(PlaywrightError):
                 await asyncio.wait_for(
                     handler._get_response_and_download(request, mock_page, Spider("foo")),
-                    timeout=5.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT
+                    timeout=1.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT (1000ms = 1s)
                 )
 
     @allow_windows

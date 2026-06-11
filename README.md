@@ -283,9 +283,9 @@ PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 10 * 1000  # 10 seconds
 ```
 
 ### `PLAYWRIGHT_DOWNLOAD_TIMEOUT`
-Type `int`, default `30`
+Type `int`, default `30000` (30 seconds)
 
-Timeout in seconds to wait for a file download to start and to finish. If the
+Timeout in milliseconds to wait for a file download to start and to finish. If the
 timeout is exceeded, the original navigation error is re-raised instead of
 hanging indefinitely.
 
