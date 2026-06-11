@@ -96,6 +96,7 @@ class Config:
     max_contexts: Optional[int]
     startup_context_kwargs: dict
     navigation_timeout: Optional[float]
+    download_timeout: int
     restart_disconnected_browser: bool
     target_closed_max_retries: int = 3
     use_threaded_loop: bool = False
@@ -119,6 +120,7 @@ class Config:
             navigation_timeout=_get_float_setting(
                 settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
             ),
+            download_timeout=settings.getint("PLAYWRIGHT_DOWNLOAD_TIMEOUT", default=30),
             restart_disconnected_browser=settings.getbool(
                 "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER", default=True
             ),
@@ -636,7 +638,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            await download_started.wait()
+            try:
+                await asyncio.wait_for(
+                    download_started.wait(),
+                    timeout=self.config.download_timeout,
+                )
+            except asyncio.TimeoutError:
+                raise err
 
             if download.response_status == 204:
                 raise err
@@ -651,7 +659,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            await download_ready.wait()
+            try:
+                await asyncio.wait_for(
+                    download_ready.wait(),
+                    timeout=self.config.download_timeout,
+                )
+            except asyncio.TimeoutError:
+                raise err
         finally:
             page.remove_listener("download", _handle_download)
             page.remove_listener("response", _handle_response)

@@ -572,6 +572,37 @@ class MixinTestCase:
                 ) in self._caplog.record_tuples
 
     @allow_windows
+    async def test_err_aborted_without_download_does_not_hang(self):
+        """net::ERR_ABORTED without a download event must not deadlock.
+
+        When Chromium aborts a navigation for a non-download reason (e.g. a
+        JS challenge redirecting mid-load), neither the "response" nor
+        the "download" page event fires. The handler was previously waiting
+        on the download_started event, hence blocking forever.
+
+        Current behaviour is to propagate the original Playwright Error after
+        {PLAYWRIGHT_DOWNLOAD_TIMEOUT} seconds. The test wraps the call in
+        ``asyncio.wait_for``, a TimeoutError here means a deadlock is occurring.
+        """
+        if self.browser_type != "chromium":
+            pytest.skip("net::ERR_ABORTED deadlock only affects Chromium")
+
+        mock_page = MagicMock()
+        mock_page.goto = AsyncMock(side_effect=PlaywrightError("net::ERR_ABORTED"))
+
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 1,
+        }
+        async with make_handler(settings) as handler:
+            request = Request("https://example.com", meta={"playwright": True})
+            with pytest.raises(PlaywrightError):
+                await asyncio.wait_for(
+                    handler._get_response_and_download(request, mock_page, Spider("foo")),
+                    timeout=5.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT
+                )
+
+    @allow_windows
     async def test_response_attributes_when_playwright_error(self):
         collected_error = PlaywrightError(
             "The object has been collected to prevent unbounded heap growth."
