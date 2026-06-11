@@ -604,6 +604,48 @@ class MixinTestCase:
                 )
 
     @allow_windows
+    async def test_download_ready_timeout(self):
+        """Download starts (response fires) but never finishes within the timeout.
+
+        When a navigation raises PlaywrightError and the response event fires
+        (so download_started is set and the response status is not 204), but the
+        download event never fires, the handler should time out waiting for
+        download_ready and re-raise the original PlaywrightError.
+        """
+        listeners = {}
+
+        def register_listener(event, callback):
+            listeners[event] = callback
+
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.all_headers = AsyncMock(return_value={})
+
+        playwright_error = PlaywrightError("Download is starting")
+
+        async def mock_goto(*_args, **_kwargs):
+            asyncio.create_task(listeners["response"](mock_response))
+            await asyncio.sleep(0)  # let the response task set download_started
+            raise playwright_error
+
+        mock_page = MagicMock()
+        mock_page.on = MagicMock(side_effect=register_listener)
+        mock_page.goto = mock_goto
+
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
+        }
+        async with make_handler(settings) as handler:
+            request = Request("https://example.com", meta={"playwright": True})
+            with pytest.raises(PlaywrightError) as excinfo:
+                await asyncio.wait_for(
+                    handler._get_response_and_download(request, mock_page, Spider("foo")),
+                    timeout=1.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT (100ms)
+                )
+            assert excinfo.value is playwright_error
+
+    @allow_windows
     async def test_response_attributes_when_playwright_error(self):
         collected_error = PlaywrightError(
             "The object has been collected to prevent unbounded heap growth."
