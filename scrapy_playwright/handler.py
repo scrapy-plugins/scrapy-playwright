@@ -643,8 +643,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     download_started.wait(),
                     timeout=self.config.download_timeout,
                 )
-            except asyncio.TimeoutError:
-                raise err
+            except asyncio.TimeoutError as exc:
+                raise err from exc
 
             if download.response_status == 204:
                 raise err
@@ -664,8 +664,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     download_ready.wait(),
                     timeout=self.config.download_timeout,
                 )
-            except asyncio.TimeoutError:
-                raise err
+            except asyncio.TimeoutError as exc:
+                raise err from exc
         finally:
             page.remove_listener("download", _handle_download)
             page.remove_listener("response", _handle_response)
