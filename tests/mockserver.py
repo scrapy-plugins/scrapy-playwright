@@ -1,6 +1,10 @@
 import json
-import time
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer, HTTPServer, BaseHTTPRequestHandler
+from http.server import (
+    BaseHTTPRequestHandler,
+    HTTPServer,
+    SimpleHTTPRequestHandler,
+    ThreadingHTTPServer,
+)
 from pathlib import Path
 from threading import Event, Thread
 from typing import Optional
@@ -23,7 +27,7 @@ class StaticMockServer:
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=static_dir, **kwargs)
 
-            def log_message(self, format, *args):  # noqa: A002
+            def log_message(self, format, *args):  # pylint: disable=redefined-builtin
                 pass
 
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
@@ -57,7 +61,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         if delay := int(query_string.get("delay") or 0):
             print(f"Sleeping {delay} seconds on path {parsed_path.path}...")
-            self.server._stop_event.wait(delay)
+            self.server._stop_event.wait(delay)  # type: ignore[attr-defined]
 
         if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
