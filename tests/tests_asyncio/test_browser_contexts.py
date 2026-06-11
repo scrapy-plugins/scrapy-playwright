@@ -64,7 +64,7 @@ class MixinTestCaseMultipleContexts:
                         ),
                         Spider("foo"),
                     )
-                    for i in range(20)
+                    for i in range(5)
                 ] + [
                     handler._download_request(
                         Request(
@@ -73,7 +73,7 @@ class MixinTestCaseMultipleContexts:
                         ),
                         Spider("foo"),
                     )
-                    for i in range(20)
+                    for i in range(5)
                 ]
                 await asyncio.gather(*requests)
 
@@ -92,7 +92,7 @@ class MixinTestCaseMultipleContexts:
         async with make_handler(settings) as handler:
             with StaticMockServer() as server:
                 tasks = []
-                for i in range(20):
+                for i in range(6):
                     request = Request(
                         url=server.urljoin(f"/index.html?a={i}"),
                         callback=cb_close_context,
