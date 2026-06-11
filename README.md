@@ -290,7 +290,7 @@ timeout is exceeded, the original navigation error is re-raised instead of
 hanging indefinitely.
 
 ```python
-PLAYWRIGHT_DOWNLOAD_TIMEOUT = 60  # 1 minute
+PLAYWRIGHT_DOWNLOAD_TIMEOUT = 60000  # 1 minute
 ```
 
 ### `PLAYWRIGHT_PROCESS_REQUEST_HEADERS`
