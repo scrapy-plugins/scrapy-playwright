@@ -1,3 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scrapy-playwright"
+dynamic = ["version"]
+description = "Playwright integration for Scrapy"
+readme = "README.md"
+license = "BSD-3-Clause"
+authors = [
+    {name = "Eugenio Lacuesta", email = "eugenio.lacuesta@gmail.com"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "scrapy>=2.7",
+    "playwright>=1.40",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: Scrapy",
+    "Intended Audience :: Developers",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/scrapy-plugins/scrapy-playwright"
+
+[tool.setuptools]
+packages = ["scrapy_playwright"]
+
+[tool.setuptools.dynamic]
+version = {attr = "scrapy_playwright.__version__"}
+
 [tool.black]
 line-length = 99
 
