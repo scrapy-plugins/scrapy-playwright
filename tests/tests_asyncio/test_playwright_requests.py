@@ -655,14 +655,17 @@ class MixinTestCase:
                     url=server.urljoin("/headers"),
                     meta={"playwright": True},
                 )
-                with patch(
-                    "playwright.async_api._generated.Response.security_details",
-                    new_callable=AsyncMock,
-                    side_effect=collected_error,
-                ), patch(
-                    "playwright.async_api._generated.Response.server_addr",
-                    new_callable=AsyncMock,
-                    side_effect=collected_error,
+                with (
+                    patch(
+                        "playwright.async_api._generated.Response.security_details",
+                        new_callable=AsyncMock,
+                        side_effect=collected_error,
+                    ),
+                    patch(
+                        "playwright.async_api._generated.Response.server_addr",
+                        new_callable=AsyncMock,
+                        side_effect=collected_error,
+                    ),
                 ):
                     response = await handler._download_request(request, Spider("foo"))
 
