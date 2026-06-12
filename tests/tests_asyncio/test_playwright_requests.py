@@ -511,7 +511,8 @@ class MixinTestCase:
     async def test_download_file_delay_error(self):
         settings_dict = {
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
-            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 10,
+            "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
@@ -570,6 +571,79 @@ class MixinTestCase:
                     f"Closing page due to failed request: {request}"
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
+
+    @allow_windows
+    async def test_err_aborted_without_download_does_not_hang(self):
+        """net::ERR_ABORTED without a download event must not deadlock.
+
+        When Chromium aborts a navigation for a non-download reason (e.g. a
+        JS challenge redirecting mid-load), neither the "response" nor
+        the "download" page event fires. The handler was previously waiting
+        on the download_started event, hence blocking forever.
+
+        Current behaviour is to propagate the original Playwright Error after
+        {PLAYWRIGHT_DOWNLOAD_TIMEOUT} milliseconds. The test wraps the call in
+        ``asyncio.wait_for``, a TimeoutError here means a deadlock is occurring.
+        """
+        if self.browser_type != "chromium":
+            pytest.skip("net::ERR_ABORTED deadlock only affects Chromium")
+
+        mock_page = MagicMock()
+        mock_page.goto = AsyncMock(side_effect=PlaywrightError("net::ERR_ABORTED"))
+
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
+        }
+        async with make_handler(settings) as handler:
+            request = Request("https://example.com", meta={"playwright": True})
+            with pytest.raises(PlaywrightError):
+                await asyncio.wait_for(
+                    handler._get_response_and_download(request, mock_page, Spider("foo")),
+                    timeout=1.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT (1000ms = 1s)
+                )
+
+    @allow_windows
+    async def test_download_ready_timeout(self):
+        """Download starts (response fires) but never finishes within the timeout.
+
+        When a navigation raises PlaywrightError and the response event fires
+        (so download_started is set and the response status is not 204), but the
+        download event never fires, the handler should time out waiting for
+        download_ready and re-raise the original PlaywrightError.
+        """
+        listeners = {}
+
+        def register_listener(event, callback):
+            listeners[event] = callback
+
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.all_headers = AsyncMock(return_value={})
+
+        playwright_error = PlaywrightError("Download is starting")
+
+        async def mock_goto(*_args, **_kwargs):
+            asyncio.create_task(listeners["response"](mock_response))
+            await asyncio.sleep(0)  # let the response task set download_started
+            raise playwright_error
+
+        mock_page = MagicMock()
+        mock_page.on = MagicMock(side_effect=register_listener)
+        mock_page.goto = mock_goto
+
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
+        }
+        async with make_handler(settings) as handler:
+            request = Request("https://example.com", meta={"playwright": True})
+            with pytest.raises(PlaywrightError) as excinfo:
+                await asyncio.wait_for(
+                    handler._get_response_and_download(request, mock_page, Spider("foo")),
+                    timeout=1.0,  # bigger than PLAYWRIGHT_DOWNLOAD_TIMEOUT (100ms)
+                )
+            assert excinfo.value is playwright_error
 
     @allow_windows
     async def test_response_attributes_when_playwright_error(self):

@@ -282,6 +282,17 @@ See the docs for [BrowserContext.set_default_navigation_timeout](https://playwri
 PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 10 * 1000  # 10 seconds
 ```
 
+### `PLAYWRIGHT_DOWNLOAD_TIMEOUT`
+Type `int`, default `30000` (30 seconds)
+
+Timeout in milliseconds to wait for a file download to start and to finish. If the
+timeout is exceeded, the original navigation error is re-raised instead of
+hanging indefinitely.
+
+```python
+PLAYWRIGHT_DOWNLOAD_TIMEOUT = 60000  # 1 minute
+```
+
 ### `PLAYWRIGHT_PROCESS_REQUEST_HEADERS`
 Type `Optional[Union[Callable, str]]`, default `scrapy_playwright.headers.use_scrapy_headers`
 
