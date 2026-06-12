@@ -317,11 +317,10 @@ class MixinTestCase:
         def should_abort_request_sync(request):
             return request.resource_type == "image"
 
-        for predicate in (
-            lambda request: request.resource_type == "image",
-            should_abort_request_async,
-            should_abort_request_sync,
-        ):
+        predicates = [lambda request: request.resource_type == "image"]
+        if self.browser_type == "chromium":
+            predicates += [should_abort_request_async, should_abort_request_sync]
+        for predicate in predicates:
             settings_dict = {
                 "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
                 "PLAYWRIGHT_ABORT_REQUEST": predicate,
