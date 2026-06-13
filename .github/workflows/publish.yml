@@ -19,8 +19,8 @@ jobs:
     - name: Publish to PyPI
       run: |
         pip install --upgrade pip
-        pip install --upgrade setuptools wheel twine
-        python setup.py sdist bdist_wheel
+        pip install --upgrade build twine
+        python -m build
         export TWINE_USERNAME=__token__
         export TWINE_PASSWORD=${{ secrets.PYPI_TOKEN }}
         twine upload dist/*
