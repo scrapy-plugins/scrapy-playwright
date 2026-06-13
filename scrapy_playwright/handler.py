@@ -215,7 +215,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     for name, kwargs in self.config.startup_context_kwargs.items()
                 ]
             )
-            self._set_max_concurrent_context_count()
+            self._set_stats_max_concurrent_context_count()
             logger.info("Startup context(s) launched")
             self.stats.set_value("playwright/page_count", self._get_total_page_count())
 
@@ -310,7 +310,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
             persistent=persistent,
         )
-        self._set_max_concurrent_context_count()
+        self._set_stats_max_concurrent_context_count()
         return self.context_wrappers[name]
 
     async def _create_page(self, request: Request, spider: Spider) -> Page:
@@ -334,22 +334,23 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             ctx_wrapper.semaphore.release()
             raise
         self.stats.inc_value("playwright/page_count")
+        context_page_count = len(ctx_wrapper.context.pages)
         total_page_count = self._get_total_page_count()
         logger.debug(
             "[Context=%s] New page created, page count is %i (%i for all contexts)",
             context_name,
-            len(ctx_wrapper.context.pages),
+            context_page_count,
             total_page_count,
             extra={
                 "spider": spider,
                 "context_name": context_name,
-                "context_page_count": len(ctx_wrapper.context.pages),
+                "context_page_count": context_page_count,
                 "total_page_count": total_page_count,
                 "scrapy_request_url": request.url,
                 "scrapy_request_method": request.method,
             },
         )
-        self._set_max_concurrent_page_count()
+        self._set_stats_max_concurrent_page_count(total_page_count)
         if self.config.navigation_timeout_ms is not None:
             page.set_default_navigation_timeout(self.config.navigation_timeout_ms)
 
@@ -367,13 +368,14 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     def _get_total_page_count(self):
         return sum(len(ctx.context.pages) for ctx in self.context_wrappers.values())
 
-    def _set_max_concurrent_page_count(self):
-        count = self._get_total_page_count()
+    def _set_stats_max_concurrent_page_count(self, count: Optional[int] = None) -> None:
+        if count is None:
+            count = self._get_total_page_count()
         current_max_count = self.stats.get_value("playwright/page_count/max_concurrent")
         if current_max_count is None or count > current_max_count:
             self.stats.set_value("playwright/page_count/max_concurrent", count)
 
-    def _set_max_concurrent_context_count(self):
+    def _set_stats_max_concurrent_context_count(self) -> None:
         current_max_count = self.stats.get_value("playwright/context_count/max_concurrent")
         if current_max_count is None or len(self.context_wrappers) > current_max_count:
             self.stats.set_value(
