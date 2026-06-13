@@ -59,7 +59,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         query_string = {key: values[0] for key, values in parse_qs(parsed_path.query).items()}
 
-        if delay := int(query_string.get("delay") or 0):
+        if delay := float(query_string.get("delay") or 0):
             print(f"Sleeping {delay} seconds on path {parsed_path.path}...")
             self.server._stop_event.wait(delay)  # type: ignore[attr-defined]
 

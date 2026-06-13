@@ -1,7 +1,7 @@
-import asyncio
 import logging
 import random
 import re
+import socket
 import subprocess
 import time
 import uuid
@@ -45,6 +45,18 @@ async def _run_chromium_devtools() -> Tuple[subprocess.Popen, str]:
         return proc, devtools_url
 
 
+def _wait_for_tcp_port(port: int, timeout: float = 10.0) -> None:
+    """Block until something is accepting connections on localhost:port."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.5)
+            if sock.connect_ex(("127.0.0.1", port)) == 0:
+                return
+        time.sleep(0.05)
+    raise TimeoutError(f"Timed out waiting for localhost:{port} to accept connections")
+
+
 def _run_chromium_browser_server() -> Tuple[subprocess.Popen, str]:
     """Start a Playwright server in a separate process, return the process
     object and a string with its websocket endpoint.
@@ -56,6 +68,7 @@ def _run_chromium_browser_server() -> Tuple[subprocess.Popen, str]:
     launch_server_script_path = str(Path(__file__).parent.parent / "launch_chromium_server.js")
     command = ["node", launch_server_script_path, port, ws_path]
     proc = subprocess.Popen(command)  # pylint: disable=consider-using-with
+    _wait_for_tcp_port(int(port))  # wait until the server is listening
     return proc, f"ws://localhost:{port}/{ws_path}"
 
 
@@ -68,7 +81,6 @@ async def remote_chromium(with_devtools_protocol: bool = True):
             proc, url = await _run_chromium_devtools()
         else:
             proc, url = _run_chromium_browser_server()
-            await asyncio.sleep(1)  # allow some time for the browser to start
     except Exception:
         pass
     else:
@@ -243,7 +255,6 @@ class TestBrowserReconnectChromium(IsolatedAsyncioTestCase):
         }
         async with make_handler(settings_dict=settings_dict) as handler:
             with StaticMockServer() as server:
-                await asyncio.sleep(1)  # allow time for the browser to fully launch
                 req1 = Request(
                     server.urljoin("/index.html"),
                     meta={"playwright": True, "playwright_include_page": True},

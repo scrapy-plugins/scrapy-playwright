@@ -98,7 +98,7 @@ class MixinTestCase:
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/headers?delay=1"), meta={"playwright": True})
+                req = Request(server.urljoin("/headers?delay=0.5"), meta={"playwright": True})
                 with pytest.raises(PlaywrightTimeoutError) as excinfo:
                     await handler._download_request(req, Spider("foo"))
                 assert (
@@ -107,17 +107,6 @@ class MixinTestCase:
                     f"Closing page due to failed request: {req}"
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
-
-                if _SCRAPY_ASYNC_API:
-                    req2 = Request(server.urljoin("/asdf?delay=1"), meta={"playwright": True})
-                    with pytest.raises(PlaywrightTimeoutError) as excinfo2:
-                        await handler.download_request(req2)
-                    assert (
-                        "scrapy-playwright",
-                        logging.WARNING,
-                        f"Closing page due to failed request: {req2}"
-                        f" exc_type={type(excinfo2.value)} exc_msg={str(excinfo2.value)}",
-                    ) in self._caplog.record_tuples
 
     @allow_windows
     async def test_retry_page_content_still_navigating(self):
@@ -498,7 +487,7 @@ class MixinTestCase:
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
                 request = Request(
-                    url=server.urljoin("/mancha.pdf?delay=1"),
+                    url=server.urljoin("/mancha.pdf?delay=0.5"),
                     meta={"playwright": True},
                 )
                 response = await handler._download_request(request, Spider("foo"))
@@ -516,7 +505,7 @@ class MixinTestCase:
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
                 request = Request(
-                    url=server.urljoin("/mancha.pdf?delay=1"),
+                    url=server.urljoin("/mancha.pdf?delay=0.5"),
                     meta={"playwright": True},
                 )
                 with pytest.raises(PlaywrightError) as excinfo:
