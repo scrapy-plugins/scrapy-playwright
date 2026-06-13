@@ -353,8 +353,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         if self.config.navigation_timeout_ms is not None:
             page.set_default_navigation_timeout(self.config.navigation_timeout_ms)
 
-        page.on("close", self._make_close_page_callback(context_name))
-        page.on("crash", self._make_close_page_callback(context_name))
+        close_page_callback = self._make_close_page_callback(context_name)
+        page.on("close", close_page_callback)
+        page.on("crash", close_page_callback)
         page.on("request", self._increment_request_stats)
         page.on("response", self._increment_response_stats)
         if logger.getEffectiveLevel() <= logging.DEBUG:
