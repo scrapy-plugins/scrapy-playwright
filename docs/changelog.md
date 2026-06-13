@@ -1,7 +1,7 @@
 # scrapy-playwright changelog
 
 
-### [v0.0.47](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.47) (unreleased)
+### [v0.0.47](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.47) (2026-06-13)
 
 * Python 3.14 support (#375)
 * Migrate to pyproject.toml (#374)
