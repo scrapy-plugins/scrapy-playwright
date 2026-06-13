@@ -788,20 +788,21 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 should_abort = await _maybe_await(self.abort_request(playwright_request))
                 if should_abort:
                     await route.abort()
-                    logger.debug(
-                        "[Context=%s] Aborted Playwright request <%s %s>",
-                        context_name,
-                        playwright_request.method.upper(),
-                        playwright_request.url,
-                        extra={
-                            "spider": spider,
-                            "context_name": context_name,
-                            "scrapy_request_url": url,
-                            "scrapy_request_method": method,
-                            "playwright_request_url": playwright_request.url,
-                            "playwright_request_method": playwright_request.method,
-                        },
-                    )
+                    if logger.getEffectiveLevel() <= logging.DEBUG:
+                        logger.debug(
+                            "[Context=%s] Aborted Playwright request <%s %s>",
+                            context_name,
+                            playwright_request.method.upper(),
+                            playwright_request.url,
+                            extra={
+                                "spider": spider,
+                                "context_name": context_name,
+                                "scrapy_request_url": url,
+                                "scrapy_request_method": method,
+                                "playwright_request_url": playwright_request.url,
+                                "playwright_request_method": playwright_request.method,
+                            },
+                        )
                     self.stats.inc_value("playwright/request_count/aborted")
                     return None
 
@@ -844,7 +845,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             original_playwright_method: str = playwright_request.method
             try:
                 await route.continue_(**overrides)
-                if overrides.get("method"):
+                if overrides.get("method") and logger.getEffectiveLevel() <= logging.DEBUG:
                     logger.debug(
                         "[Context=%s] Overridden method for Playwright request"
                         " to %s: original=%s new=%s",
