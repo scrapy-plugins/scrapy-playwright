@@ -47,25 +47,50 @@ class MixinTestCase:
     async def test_basic_response(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
-                meta = {"playwright": True, "playwright_include_page": True}
-                req = Request(server.urljoin("/index.html"), meta=meta)
+                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
                 resp = await handler._download_request(req, Spider("foo"))
 
                 if _SCRAPY_ASYNC_API:
-                    req2 = Request(server.urljoin("/gallery.html"), meta=meta)
+                    req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
                     resp2 = await handler.download_request(req2)
 
             assert_correct_response(resp, req)
             assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
-            assert isinstance(resp.meta["playwright_page"], PlaywrightPage)
-            assert resp.meta["playwright_page"].url == resp.url
-            await resp.meta["playwright_page"].close()
 
             if _SCRAPY_ASYNC_API:
                 assert_correct_response(resp2, req2)
-                assert isinstance(resp2.meta["playwright_page"], PlaywrightPage)
-                assert resp2.meta["playwright_page"].url == resp2.url
-                await resp2.meta["playwright_page"].close()
+
+    @allow_windows
+    async def test_reuse_existing_page(self):
+        """A page passed via playwright_page meta is reused."""
+        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
+            with StaticMockServer() as server:
+                spider = Spider("foo")
+                req1 = Request(
+                    server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_include_page": True},
+                )
+                resp1 = await handler._download_request(req1, spider)
+                page = resp1.meta["playwright_page"]
+                assert isinstance(page, PlaywrightPage)
+                assert page.url == resp1.url
+                assert not page.is_closed()
+
+                req2 = Request(
+                    server.urljoin("/gallery.html"),
+                    meta={
+                        "playwright": True,
+                        "playwright_include_page": True,
+                        "playwright_page": page,
+                    },
+                )
+                resp2 = await handler._download_request(req2, spider)
+
+        assert_correct_response(resp1, req1)
+        assert_correct_response(resp2, req2)
+        assert resp2.meta["playwright_page"] is page
+        assert page.url == resp2.url
+        await page.close()
 
     @pytest.mark.skipif(not _SCRAPY_ASYNC_API, reason="Requires Scrapy async API")
     @allow_windows
