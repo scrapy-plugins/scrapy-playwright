@@ -49,11 +49,14 @@ def _wait_for_tcp_port(port: int, timeout: float = 10.0) -> None:
     """Block until something is accepting connections on localhost:port."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.5)
-            if sock.connect_ex(("127.0.0.1", port)) == 0:
+        # connect via "localhost" (not a hardcoded 127.0.0.1) so the resolution
+        # matches the server's bind address and the ws://localhost URL handed to
+        # Playwright, which may be IPv6 (::1) on some hosts
+        try:
+            with socket.create_connection(("localhost", port), timeout=0.5):
                 return
-        time.sleep(0.05)
+        except OSError:
+            time.sleep(0.05)
     raise TimeoutError(f"Timed out waiting for localhost:{port} to accept connections")
 
 
