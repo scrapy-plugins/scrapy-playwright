@@ -344,34 +344,6 @@ async def custom_headers(
 PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
 ```
 
-#### Deprecated argument handling
-
-In version 0.0.40 and earlier, arguments were passed to the function positionally,
-and only the Scrapy headers were passed instead of a dictionary with data about the
-Scrapy request.
-This is deprecated since version 0.0.41, and support for this way of handling arguments
-will eventually be removed in accordance with the [Deprecation policy](#deprecation-policy).
-
-Passed arguments:
-```python
-- browser_type: str
-- playwright_request: playwright.async_api.Request
-- scrapy_headers: scrapy.http.headers.Headers
-```
-
-Example:
-```python
-def custom_headers(
-    browser_type: str,
-    playwright_request: playwright.async_api.Request,
-    scrapy_headers: scrapy.http.headers.Headers,
-) -> dict:
-    if browser_type == "firefox":
-        return {"User-Agent": "foo"}
-    return {"User-Agent": "bar"}
-
-PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers
-```
 
 ### `PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER`
 Type `bool`, default `True`
