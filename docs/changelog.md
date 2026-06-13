@@ -1,6 +1,18 @@
 # scrapy-playwright changelog
 
 
+### [v0.0.47](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.47) (unreleased)
+
+* Python 3.14 support (#375)
+* Migrate to pyproject.toml (#374)
+* Better response/download event handling (#372)
+* Suppress `PlaywrightError` when accessing response attributes (#364)
+* Release semaphore on context creation failure (#369)
+* Release semaphore on page creation failure (#368)
+* Clear contexts dict after closing them
+* Remove deprecated positional argument handling for `PLAYWRIGHT_PROCESS_REQUEST_HEADERS` (#362)
+
+
 ### [v0.0.46](https://github.com/scrapy-plugins/scrapy-playwright/releases/tag/v0.0.46) (2026-01-21)
 
 * Threaded loop updates & fixes (#361)
