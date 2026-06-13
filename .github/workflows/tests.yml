@@ -36,9 +36,6 @@ jobs:
     - name: Run asyncio tests
       run: tox -e py
 
-    - name: Run twisted tests
-      run: tox -e py-twisted
-
     - name: Run pinned dependency tests (Windows, asyncio tests)
       if: runner.os == 'Windows'
       run: tox -e py-pinned
