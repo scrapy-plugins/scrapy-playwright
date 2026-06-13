@@ -44,5 +44,19 @@ version = {attr = "scrapy_playwright.__version__"}
 [tool.black]
 line-length = 99
 
+[tool.bumpversion]
+current_version = "0.0.46"
+commit = true
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "scrapy_playwright/__init__.py"
+
+[[tool.bumpversion.files]]
+filename = "docs/changelog.md"
+search = "\\(unreleased\\)$"
+replace = "({now:%Y-%m-%d})"
+regex = true
+
 [tool.pytest.ini_options]
 reruns = "2"
