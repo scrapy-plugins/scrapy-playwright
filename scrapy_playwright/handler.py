@@ -457,8 +457,10 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     async def _download_request_with_retry(self, request: Request, spider: Spider) -> Response:
         page = request.meta.get("playwright_page")
+        page_created = False
         if not isinstance(page, Page) or page.is_closed():
             page = await self._create_page(request=request, spider=spider)
+            page_created = True
         context_name = request.meta.setdefault("playwright_context", DEFAULT_CONTEXT_NAME)
 
         _attach_page_event_handlers(
@@ -472,7 +474,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         # Let's track only the first request that matches the above conditions.
         initial_request_done = asyncio.Event()
 
-        await page.unroute("**")
+        # nothing to unroute if the page was just created
+        if not page_created:
+            await page.unroute("**")
         await page.route(
             "**",
             self._make_request_handler(
