@@ -368,9 +368,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
     def _get_total_page_count(self):
         return sum(len(ctx.context.pages) for ctx in self.context_wrappers.values())
 
-    def _set_stats_max_concurrent_page_count(self, count: Optional[int] = None) -> None:
-        if count is None:
-            count = self._get_total_page_count()
+    def _set_stats_max_concurrent_page_count(self, count: int) -> None:
         current_max_count = self.stats.get_value("playwright/page_count/max_concurrent")
         if current_max_count is None or count > current_max_count:
             self.stats.set_value("playwright/page_count/max_concurrent", count)
