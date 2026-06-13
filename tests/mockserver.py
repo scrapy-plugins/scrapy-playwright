@@ -1,11 +1,12 @@
 import json
-import re
-import sys
-import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import (
+    BaseHTTPRequestHandler,
+    HTTPServer,
+    SimpleHTTPRequestHandler,
+    ThreadingHTTPServer,
+)
 from pathlib import Path
-from subprocess import Popen, PIPE
-from threading import Thread
+from threading import Event, Thread
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs
 
@@ -20,20 +21,25 @@ class StaticMockServer:
     """
 
     def __enter__(self):
-        self.proc = Popen(
-            [sys.executable, "-u", "-m", "http.server", "0", "--bind", "127.0.0.1"],
-            stdout=PIPE,
-            cwd=str(Path(__file__).absolute().parent / "site"),
-        )
-        self.address, self.port = re.search(
-            r"^Serving HTTP on (\d+\.\d+\.\d+\.\d+) port (\d+)",
-            self.proc.stdout.readline().strip().decode("ascii"),
-        ).groups()
+        static_dir = str(Path(__file__).absolute().parent / "site")
+
+        class _Handler(SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=static_dir, **kwargs)
+
+            def log_message(self, format, *args):  # pylint: disable=redefined-builtin
+                pass
+
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        self.address, self.port = self.httpd.server_address
+        self.thread = Thread(target=self.httpd.serve_forever)
+        self.thread.daemon = True
+        self.thread.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.proc.kill()
-        self.proc.communicate()
+        self.httpd.shutdown()
+        self.thread.join()
 
     def urljoin(self, url):
         return urljoin(f"http://{self.address}:{self.port}", url)
@@ -55,11 +61,11 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         if delay := int(query_string.get("delay") or 0):
             print(f"Sleeping {delay} seconds on path {parsed_path.path}...")
-            time.sleep(delay)
+            self.server._stop_event.wait(delay)  # type: ignore[attr-defined]
 
         if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
-        if parsed_path.path == "/asdf":
+        elif parsed_path.path == "/asdf":
             self._send_json({"asdf": "asdf"})
         elif parsed_path.path == "/status/204":
             self.send_response(204)
@@ -100,12 +106,14 @@ class MockServer:
 
     def __enter__(self):
         self.httpd = HTTPServer(("127.0.0.1", 0), _RequestHandler)
+        self.httpd._stop_event = Event()
         self.address, self.port = self.httpd.server_address
         self.thread = Thread(target=self.httpd.serve_forever)
         self.thread.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.httpd._stop_event.set()
         self.httpd.shutdown()
         self.thread.join()
 

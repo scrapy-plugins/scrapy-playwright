@@ -95,7 +95,8 @@ class Config:
     max_pages_per_context: int
     max_contexts: Optional[int]
     startup_context_kwargs: dict
-    navigation_timeout: Optional[float]
+    navigation_timeout_ms: Optional[float]
+    download_timeout_secs: float
     restart_disconnected_browser: bool
     target_closed_max_retries: int = 3
     use_threaded_loop: bool = False
@@ -116,9 +117,11 @@ class Config:
             max_pages_per_context=settings.getint("PLAYWRIGHT_MAX_PAGES_PER_CONTEXT"),
             max_contexts=settings.getint("PLAYWRIGHT_MAX_CONTEXTS") or None,
             startup_context_kwargs=settings.getdict("PLAYWRIGHT_CONTEXTS"),
-            navigation_timeout=_get_float_setting(
+            navigation_timeout_ms=_get_float_setting(
                 settings, "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT"
             ),
+            download_timeout_secs=settings.getint("PLAYWRIGHT_DOWNLOAD_TIMEOUT", default=30000)
+            / 1000,
             restart_disconnected_browser=settings.getbool(
                 "PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER", default=True
             ),
@@ -256,24 +259,31 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         """Create a new context, also launching a local browser or connecting
         to a remote one if necessary.
         """
+        acquired = False
         if hasattr(self, "context_semaphore"):
             await self.context_semaphore.acquire()
-        context_kwargs = context_kwargs or {}
-        persistent = remote = False
-        if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
-            context = await self.browser_type.launch_persistent_context(**context_kwargs)
-            persistent = True
-        elif self.config.cdp_url:
-            await self._maybe_connect_remote_devtools()
-            context = await self.browser.new_context(**context_kwargs)
-            remote = True
-        elif self.config.connect_url:
-            await self._maybe_connect_remote()
-            context = await self.browser.new_context(**context_kwargs)
-            remote = True
-        else:
-            await self._maybe_launch_browser()
-            context = await self.browser.new_context(**context_kwargs)
+            acquired = True
+        try:
+            context_kwargs = context_kwargs or {}
+            persistent = remote = False
+            if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
+                context = await self.browser_type.launch_persistent_context(**context_kwargs)
+                persistent = True
+            elif self.config.cdp_url:
+                await self._maybe_connect_remote_devtools()
+                context = await self.browser.new_context(**context_kwargs)
+                remote = True
+            elif self.config.connect_url:
+                await self._maybe_connect_remote()
+                context = await self.browser.new_context(**context_kwargs)
+                remote = True
+            else:
+                await self._maybe_launch_browser()
+                context = await self.browser.new_context(**context_kwargs)
+        except Exception:
+            if acquired:
+                self.context_semaphore.release()
+            raise
 
         context.on(
             "close", self._make_close_browser_context_callback(name, persistent, remote, spider)
@@ -293,8 +303,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 "remote": remote,
             },
         )
-        if self.config.navigation_timeout is not None:
-            context.set_default_navigation_timeout(self.config.navigation_timeout)
+        if self.config.navigation_timeout_ms is not None:
+            context.set_default_navigation_timeout(self.config.navigation_timeout_ms)
         self.context_wrappers[name] = BrowserContextWrapper(
             context=context,
             semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
@@ -318,7 +328,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 )
 
         await ctx_wrapper.semaphore.acquire()
-        page = await ctx_wrapper.context.new_page()
+        try:
+            page = await ctx_wrapper.context.new_page()
+        except Exception:
+            ctx_wrapper.semaphore.release()
+            raise
         self.stats.inc_value("playwright/page_count")
         total_page_count = self._get_total_page_count()
         logger.debug(
@@ -336,8 +350,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             },
         )
         self._set_max_concurrent_page_count()
-        if self.config.navigation_timeout is not None:
-            page.set_default_navigation_timeout(self.config.navigation_timeout)
+        if self.config.navigation_timeout_ms is not None:
+            page.set_default_navigation_timeout(self.config.navigation_timeout_ms)
 
         page.on("close", self._make_close_page_callback(context_name))
         page.on("crash", self._make_close_page_callback(context_name))
@@ -535,8 +549,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
         server_ip_address = None
         if response is not None:
-            request.meta["playwright_security_details"] = await response.security_details()
-            with suppress(KeyError, TypeError, ValueError):
+            with suppress(PlaywrightError, KeyError, TypeError, ValueError):
+                request.meta["playwright_security_details"] = await response.security_details()
                 server_addr = await response.server_addr()
                 server_ip_address = ip_address(server_addr["ipAddress"])
 
@@ -625,7 +639,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            await download_started.wait()
+            try:
+                await asyncio.wait_for(
+                    download_started.wait(),
+                    timeout=self.config.download_timeout_secs,
+                )
+            except asyncio.TimeoutError as exc:
+                raise err from exc
 
             if download.response_status == 204:
                 raise err
@@ -640,7 +660,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            await download_ready.wait()
+            try:
+                await asyncio.wait_for(
+                    download_ready.wait(),
+                    timeout=self.config.download_timeout_secs,
+                )
+            except asyncio.TimeoutError as exc:
+                raise err from exc
         finally:
             page.remove_listener("download", _handle_download)
             page.remove_listener("response", _handle_response)
@@ -674,7 +700,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     )
                 else:
                     pm.result = await _maybe_await(method(*pm.args, **pm.kwargs))
-                    await page.wait_for_load_state(timeout=self.config.navigation_timeout)
+                    await page.wait_for_load_state(timeout=self.config.navigation_timeout_ms)
             else:
                 logger.warning(
                     "Ignoring %r: expected PageMethod, got %r",

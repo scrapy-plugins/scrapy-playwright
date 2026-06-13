@@ -12,19 +12,19 @@ from tests import allow_windows, make_handler
 class TestSettings(IsolatedAsyncioTestCase):
     async def test_settings_timeout_value(self):
         config = Config.from_settings(Settings({}))
-        assert config.navigation_timeout is None
+        assert config.navigation_timeout_ms is None
 
         config = Config.from_settings(Settings({"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": None}))
-        assert config.navigation_timeout is None
+        assert config.navigation_timeout_ms is None
 
         config = Config.from_settings(Settings({"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0}))
-        assert config.navigation_timeout == 0
+        assert config.navigation_timeout_ms == 0
 
         config = Config.from_settings(Settings({"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 123}))
-        assert config.navigation_timeout == 123
+        assert config.navigation_timeout_ms == 123
 
         config = Config.from_settings(Settings({"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0.5}))
-        assert config.navigation_timeout == 0.5
+        assert config.navigation_timeout_ms == 0.5
 
     async def test_max_pages_per_context(self):
         config = Config.from_settings(Settings({"PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1234}))
