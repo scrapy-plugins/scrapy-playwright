@@ -4,6 +4,7 @@ import platform
 from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
 from functools import partial
+from importlib.metadata import version as package_version
 from ipaddress import ip_address
 from time import time
 from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
@@ -34,6 +35,7 @@ from scrapy.utils.misc import load_object
 from scrapy.utils.reactor import verify_installed_reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 
+from scrapy_playwright import __version__
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._utils import (
@@ -203,7 +205,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     async def _launch(self) -> None:
         """Launch Playwright manager and configured startup context(s)."""
-        logger.info("Starting download handler")
+        logger.info(
+            "Starting download handler. Versions: scrapy-playwright==%s, Playwright==%s",
+            __version__,
+            package_version("playwright"),
+        )
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
         self.browser_type: BrowserType = getattr(self.playwright, self.config.browser_type_name)
