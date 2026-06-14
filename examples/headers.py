@@ -23,6 +23,10 @@ class HeadersSpider(Spider):
         "USER_AGENT": "Overridden user agent",
     }
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         yield Request(
             url="https://httpbin.org/headers",
