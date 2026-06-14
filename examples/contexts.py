@@ -45,6 +45,10 @@ class MultipleContextsSpider(Spider):
         },
     }
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         # using existing contexts
         for ctx_name in self.custom_settings["PLAYWRIGHT_CONTEXTS"].keys():

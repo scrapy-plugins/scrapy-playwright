@@ -17,6 +17,10 @@ class ScrollSpider(Spider):
         "LOG_LEVEL": "INFO",
     }
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         yield Request(
             url="http://quotes.toscrape.com/scroll",

@@ -19,6 +19,10 @@ class InitPageSpider(scrapy.Spider):
         },
     }
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         yield scrapy.Request(
             url="https://httpbin.org/headers",
