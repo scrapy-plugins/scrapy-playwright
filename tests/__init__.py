@@ -38,15 +38,22 @@ else:
         return test_method
 
 
-@asynccontextmanager
-async def make_handler(settings_dict: Optional[dict] = None):
-    """Convenience function to obtain an initialized handler and close it gracefully"""
+def create_handler(settings_dict: Optional[dict] = None):
     from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
 
     settings: dict = settings_dict or {}
     settings.setdefault("TELNETCONSOLE_ENABLED", False)
     crawler = get_crawler(settings_dict=settings)
     handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
+    return handler
+
+
+@asynccontextmanager
+async def make_handler(settings_dict: Optional[dict] = None):
+    """Convenience function to obtain an initialized handler and close it gracefully"""
+    from scrapy_playwright.handler import ScrapyPlaywrightDownloadHandler
+
+    handler: ScrapyPlaywrightDownloadHandler = create_handler(settings_dict)
     try:
         await handler._maybe_launch_in_thread()
     except:  # noqa (E722), pylint: disable=bare-except

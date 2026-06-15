@@ -1,4 +1,4 @@
-from unittest import IsolatedAsyncioTestCase
+from unittest import TestCase
 
 import pytest
 from scrapy.exceptions import NotSupported
@@ -6,11 +6,11 @@ from scrapy.settings import Settings
 
 from scrapy_playwright.handler import Config
 
-from tests import allow_windows, make_handler
+from tests import create_handler
 
 
-class TestSettings(IsolatedAsyncioTestCase):
-    async def test_settings_timeout_value(self):
+class TestSettings(TestCase):
+    def test_settings_timeout_value(self):
         config = Config.from_settings(Settings({}))
         assert config.navigation_timeout_ms is None
 
@@ -26,14 +26,14 @@ class TestSettings(IsolatedAsyncioTestCase):
         config = Config.from_settings(Settings({"PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0.5}))
         assert config.navigation_timeout_ms == 0.5
 
-    async def test_max_pages_per_context(self):
+    def test_max_pages_per_context(self):
         config = Config.from_settings(Settings({"PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1234}))
         assert config.max_pages_per_context == 1234
 
         config = Config.from_settings(Settings({"CONCURRENT_REQUESTS": 9876}))
         assert config.max_pages_per_context == 9876
 
-    async def test_connect_remote_urls(self):
+    def test_connect_remote_urls(self):
         with pytest.raises(NotSupported) as exc_info:
             Config.from_settings(
                 Settings({"PLAYWRIGHT_CONNECT_URL": "asdf", "PLAYWRIGHT_CDP_URL": "qwerty"})
@@ -43,10 +43,9 @@ class TestSettings(IsolatedAsyncioTestCase):
             == "Setting both PLAYWRIGHT_CDP_URL and PLAYWRIGHT_CONNECT_URL is not supported"
         )
 
-    @allow_windows
-    async def test_max_contexts(self):
-        async with make_handler({"PLAYWRIGHT_MAX_CONTEXTS": None}) as handler:
-            assert not hasattr(handler, "context_semaphore")
+    def test_max_contexts(self):
+        handler = create_handler({"PLAYWRIGHT_MAX_CONTEXTS": None})
+        assert not hasattr(handler, "context_semaphore")
 
-        async with make_handler({"PLAYWRIGHT_MAX_CONTEXTS": 1234}) as handler:
-            assert handler.context_semaphore._value == 1234
+        handler = create_handler({"PLAYWRIGHT_MAX_CONTEXTS": 1234})
+        assert handler.context_semaphore._value == 1234

@@ -2,7 +2,7 @@ import logging
 import platform
 import subprocess
 from tempfile import NamedTemporaryFile
-from unittest import IsolatedAsyncioTestCase
+from unittest import IsolatedAsyncioTestCase, TestCase
 
 import pytest
 from scrapy import Spider, Request
@@ -24,9 +24,8 @@ def get_mimetype(file):
     ).stdout.strip()
 
 
-class TestPageMethods(IsolatedAsyncioTestCase):
-    @allow_windows
-    async def test_page_methods(self):
+class TestPageMethods(TestCase):
+    def test_page_methods(self):
         screenshot = PageMethod("screenshot", "foo", 123, path="/tmp/file", type="png")
         assert screenshot.method == "screenshot"
         assert screenshot.args == ("foo", 123)

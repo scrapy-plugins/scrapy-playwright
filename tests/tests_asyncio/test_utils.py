@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from unittest import IsolatedAsyncioTestCase
+from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock
 
 import pytest
@@ -71,7 +71,7 @@ class TestPageContent(IsolatedAsyncioTestCase):
             )
 
 
-class TestBodyEncoding(IsolatedAsyncioTestCase):
+class TestBodyEncoding(TestCase):
     @staticmethod
     def body_str(charset: str, content: str = "áéíóú") -> str:
         return f"""
@@ -86,7 +86,7 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
             </html>
         """.strip()
 
-    async def test_encode_from_headers(self):
+    def test_encode_from_headers(self):
         """Charset declared in headers takes precedence"""
         text = self.body_str(charset="gb2312")
         body, encoding = _encode_body(
@@ -96,21 +96,21 @@ class TestBodyEncoding(IsolatedAsyncioTestCase):
         assert encoding == "cp1252"
         assert body == text.encode(encoding)
 
-    async def test_encode_from_body(self):
+    def test_encode_from_body(self):
         """No charset declared in headers, use the one declared in the body"""
         text = self.body_str(charset="gb2312")
         body, encoding = _encode_body(headers=Headers({}), text=text)
         assert encoding == "gb18030"
         assert body == text.encode(encoding)
 
-    async def test_encode_fallback_utf8(self):
+    def test_encode_fallback_utf8(self):
         """No charset declared, use utf-8 as fallback"""
         text = "<html>áéíóú</html>"
         body, encoding = _encode_body(headers=Headers(), text=text)
         assert encoding == "utf-8"
         assert body == text.encode(encoding)
 
-    async def test_encode_mismatch(self):
+    def test_encode_mismatch(self):
         """Charset declared in headers and body do not match, and the headers
         one fails to encode: use the one in the body (first one that works)
         """
@@ -152,8 +152,8 @@ class TestMaybeAwait(IsolatedAsyncioTestCase):
         assert await _maybe_await(1234) == 1234
 
 
-class TestGetFloatSetting(IsolatedAsyncioTestCase):
-    async def test_get_float_setting(self):
+class TestGetFloatSetting(TestCase):
+    def test_get_float_setting(self):
         settings = Settings(
             {
                 "ZERO": 0,
