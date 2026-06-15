@@ -388,11 +388,6 @@ def should_abort_request(request):
 PLAYWRIGHT_ABORT_REQUEST = should_abort_request
 ```
 
-### General note about settings
-For settings that accept object paths as strings, passing callable objects is
-only supported when using Scrapy>=2.4. With prior versions, only strings are
-supported.
-
 
 ## Supported [`Request.meta`](https://docs.scrapy.org/en/latest/topics/request-response.html#scrapy.http.Request.meta) keys
 
