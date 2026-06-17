@@ -530,6 +530,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
         start_time = time()
         response, download = await self._get_response_and_download(request, page, spider)
+
+        # page methods may navigate the main frame away from the original response
+        response = await self._maybe_apply_page_methods(
+            page=page, request=request, spider=spider, response=response
+        )
+
+        headers = Headers()
         if isinstance(response, PlaywrightResponse):
             await _set_redirect_meta(request=request, response=response)
             headers = Headers(await response.all_headers())
@@ -546,9 +553,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     "scrapy_request_method": request.method,
                 },
             )
-            headers = Headers()
 
-        await self._apply_page_methods(page, request, spider)
         body_str = await _get_page_content(
             page=page,
             spider=spider,
@@ -684,7 +689,51 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
         return response, download if download else None
 
-    async def _apply_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
+    async def _maybe_apply_page_methods(
+        self,
+        page: Page,
+        request: Request,
+        spider: Spider,
+        response: Optional[PlaywrightResponse],
+    ) -> Optional[PlaywrightResponse]:
+        """Run the request's page methods, returning the final Playwright response to use.
+
+        If a page method navigates the main frame away from the original response, the final Scrapy
+        response should have updated URL, body, status and headers. URL and body can be taken from
+        the Playwright Page, but status and headers need to be taken from the final Playwright
+        Response, which is not available as return value of page.goto().
+        """
+        if not request.meta.get("playwright_page_methods"):
+            return response
+
+        # track the most recent main-frame document navigation triggered by the page methods
+        last_navigation = response
+
+        def _track_navigation(navigation_response: PlaywrightResponse) -> None:
+            nonlocal last_navigation
+            if (
+                navigation_response.frame is page.main_frame
+                and navigation_response.request.is_navigation_request()
+                and navigation_response.request.resource_type == "document"
+            ):
+                last_navigation = navigation_response
+
+        page.on("response", _track_navigation)
+        try:
+            await self._run_page_methods(page, request, spider)
+        finally:
+            page.remove_listener("response", _track_navigation)
+
+        # use the final navigation response if it superseded the original one
+        if (
+            last_navigation is not response
+            and isinstance(last_navigation, PlaywrightResponse)
+            and last_navigation.url.rstrip("/") == page.url.rstrip("/")
+        ):
+            return last_navigation
+        return response
+
+    async def _run_page_methods(self, page: Page, request: Request, spider: Spider) -> None:
         context_name = request.meta.get("playwright_context")
         page_methods = request.meta.get("playwright_page_methods") or ()
         if isinstance(page_methods, dict):
