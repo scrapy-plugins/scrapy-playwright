@@ -55,7 +55,11 @@ class MixinTestCase:
                     resp2 = await handler.download_request(req2)
 
             assert_correct_response(resp, req)
-            assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll", "Quotes JSON"]
+            assert resp.css("a::text").getall() == [
+                "Lorem Ipsum",
+                "Infinite Scroll",
+                "Quotes JSON",
+            ]
 
             if _SCRAPY_ASYNC_API:
                 assert_correct_response(resp2, req2)
