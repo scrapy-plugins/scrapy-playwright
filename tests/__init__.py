@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Optional
 
+import pytest
+
 from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -76,3 +78,12 @@ def assert_correct_response(response: HtmlResponse, request: Request) -> None:
         assert "playwright" in response.flags
     else:
         assert "playwright" not in response.flags
+
+
+class BaseTestCase:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog, server, static_server):
+        caplog.set_level(logging.DEBUG)
+        self.caplog = caplog
+        self.server = server
+        self.static_server = static_server

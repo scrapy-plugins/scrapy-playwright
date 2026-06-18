@@ -2,6 +2,8 @@ import platform
 
 import pytest
 
+from tests.mockserver import MockServer, StaticMockServer
+
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
@@ -36,3 +38,15 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 
         if not isinstance(reactor, AsyncioSelectorReactor):
             raise RuntimeError(f"Wrong reactor installed: {type(reactor)}") from exc
+
+
+@pytest.fixture(scope="session")
+def server():
+    with MockServer() as server:
+        yield server
+
+
+@pytest.fixture(scope="session")
+def static_server():
+    with StaticMockServer() as server:
+        yield server
