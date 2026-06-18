@@ -42,11 +42,11 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 
 @pytest.fixture(scope="session")
 def server():
-    with MockServer() as server:
-        yield server
+    with MockServer() as mock_server:
+        yield mock_server
 
 
 @pytest.fixture(scope="session")
 def static_server():
-    with StaticMockServer() as server:
-        yield server
+    with StaticMockServer() as mock_server:
+        yield mock_server

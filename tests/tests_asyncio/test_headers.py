@@ -1,5 +1,4 @@
 import json
-import logging
 import platform
 import warnings
 from unittest import IsolatedAsyncioTestCase
