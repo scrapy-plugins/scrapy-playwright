@@ -39,19 +39,21 @@ class MixinTestCase(BaseTestCase):
 
     @allow_windows
     async def test_basic_response(self):
+        spider = Spider("foo")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
-            resp = await handler._download_request(req, Spider("foo"))
+            resp = await handler._download_request(req, spider)
+            assert_correct_response(resp, req)
+            assert resp.ip_address == ip_address(self.static_server.address)
+            assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
+
+            # at least one log record has a spider attribute
+            # (records sent before spider_opened will not have it)
+            assert any(getattr(rec, "spider", None) is spider for rec in self.caplog.records)
 
             if _SCRAPY_ASYNC_API:
-                req2 = Request(
-                    self.static_server.urljoin("/gallery.html"), meta={"playwright": True}
-                )
-                resp2 = await handler.download_request(req2)
-                assert_correct_response(resp2, req2)
-
-            assert_correct_response(resp, req)
-            assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
+                resp2 = await handler.download_request(req)
+                assert_correct_response(resp2, req)
 
     @allow_windows
     async def test_reuse_existing_page(self):
@@ -243,17 +245,6 @@ class MixinTestCase(BaseTestCase):
             assert getattr(spider, "dialog_message", None) is None
 
     @allow_windows
-    async def test_response_attributes(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req = Request(
-                url=self.server.urljoin(),
-                meta={"playwright": True},
-            )
-            response = await handler._download_request(req, Spider("spider_name"))
-
-        assert response.ip_address == ip_address(self.server.address)
-
-    @allow_windows
     async def test_page_goto_kwargs_referer(self):
         if self.browser_type != "chromium":
             pytest.skip("referer as goto kwarg seems to work only with chromium :shrug:")
@@ -379,18 +370,6 @@ class MixinTestCase(BaseTestCase):
             self.server.urljoin("/redirect2"),
             self.server.urljoin("/redirect"),
         ]
-
-    @allow_windows
-    async def test_logging_record_spider(self):
-        """Make sure at least one log record has the spider as an attribute
-        (records sent before opening the spider will not have it).
-        """
-        spider = Spider("spider_name")
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req = Request(url=self.server.urljoin("/index.html"), meta={"playwright": True})
-            await handler._download_request(req, spider)
-
-        assert any(getattr(rec, "spider", None) is spider for rec in self.caplog.records)
 
     @allow_windows
     async def test_request_logger(self):
