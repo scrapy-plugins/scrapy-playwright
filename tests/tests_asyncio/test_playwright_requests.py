@@ -215,51 +215,44 @@ class MixinTestCase:
 
     @allow_windows
     async def test_event_handler_dialog(self):
+        spider = DialogSpider()
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             with StaticMockServer() as server:
-                for use_callable in (True, False):
-                    spider = DialogSpider()
+
+                # event handled correctly both as method and as string
+                for event_handler in (spider.handle_dialog, "handle_dialog"):
                     req = Request(
                         url=server.urljoin("/index.html"),
                         meta={
                             "playwright": True,
                             "playwright_page_methods": [
-                                # trigger an alert
-                                PageMethod("evaluate", "alert('foobar');"),
+                                PageMethod("evaluate", "alert('foobar');"),  # trigger an alert
                             ],
-                            "playwright_page_event_handlers": {
-                                "dialog": (
-                                    spider.handle_dialog if use_callable else "handle_dialog"
-                                ),
-                            },
+                            "playwright_page_event_handlers": {"dialog": event_handler},
                         },
                     )
                     await handler._download_request(req, spider)
                     assert spider.dialog_message == "foobar"
+                    del spider.dialog_message  # cleanup for next iteration
 
-    @allow_windows
-    async def test_event_handler_dialog_missing(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                spider = DialogSpider()
+                # event handler not found
                 req = Request(
                     url=server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
                         "playwright_page_event_handlers": {
-                            "dialog": "missing_method",
+                            "popup": "missing_method",
                         },
                     },
                 )
                 await handler._download_request(req, spider)
-
-        assert (
-            "scrapy-playwright",
-            logging.WARNING,
-            "Spider 'dialog' does not have a 'missing_method' attribute,"
-            " ignoring handler for event 'dialog'",
-        ) in self._caplog.record_tuples
-        assert getattr(spider, "dialog_message", None) is None
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    "Spider 'dialog' does not have a 'missing_method' attribute,"
+                    " ignoring handler for event 'popup'",
+                ) in self._caplog.record_tuples
+                assert getattr(spider, "dialog_message", None) is None
 
     @allow_windows
     async def test_response_attributes(self):
