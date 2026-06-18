@@ -35,33 +35,27 @@ class TestPageMethods(TestCase):
 
 class MixinPageMethodTestCase(BaseTestCase):
     @allow_windows
-    async def test_page_non_page_method(self):
+    async def test_mixed(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req = Request(
+            # invalid page methods should be ignored with a warning
+            req1 = Request(
                 url=self.static_server.urljoin("/index.html"),
                 meta={
                     "playwright": True,
-                    "playwright_page_methods": [
-                        "not-a-page-method",
-                        5,
-                        None,
-                    ],
+                    "playwright_page_methods": ["not-a-page-method", 5, None],
                 },
             )
-            resp = await handler._download_request(req, Spider("foo"))
+            resp1 = await handler._download_request(req1, Spider("foo"))
+            assert_correct_response(resp1, req1)
+            for obj in req1.meta["playwright_page_methods"]:
+                assert (
+                    "scrapy-playwright",
+                    logging.WARNING,
+                    f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
+                ) in self.caplog.record_tuples
 
-        assert_correct_response(resp, req)
-        for obj in req.meta["playwright_page_methods"]:
-            assert (
-                "scrapy-playwright",
-                logging.WARNING,
-                f"Ignoring {repr(obj)}: expected PageMethod, got {repr(type(obj))}",
-            ) in self.caplog.record_tuples
-
-    @allow_windows
-    async def test_page_mixed_page_methods(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            req = Request(
+            # valid page methods should still work
+            req2 = Request(
                 url=self.static_server.urljoin("/index.html"),
                 meta={
                     "playwright": True,
@@ -72,17 +66,16 @@ class MixinPageMethodTestCase(BaseTestCase):
                     },
                 },
             )
-            resp = await handler._download_request(req, Spider("foo"))
-
-        assert_correct_response(resp, req)
-        does_not_exist = req.meta["playwright_page_methods"]["does_not_exist"]
-        assert (
-            "scrapy-playwright",
-            logging.WARNING,
-            f"Ignoring {repr(does_not_exist)}: could not find method",
-        ) in self.caplog.record_tuples
-        assert not req.meta["playwright_page_methods"]["is_closed"].result
-        assert req.meta["playwright_page_methods"]["title"].result == "Awesome site"
+            resp2 = await handler._download_request(req2, Spider("foo"))
+            assert_correct_response(resp2, req2)
+            does_not_exist = req2.meta["playwright_page_methods"]["does_not_exist"]
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Ignoring {repr(does_not_exist)}: could not find method",
+            ) in self.caplog.record_tuples
+            assert not req2.meta["playwright_page_methods"]["is_closed"].result
+            assert req2.meta["playwright_page_methods"]["title"].result == "Awesome site"
 
     @allow_windows
     async def test_page_method_navigation(self):
