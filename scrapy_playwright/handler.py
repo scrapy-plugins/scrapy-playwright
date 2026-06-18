@@ -38,14 +38,18 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from scrapy_playwright import __version__
 from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
+from scrapy_playwright._loop import _ThreadedLoopAdapter
 from scrapy_playwright._utils import (
-    _ThreadedLoopAdapter,
+    _attach_page_event_handlers,
     _encode_body,
     _get_float_setting,
-    _get_header_value,
     _get_page_content,
     _is_safe_close_error,
+    _make_request_logger,
+    _make_response_logger,
     _maybe_await,
+    _maybe_execute_page_init_callback,
+    _set_redirect_meta,
 )
 
 
@@ -894,126 +898,3 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                     raise
 
         return _request_handler
-
-
-def _attach_page_event_handlers(
-    page: Page, request: Request, spider: Spider, context_name: str
-) -> None:
-    event_handlers = request.meta.get("playwright_page_event_handlers") or {}
-    for event, handler in event_handlers.items():
-        if callable(handler):
-            page.on(event, handler)
-        elif isinstance(handler, str):
-            try:
-                page.on(event, getattr(spider, handler))
-            except AttributeError as ex:
-                logger.warning(
-                    "Spider '%s' does not have a '%s' attribute,"
-                    " ignoring handler for event '%s'",
-                    spider.name,
-                    handler,
-                    event,
-                    extra={
-                        "spider": spider,
-                        "context_name": context_name,
-                        "scrapy_request_url": request.url,
-                        "scrapy_request_method": request.method,
-                        "exception": ex,
-                    },
-                    exc_info=True,
-                )
-
-
-async def _set_redirect_meta(request: Request, response: PlaywrightResponse) -> None:
-    """Update a Scrapy request with metadata about redirects."""
-    redirect_times: int = 0
-    redirect_urls: list = []
-    redirect_reasons: list = []
-    redirected = response.request.redirected_from
-    while redirected is not None:
-        redirect_times += 1
-        redirect_urls.append(redirected.url)
-        redirected_response = await redirected.response()
-        reason = None if redirected_response is None else redirected_response.status
-        redirect_reasons.append(reason)
-        redirected = redirected.redirected_from
-    if redirect_times:
-        request.meta["redirect_times"] = redirect_times
-        request.meta["redirect_urls"] = list(reversed(redirect_urls))
-        request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
-
-
-async def _maybe_execute_page_init_callback(
-    page: Page,
-    request: Request,
-    context_name: str,
-    spider: Spider,
-) -> None:
-    page_init_callback = request.meta.get("playwright_page_init_callback")
-    if page_init_callback:
-        try:
-            page_init_callback = load_object(page_init_callback)
-            await page_init_callback(page, request)
-        except Exception as ex:
-            logger.warning(
-                "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
-                context_name,
-                repr(request),
-                type(ex),
-                str(ex),
-                extra={
-                    "spider": spider,
-                    "context_name": context_name,
-                    "scrapy_request_url": request.url,
-                    "scrapy_request_method": request.method,
-                    "exception": ex,
-                },
-                exc_info=True,
-            )
-
-
-def _make_request_logger(context_name: str, spider: Spider) -> Callable:
-    async def _log_request(request: PlaywrightRequest) -> None:
-        log_args = [context_name, request.method.upper(), request.url, request.resource_type]
-        referrer = await _get_header_value(request, "referer")
-        if referrer:
-            log_args.append(referrer)
-            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)"
-        else:
-            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s)"
-        logger.debug(
-            log_msg,
-            *log_args,
-            extra={
-                "spider": spider,
-                "context_name": context_name,
-                "playwright_request_url": request.url,
-                "playwright_request_method": request.method,
-                "playwright_resource_type": request.resource_type,
-            },
-        )
-
-    return _log_request
-
-
-def _make_response_logger(context_name: str, spider: Spider) -> Callable:
-    async def _log_response(response: PlaywrightResponse) -> None:
-        log_args = [context_name, response.status, response.url]
-        location = await _get_header_value(response, "location")
-        if location:
-            log_args.append(location)
-            log_msg = "[Context=%s] Response: <%i %s> (location: %s)"
-        else:
-            log_msg = "[Context=%s] Response: <%i %s>"
-        logger.debug(
-            log_msg,
-            *log_args,
-            extra={
-                "spider": spider,
-                "context_name": context_name,
-                "playwright_response_url": response.url,
-                "playwright_response_status": response.status,
-            },
-        )
-
-    return _log_response

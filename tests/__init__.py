@@ -17,7 +17,7 @@ logger = logging.getLogger("scrapy-playwright-tests")
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright._utils import _ThreadedLoopAdapter
+    from scrapy_playwright._loop import _ThreadedLoopAdapter
 
     def allow_windows(test_method):
         """Wrap tests with the _ThreadedLoopAdapter class on Windows."""

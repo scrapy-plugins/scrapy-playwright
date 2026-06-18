@@ -123,15 +123,20 @@ class MixinTestCase:
         }
         async with make_handler(settings_dict) as handler:
             with MockServer() as server:
-                req = Request(server.urljoin("/headers?delay=0.5"), meta={"playwright": True})
+                req1 = Request(server.urljoin("/headers?delay=0.5"), meta={"playwright": True})
                 with pytest.raises(PlaywrightTimeoutError) as excinfo:
-                    await handler._download_request(req, Spider("foo"))
+                    await handler._download_request(req1, Spider("foo"))
                 assert (
                     "scrapy-playwright",
                     logging.WARNING,
-                    f"Closing page due to failed request: {req}"
+                    f"Closing page due to failed request: {req1}"
                     f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
                 ) in self._caplog.record_tuples
+
+                if _SCRAPY_ASYNC_API:
+                    req2 = req1.copy()
+                    with pytest.raises(PlaywrightTimeoutError):
+                        await handler.download_request(req2)
 
     @allow_windows
     async def test_retry_page_content_still_navigating(self):
