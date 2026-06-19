@@ -172,6 +172,7 @@ class MixinTestCase(BaseTestCase):
             playwright_request.url = scrapy_request.url
             playwright_request.method = scrapy_request.method
             playwright_request.is_navigation_request = MagicMock(return_value=True)
+            playwright_request.headers = {}
             playwright_request.all_headers.return_value = {}
 
             # safe error, only warn
