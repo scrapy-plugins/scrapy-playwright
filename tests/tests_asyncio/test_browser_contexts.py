@@ -16,11 +16,10 @@ from scrapy import Spider, Request
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME
 from scrapy_playwright.page import PageMethod
 
-from tests import allow_windows, make_handler
-from tests.mockserver import StaticMockServer
+from tests import allow_windows, make_handler, BaseTestCase
 
 
-class MixinTestCaseMultipleContexts:
+class MixinTestCaseMultipleContexts(BaseTestCase):
     @allow_windows
     async def test_context_kwargs(self):
         settings_dict = {
@@ -30,19 +29,18 @@ class MixinTestCaseMultipleContexts:
             },
         }
         async with make_handler(settings_dict) as handler:
-            with StaticMockServer() as server:
-                req = Request(
-                    url=server.urljoin("/scroll.html"),
-                    meta={
-                        "playwright": True,
-                        "playwright_page_methods": [
-                            # cause a timeout by waiting on an element that is rendered with js
-                            PageMethod("wait_for_selector", selector="div.quote", timeout=500),
-                        ],
-                    },
-                )
-                with pytest.raises(PlaywrightTimeoutError):
-                    await handler._download_request(req, Spider("foo"))
+            req = Request(
+                url=self.static_server.urljoin("/scroll.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_methods": [
+                        # cause a timeout by waiting on an element that is rendered with js
+                        PageMethod("wait_for_selector", selector="div.quote", timeout=500),
+                    ],
+                },
+            )
+            with pytest.raises(PlaywrightTimeoutError):
+                await handler._download_request(req, Spider("foo"))
 
     @allow_windows
     async def test_contexts_max_pages(self):
@@ -55,27 +53,26 @@ class MixinTestCaseMultipleContexts:
             },
         }
         async with make_handler(settings) as handler:
-            with StaticMockServer() as server:
-                requests = [
-                    handler._download_request(
-                        Request(
-                            server.urljoin(f"/index.html?a={i}"),
-                            meta={"playwright": True, "playwright_context": "a"},
-                        ),
-                        Spider("foo"),
-                    )
-                    for i in range(5)
-                ] + [
-                    handler._download_request(
-                        Request(
-                            server.urljoin(f"/index.html?b={i}"),
-                            meta={"playwright": True, "playwright_context": "b"},
-                        ),
-                        Spider("foo"),
-                    )
-                    for i in range(5)
-                ]
-                await asyncio.gather(*requests)
+            requests = [
+                handler._download_request(
+                    Request(
+                        self.static_server.urljoin(f"/index.html?a={i}"),
+                        meta={"playwright": True, "playwright_context": "a"},
+                    ),
+                    Spider("foo"),
+                )
+                for i in range(5)
+            ] + [
+                handler._download_request(
+                    Request(
+                        self.static_server.urljoin(f"/index.html?b={i}"),
+                        meta={"playwright": True, "playwright_context": "b"},
+                    ),
+                    Spider("foo"),
+                )
+                for i in range(5)
+            ]
+            await asyncio.gather(*requests)
 
             assert handler.stats.get_value("playwright/page_count/max_concurrent") == 2
 
@@ -90,27 +87,26 @@ class MixinTestCaseMultipleContexts:
             "PLAYWRIGHT_MAX_CONTEXTS": 4,
         }
         async with make_handler(settings) as handler:
-            with StaticMockServer() as server:
-                tasks = []
-                for i in range(6):
-                    request = Request(
-                        url=server.urljoin(f"/index.html?a={i}"),
-                        callback=cb_close_context,
-                        meta={
-                            "playwright": True,
-                            "playwright_include_page": True,
-                            "playwright_context": f"ctx-{i}",
-                        },
-                    )
-                    coro = handler._download_request(
-                        request=request,
-                        spider=Spider("foo"),
-                    )
-                    # callbacks are not invoked at the download handler, call them explicitly
-                    task = asyncio.create_task(coro)
-                    task.add_done_callback(request.callback)
-                    tasks.append(task)
-                await asyncio.gather(*tasks)
+            tasks = []
+            for i in range(6):
+                request = Request(
+                    url=self.static_server.urljoin(f"/index.html?a={i}"),
+                    callback=cb_close_context,
+                    meta={
+                        "playwright": True,
+                        "playwright_include_page": True,
+                        "playwright_context": f"ctx-{i}",
+                    },
+                )
+                coro = handler._download_request(
+                    request=request,
+                    spider=Spider("foo"),
+                )
+                # callbacks are not invoked at the download handler, call them explicitly
+                task = asyncio.create_task(coro)
+                task.add_done_callback(request.callback)
+                tasks.append(task)
+            await asyncio.gather(*tasks)
 
             assert handler.stats.get_value("playwright/context_count/max_concurrent") == 4
 
@@ -135,14 +131,13 @@ class MixinTestCaseMultipleContexts:
         async with make_handler(settings) as handler:
             assert len(handler.context_wrappers) == 1
 
-            with StaticMockServer() as server:
-                meta = {
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_context": "first",
-                }
-                req = Request(server.urljoin("/index.html"), meta=meta)
-                resp = await handler._download_request(req, Spider("foo"))
+            meta = {
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_context": "first",
+            }
+            req = Request(self.static_server.urljoin("/index.html"), meta=meta)
+            resp = await handler._download_request(req, Spider("foo"))
 
             page = resp.meta["playwright_page"]
             storage_state = await page.context.storage_state()
@@ -208,63 +203,61 @@ class MixinTestCaseMultipleContexts:
             assert hasattr(handler, "context_semaphore")
             assert handler.context_semaphore._value == 1
 
-            with StaticMockServer() as server:
-                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
-                await handler._download_request(req, Spider("foo"))
-                assert handler.context_semaphore._value == 0
+            req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
+            await handler._download_request(req, Spider("foo"))
+            assert handler.context_semaphore._value == 0
 
-                await handler.context_wrappers["default"].context.close()
-                await asyncio.sleep(0)  # allow the close task to release the semaphore
-                assert handler.context_semaphore._value == 1
+            await handler.context_wrappers["default"].context.close()
+            await asyncio.sleep(0)  # allow the close task to release the semaphore
+            assert handler.context_semaphore._value == 1
 
-                with patch.object(
-                    handler.browser,
-                    "new_context",
-                    new_callable=AsyncMock,
-                    side_effect=PlaywrightError("simulated new_context failure"),
-                ):
-                    with pytest.raises(PlaywrightError):
-                        await handler._create_browser_context(
-                            name="failing-ctx",
-                            context_kwargs={},
-                            spider=Spider("foo"),
-                        )
+            with patch.object(
+                handler.browser,
+                "new_context",
+                new_callable=AsyncMock,
+                side_effect=PlaywrightError("simulated new_context failure"),
+            ):
+                with pytest.raises(PlaywrightError):
+                    await handler._create_browser_context(
+                        name="failing-ctx",
+                        context_kwargs={},
+                        spider=Spider("foo"),
+                    )
 
-                assert handler.context_semaphore._value == 1
+            assert handler.context_semaphore._value == 1
 
-                req2 = Request(
-                    server.urljoin("/index.html"),
-                    meta={"playwright": True, "playwright_context": "default2"},
-                )
-                await asyncio.wait_for(
-                    handler._download_request(req2, Spider("foo")),
-                    timeout=15.0,
-                )
+            req2 = Request(
+                self.static_server.urljoin("/index.html"),
+                meta={"playwright": True, "playwright_context": "default2"},
+            )
+            await asyncio.wait_for(
+                handler._download_request(req2, Spider("foo")),
+                timeout=15.0,
+            )
 
     @allow_windows
     async def test_contexts_dynamic(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             assert len(handler.context_wrappers) == 0
 
-            with StaticMockServer() as server:
-                meta = {
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_context": "new",
-                    "playwright_context_kwargs": {
-                        "storage_state": {
-                            "cookies": [
-                                {
-                                    "url": "https://example.org",
-                                    "name": "asdf",
-                                    "value": "qwerty",
-                                },
-                            ],
-                        },
+            meta = {
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_context": "new",
+                "playwright_context_kwargs": {
+                    "storage_state": {
+                        "cookies": [
+                            {
+                                "url": "https://example.org",
+                                "name": "asdf",
+                                "value": "qwerty",
+                            },
+                        ],
                     },
-                }
-                req = Request(server.urljoin("/index.html"), meta=meta)
-                resp = await handler._download_request(req, Spider("foo"))
+                },
+            }
+            req = Request(self.static_server.urljoin("/index.html"), meta=meta)
+            resp = await handler._download_request(req, Spider("foo"))
 
             assert len(handler.context_wrappers) == 1
 
@@ -286,39 +279,39 @@ class MixinTestCaseMultipleContexts:
             "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 1,
         }
         async with make_handler(settings) as handler:
-            with StaticMockServer() as server:
-                await handler._download_request(
-                    Request(server.urljoin("/index.html"), meta={"playwright": True}),
+            await handler._download_request(
+                Request(self.static_server.urljoin("/index.html"), meta={"playwright": True}),
+                Spider("foo"),
+            )
+
+            ctx_wrapper = handler.context_wrappers[DEFAULT_CONTEXT_NAME]
+            assert ctx_wrapper.semaphore._value == 1
+
+            with patch.object(
+                ctx_wrapper.context,
+                "new_page",
+                new_callable=AsyncMock,
+                side_effect=PlaywrightError("simulated failure"),
+            ):
+                with pytest.raises(PlaywrightError):
+                    await handler._create_page(
+                        request=Request(
+                            self.static_server.urljoin("/index.html"),
+                            meta={"playwright": True},
+                        ),
+                        spider=Spider("foo"),
+                    )
+
+            assert ctx_wrapper.semaphore._value == 1
+
+            # context should still be usable after the failure
+            await asyncio.wait_for(
+                handler._download_request(
+                    Request(self.static_server.urljoin("/index.html"), meta={"playwright": True}),
                     Spider("foo"),
-                )
-
-                ctx_wrapper = handler.context_wrappers[DEFAULT_CONTEXT_NAME]
-                assert ctx_wrapper.semaphore._value == 1
-
-                with patch.object(
-                    ctx_wrapper.context,
-                    "new_page",
-                    new_callable=AsyncMock,
-                    side_effect=PlaywrightError("simulated failure"),
-                ):
-                    with pytest.raises(PlaywrightError):
-                        await handler._create_page(
-                            request=Request(
-                                server.urljoin("/index.html"), meta={"playwright": True}
-                            ),
-                            spider=Spider("foo"),
-                        )
-
-                assert ctx_wrapper.semaphore._value == 1
-
-                # context should still be usable after the failure
-                await asyncio.wait_for(
-                    handler._download_request(
-                        Request(server.urljoin("/index.html"), meta={"playwright": True}),
-                        Spider("foo"),
-                    ),
-                    timeout=10.0,
-                )
+                ),
+                timeout=10.0,
+            )
 
 
 class TestCaseMultipleContextsChromium(IsolatedAsyncioTestCase, MixinTestCaseMultipleContexts):

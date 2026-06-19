@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Optional
 
+import pytest
+
 from scrapy import Request
 from scrapy.http.response.html import HtmlResponse
 from scrapy.utils.test import get_crawler
@@ -17,7 +19,7 @@ logger = logging.getLogger("scrapy-playwright-tests")
 
 
 if platform.system() == "Windows":
-    from scrapy_playwright._utils import _ThreadedLoopAdapter
+    from scrapy_playwright._loop import _ThreadedLoopAdapter
 
     def allow_windows(test_method):
         """Wrap tests with the _ThreadedLoopAdapter class on Windows."""
@@ -76,3 +78,12 @@ def assert_correct_response(response: HtmlResponse, request: Request) -> None:
         assert "playwright" in response.flags
     else:
         assert "playwright" not in response.flags
+
+
+class BaseTestCase:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog, server, static_server):
+        caplog.set_level(logging.DEBUG)
+        self.caplog = caplog
+        self.server = server
+        self.static_server = static_server

@@ -18,8 +18,7 @@ from scrapy import Spider, Request, FormRequest
 from scrapy_playwright.handler import DEFAULT_CONTEXT_NAME, _SCRAPY_ASYNC_API
 from scrapy_playwright.page import PageMethod
 
-from tests import allow_windows, make_handler, assert_correct_response
-from tests.mockserver import MockServer, StaticMockServer
+from tests import allow_windows, make_handler, assert_correct_response, BaseTestCase
 
 
 class DialogSpider(Spider):
@@ -35,60 +34,55 @@ class DialogSpider(Spider):
         await dialog.dismiss()
 
 
-class MixinTestCase:
+class MixinTestCase(BaseTestCase):
     browser_type: str
-
-    @pytest.fixture(autouse=True)
-    def inject_fixtures(self, caplog):
-        caplog.set_level(logging.DEBUG)
-        self._caplog = caplog
 
     @allow_windows
     async def test_basic_response(self):
+        spider = Spider("foo")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                req = Request(server.urljoin("/index.html"), meta={"playwright": True})
-                resp = await handler._download_request(req, Spider("foo"))
-
-                if _SCRAPY_ASYNC_API:
-                    req2 = Request(server.urljoin("/gallery.html"), meta={"playwright": True})
-                    resp2 = await handler.download_request(req2)
-
+            req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
+            resp = await handler._download_request(req, spider)
             assert_correct_response(resp, req)
             assert resp.css("a::text").getall() == [
                 "Lorem Ipsum",
                 "Infinite Scroll",
                 "Quotes JSON",
             ]
+            assert resp.ip_address == ip_address(self.static_server.address)
+
+            # at least one log record has a spider attribute
+            # (records sent before spider_opened will not have it)
+            assert any(getattr(rec, "spider", None) is spider for rec in self.caplog.records)
 
             if _SCRAPY_ASYNC_API:
-                assert_correct_response(resp2, req2)
+                resp2 = await handler.download_request(req)
+                assert_correct_response(resp2, req)
 
     @allow_windows
     async def test_reuse_existing_page(self):
         """A page passed via playwright_page meta is reused."""
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                spider = Spider("foo")
-                req1 = Request(
-                    server.urljoin("/index.html"),
-                    meta={"playwright": True, "playwright_include_page": True},
-                )
-                resp1 = await handler._download_request(req1, spider)
-                page = resp1.meta["playwright_page"]
-                assert isinstance(page, PlaywrightPage)
-                assert page.url == resp1.url
-                assert not page.is_closed()
+            spider = Spider("foo")
+            req1 = Request(
+                self.static_server.urljoin("/index.html"),
+                meta={"playwright": True, "playwright_include_page": True},
+            )
+            resp1 = await handler._download_request(req1, spider)
+            page = resp1.meta["playwright_page"]
+            assert isinstance(page, PlaywrightPage)
+            assert page.url == resp1.url
+            assert not page.is_closed()
 
-                req2 = Request(
-                    server.urljoin("/gallery.html"),
-                    meta={
-                        "playwright": True,
-                        "playwright_include_page": True,
-                        "playwright_page": page,
-                    },
-                )
-                resp2 = await handler._download_request(req2, spider)
+            req2 = Request(
+                self.static_server.urljoin("/gallery.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_include_page": True,
+                    "playwright_page": page,
+                },
+            )
+            resp2 = await handler._download_request(req2, spider)
 
         assert_correct_response(resp1, req1)
         assert_correct_response(resp2, req2)
@@ -110,11 +104,10 @@ class MixinTestCase:
     @allow_windows
     async def test_post_request(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                req = FormRequest(
-                    server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
-                )
-                resp = await handler._download_request(req, Spider("foo"))
+            req = FormRequest(
+                self.server.urljoin("/"), meta={"playwright": True}, formdata={"foo": "bar"}
+            )
+            resp = await handler._download_request(req, Spider("foo"))
 
             assert_correct_response(resp, req)
             assert "Request body: foo=bar" in resp.text
@@ -126,16 +119,20 @@ class MixinTestCase:
             "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(server.urljoin("/headers?delay=0.5"), meta={"playwright": True})
-                with pytest.raises(PlaywrightTimeoutError) as excinfo:
-                    await handler._download_request(req, Spider("foo"))
-                assert (
-                    "scrapy-playwright",
-                    logging.WARNING,
-                    f"Closing page due to failed request: {req}"
-                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
-                ) in self._caplog.record_tuples
+            req1 = Request(self.server.urljoin("/headers?delay=0.5"), meta={"playwright": True})
+            with pytest.raises(PlaywrightTimeoutError) as excinfo:
+                await handler._download_request(req1, Spider("foo"))
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Closing page due to failed request: {req1}"
+                f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+            ) in self.caplog.record_tuples
+
+            if _SCRAPY_ASYNC_API:
+                req2 = req1.copy()
+                with pytest.raises(PlaywrightTimeoutError):
+                    await handler.download_request(req2)
 
     @allow_windows
     async def test_retry_page_content_still_navigating(self):
@@ -143,12 +140,11 @@ class MixinTestCase:
             pytest.skip("Only Chromium seems to redirect meta tags within the same goto call")
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                req = Request(server.urljoin("/redirect.html"), meta={"playwright": True})
-                resp = await handler._download_request(req, Spider("foo"))
+            req = Request(self.static_server.urljoin("/redirect.html"), meta={"playwright": True})
+            resp = await handler._download_request(req, Spider("foo"))
 
             assert resp.request is req
-            assert resp.url == server.urljoin("/index.html")  # redirected
+            assert resp.url == self.static_server.urljoin("/index.html")  # redirected
             assert resp.status == 200
             assert "playwright" in resp.flags
             assert (
@@ -156,7 +152,7 @@ class MixinTestCase:
                 logging.DEBUG,
                 f"Retrying to get content from page '{req.url}', error: 'Unable to retrieve"
                 " content because the page is navigating and changing the content.'",
-            ) in self._caplog.record_tuples
+            ) in self.caplog.record_tuples
 
     @patch("scrapy_playwright.handler.logger")
     @allow_windows
@@ -214,79 +210,58 @@ class MixinTestCase:
 
     @allow_windows
     async def test_event_handler_dialog(self):
+        spider = DialogSpider()
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                for use_callable in (True, False):
-                    spider = DialogSpider()
-                    req = Request(
-                        url=server.urljoin("/index.html"),
-                        meta={
-                            "playwright": True,
-                            "playwright_page_methods": [
-                                # trigger an alert
-                                PageMethod("evaluate", "alert('foobar');"),
-                            ],
-                            "playwright_page_event_handlers": {
-                                "dialog": (
-                                    spider.handle_dialog if use_callable else "handle_dialog"
-                                ),
-                            },
-                        },
-                    )
-                    await handler._download_request(req, spider)
-                    assert spider.dialog_message == "foobar"
 
-    @allow_windows
-    async def test_event_handler_dialog_missing(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with StaticMockServer() as server:
-                spider = DialogSpider()
+            # event handled correctly both as method and as string
+            for event_handler in (spider.handle_dialog, "handle_dialog"):
                 req = Request(
-                    url=server.urljoin("/index.html"),
+                    url=self.static_server.urljoin("/index.html"),
                     meta={
                         "playwright": True,
-                        "playwright_page_event_handlers": {
-                            "dialog": "missing_method",
-                        },
+                        "playwright_page_methods": [
+                            PageMethod("evaluate", "alert('foobar');"),  # trigger an alert
+                        ],
+                        "playwright_page_event_handlers": {"dialog": event_handler},
                     },
                 )
                 await handler._download_request(req, spider)
+                assert spider.dialog_message == "foobar"
+                del spider.dialog_message  # cleanup for next iteration
 
-        assert (
-            "scrapy-playwright",
-            logging.WARNING,
-            "Spider 'dialog' does not have a 'missing_method' attribute,"
-            " ignoring handler for event 'dialog'",
-        ) in self._caplog.record_tuples
-        assert getattr(spider, "dialog_message", None) is None
-
-    @allow_windows
-    async def test_response_attributes(self):
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin(),
-                    meta={"playwright": True},
-                )
-                response = await handler._download_request(req, Spider("spider_name"))
-
-        assert response.ip_address == ip_address(server.address)
+            # event handler not found
+            req = Request(
+                url=self.static_server.urljoin("/index.html"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_event_handlers": {
+                        "popup": "missing_method",
+                    },
+                },
+            )
+            await handler._download_request(req, spider)
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                "Spider 'dialog' does not have a 'missing_method' attribute,"
+                " ignoring handler for event 'popup'",
+            ) in self.caplog.record_tuples
+            assert getattr(spider, "dialog_message", None) is None
 
     @allow_windows
     async def test_page_goto_kwargs_referer(self):
         if self.browser_type != "chromium":
             pytest.skip("referer as goto kwarg seems to work only with chromium :shrug:")
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                fake_referer = server.urljoin("/fake/referer")
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={
-                        "playwright": True,
-                        "playwright_page_goto_kwargs": {"referer": fake_referer},
-                    },
-                )
-                response = await handler._download_request(req, Spider("spider_name"))
+            fake_referer = self.server.urljoin("/fake/referer")
+            req = Request(
+                url=self.server.urljoin("/headers"),
+                meta={
+                    "playwright": True,
+                    "playwright_page_goto_kwargs": {"referer": fake_referer},
+                },
+            )
+            response = await handler._download_request(req, Spider("spider_name"))
 
         headers = json.loads(response.css("pre::text").get())
         assert headers["Referer"] == fake_referer
@@ -294,16 +269,15 @@ class MixinTestCase:
     @allow_windows
     async def test_navigation_returns_none(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer():
-                req = Request(url="about:blank", meta={"playwright": True})
-                response = await handler._download_request(req, Spider("spider_name"))
+            req = Request(url="about:blank", meta={"playwright": True})
+            response = await handler._download_request(req, Spider("spider_name"))
 
         assert (
             "scrapy-playwright",
             logging.WARNING,
             f"Navigating to {req!r} returned None, the response"
             " will have empty headers and status 200",
-        ) in self._caplog.record_tuples
+        ) in self.caplog.record_tuples
         assert not response.headers
         assert response.status == 200
 
@@ -324,20 +298,19 @@ class MixinTestCase:
                 "PLAYWRIGHT_ABORT_REQUEST": predicate,
             }
             async with make_handler(settings_dict) as handler:
-                with StaticMockServer() as server:
-                    req = Request(
-                        url=server.urljoin("/gallery.html"),
-                        meta={"playwright": True},
-                    )
-                    await handler._download_request(req, Spider("foo"))
+                req = Request(
+                    url=self.static_server.urljoin("/gallery.html"),
+                    meta={"playwright": True},
+                )
+                await handler._download_request(req, Spider("foo"))
 
-                    req_prefix = "playwright/request_count"
-                    resp_prefix = "playwright/response_count"
-                    assert handler.stats.get_value(f"{req_prefix}/resource_type/document") == 1
-                    assert handler.stats.get_value(f"{req_prefix}/resource_type/image") == 3
-                    assert handler.stats.get_value(f"{resp_prefix}/resource_type/document") == 1
-                    assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
-                    assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
+                req_prefix = "playwright/request_count"
+                resp_prefix = "playwright/response_count"
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{req_prefix}/resource_type/image") == 3
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/document") == 1
+                assert handler.stats.get_value(f"{resp_prefix}/resource_type/image") is None
+                assert handler.stats.get_value(f"{req_prefix}/aborted") == 3
 
     @allow_windows
     async def test_page_initialization_ok(self):
@@ -349,12 +322,11 @@ class MixinTestCase:
             "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True, "playwright_page_init_callback": init_page},
-                )
-                response = await handler._download_request(req, Spider("spider_name"))
+            req = Request(
+                url=self.server.urljoin("/headers"),
+                meta={"playwright": True, "playwright_page_init_callback": init_page},
+            )
+            response = await handler._download_request(req, Spider("spider_name"))
         assert response.status == 200
         headers = json.loads(response.css("pre::text").get())
         headers = {key.lower(): value for key, value in headers.items()}
@@ -370,17 +342,16 @@ class MixinTestCase:
             "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True, "playwright_page_init_callback": init_page},
-                )
-                response = await handler._download_request(req, Spider("spider_name"))
+            req = Request(
+                url=self.server.urljoin("/headers"),
+                meta={"playwright": True, "playwright_page_init_callback": init_page},
+            )
+            response = await handler._download_request(req, Spider("spider_name"))
         assert response.status == 200
         headers = json.loads(response.css("pre::text").get())
         headers = {key.lower(): value for key, value in headers.items()}
         assert "extra-header" not in headers
-        for entry in self._caplog.record_tuples:
+        for entry in self.caplog.record_tuples:
             if "Page init callback exception for" in entry[2]:
                 assert entry[0] == "scrapy-playwright"
                 assert entry[1] == logging.WARNING
@@ -390,69 +361,57 @@ class MixinTestCase:
     @allow_windows
     async def test_redirect(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                req = Request(
-                    url=server.urljoin("/redirect2"),
-                    meta={"playwright": True},
-                )
-                response = await handler._download_request(req, Spider("spider_name"))
+            req = Request(
+                url=self.server.urljoin("/redirect2"),
+                meta={"playwright": True},
+            )
+            response = await handler._download_request(req, Spider("spider_name"))
 
-        assert response.url == server.urljoin("/headers")
+        assert response.url == self.server.urljoin("/headers")
         assert response.meta["redirect_times"] == 2
         assert response.meta["redirect_reasons"] == [302, 301]
         assert response.meta["redirect_urls"] == [
-            server.urljoin("/redirect2"),
-            server.urljoin("/redirect"),
+            self.server.urljoin("/redirect2"),
+            self.server.urljoin("/redirect"),
         ]
-
-    @allow_windows
-    async def test_logging_record_spider(self):
-        """Make sure at least one log record has the spider as an attribute
-        (records sent before opening the spider will not have it).
-        """
-        spider = Spider("spider_name")
-        async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
-                await handler._download_request(req, spider)
-
-        assert any(getattr(rec, "spider", None) is spider for rec in self._caplog.records)
 
     @allow_windows
     async def test_request_logger(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                with self._caplog.at_level(logging.DEBUG + 1, logger="scrapy-playwright"):
-                    with patch("scrapy_playwright.handler._make_request_logger") as mock_logger:
-                        req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
-                        await handler._download_request(req, Spider("foo"))
-                msg = f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"  # noqa: E501
-                assert not any(rec.message == msg for rec in self._caplog.records)
-                mock_logger.assert_not_called()
+            with self.caplog.at_level(logging.DEBUG + 1, logger="scrapy-playwright"):
+                with patch("scrapy_playwright.handler._make_request_logger") as mock_logger:
+                    req = Request(
+                        url=self.server.urljoin("/index.html"), meta={"playwright": True}
+                    )
+                    await handler._download_request(req, Spider("foo"))
+            msg = f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"  # noqa: E501
+            assert not any(rec.message == msg for rec in self.caplog.records)
+            mock_logger.assert_not_called()
 
-                self._caplog.set_level(logging.DEBUG, "scrapy-playwright")
-                req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
-                await handler._download_request(req, Spider("foo"))
-                msg = f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"  # noqa: E501
-                assert any(rec.message == msg for rec in self._caplog.records)
+            self.caplog.set_level(logging.DEBUG, "scrapy-playwright")
+            req = Request(url=self.server.urljoin("/index.html"), meta={"playwright": True})
+            await handler._download_request(req, Spider("foo"))
+            msg = f"[Context=default] Request: <{req.method} {req.url}> (resource type: document)"  # noqa: E501
+            assert any(rec.message == msg for rec in self.caplog.records)
 
     @allow_windows
     async def test_response_logger(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                with self._caplog.at_level(logging.DEBUG + 1, logger="scrapy-playwright"):
-                    with patch("scrapy_playwright.handler._make_response_logger") as mock_logger:
-                        req = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
-                        response = await handler._download_request(req, Spider("foo"))
-                debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
-                assert not any(rec.message == debug_message for rec in self._caplog.records)
-                mock_logger.assert_not_called()
+            with self.caplog.at_level(logging.DEBUG + 1, logger="scrapy-playwright"):
+                with patch("scrapy_playwright.handler._make_response_logger") as mock_logger:
+                    req = Request(
+                        url=self.server.urljoin("/index.html"), meta={"playwright": True}
+                    )
+                    response = await handler._download_request(req, Spider("foo"))
+            debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
+            assert not any(rec.message == debug_message for rec in self.caplog.records)
+            mock_logger.assert_not_called()
 
-                self._caplog.set_level(logging.DEBUG, "scrapy-playwright")
-                request = Request(url=server.urljoin("/index.html"), meta={"playwright": True})
-                response = await handler._download_request(request, Spider("foo"))
-                debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
-                assert any(rec.message == debug_message for rec in self._caplog.records)
+            self.caplog.set_level(logging.DEBUG, "scrapy-playwright")
+            request = Request(url=self.server.urljoin("/index.html"), meta={"playwright": True})
+            response = await handler._download_request(request, Spider("foo"))
+            debug_message = f"[Context=default] Response: <{response.status} {response.url}>"
+            assert any(rec.message == debug_message for rec in self.caplog.records)
 
     @allow_windows
     async def test_download_file_ok(self):
@@ -460,16 +419,15 @@ class MixinTestCase:
             "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("mancha.pdf"),
-                    meta={"playwright": True},
-                )
-                response = await handler._download_request(request, Spider("foo"))
-                assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
-                assert response.body.startswith(b"%PDF-1.5")
-                assert response.headers.get("Content-Type") == b"application/pdf"
-                assert handler.stats.get_value("playwright/download_count") == 1
+            request = Request(
+                url=self.server.urljoin("mancha.pdf"),
+                meta={"playwright": True},
+            )
+            response = await handler._download_request(request, Spider("foo"))
+            assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
+            assert response.body.startswith(b"%PDF-1.5")
+            assert response.headers.get("Content-Type") == b"application/pdf"
+            assert handler.stats.get_value("playwright/download_count") == 1
 
     @allow_windows
     async def test_download_file_delay_ok(self):
@@ -478,15 +436,14 @@ class MixinTestCase:
             "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 0,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("/mancha.pdf?delay=0.5"),
-                    meta={"playwright": True},
-                )
-                response = await handler._download_request(request, Spider("foo"))
-                assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
-                assert response.body.startswith(b"%PDF-1.5")
-                assert handler.stats.get_value("playwright/download_count") == 1
+            request = Request(
+                url=self.server.urljoin("/mancha.pdf?delay=0.5"),
+                meta={"playwright": True},
+            )
+            response = await handler._download_request(request, Spider("foo"))
+            assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
+            assert response.body.startswith(b"%PDF-1.5")
+            assert handler.stats.get_value("playwright/download_count") == 1
 
     @allow_windows
     async def test_download_file_delay_error(self):
@@ -496,19 +453,18 @@ class MixinTestCase:
             "PLAYWRIGHT_DOWNLOAD_TIMEOUT": 100,
         }
         async with make_handler(settings_dict) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("/mancha.pdf?delay=0.5"),
-                    meta={"playwright": True},
-                )
-                with pytest.raises(PlaywrightError) as excinfo:
-                    await handler._download_request(request, Spider("foo"))
-                assert (
-                    "scrapy-playwright",
-                    logging.WARNING,
-                    f"Closing page due to failed request: {request}"
-                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
-                ) in self._caplog.record_tuples
+            request = Request(
+                url=self.server.urljoin("/mancha.pdf?delay=0.5"),
+                meta={"playwright": True},
+            )
+            with pytest.raises(PlaywrightError) as excinfo:
+                await handler._download_request(request, Spider("foo"))
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Closing page due to failed request: {request}"
+                f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+            ) in self.caplog.record_tuples
 
     @allow_windows
     async def test_download_file_failure(self):
@@ -519,39 +475,37 @@ class MixinTestCase:
             await download.cancel()
 
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("/mancha.pdf?content_length_multiplier=1000"),
-                    meta={
-                        "playwright": True,
-                        "playwright_event_handlers": {"download": cancel_download},
-                    },
-                )
-                with pytest.raises(RuntimeError) as excinfo:
-                    await handler._download_request(request, Spider("foo"))
-                assert (
-                    "scrapy-playwright",
-                    logging.WARNING,
-                    f"Closing page due to failed request: {request}"
-                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
-                ) in self._caplog.record_tuples
+            request = Request(
+                url=self.server.urljoin("/mancha.pdf?content_length_multiplier=1000"),
+                meta={
+                    "playwright": True,
+                    "playwright_event_handlers": {"download": cancel_download},
+                },
+            )
+            with pytest.raises(RuntimeError) as excinfo:
+                await handler._download_request(request, Spider("foo"))
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Closing page due to failed request: {request}"
+                f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+            ) in self.caplog.record_tuples
 
     @allow_windows
     async def test_fail_status_204(self):
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("/status/204"),
-                    meta={"playwright": True},
-                )
-                with pytest.raises(PlaywrightError) as excinfo:
-                    await handler._download_request(request, Spider("foo"))
-                assert (
-                    "scrapy-playwright",
-                    logging.WARNING,
-                    f"Closing page due to failed request: {request}"
-                    f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
-                ) in self._caplog.record_tuples
+            request = Request(
+                url=self.server.urljoin("/status/204"),
+                meta={"playwright": True},
+            )
+            with pytest.raises(PlaywrightError) as excinfo:
+                await handler._download_request(request, Spider("foo"))
+            assert (
+                "scrapy-playwright",
+                logging.WARNING,
+                f"Closing page due to failed request: {request}"
+                f" exc_type={type(excinfo.value)} exc_msg={str(excinfo.value)}",
+            ) in self.caplog.record_tuples
 
     @allow_windows
     async def test_err_aborted_without_download_does_not_hang(self):
@@ -632,24 +586,23 @@ class MixinTestCase:
             "The object has been collected to prevent unbounded heap growth."
         )
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
-            with MockServer() as server:
-                request = Request(
-                    url=server.urljoin("/headers"),
-                    meta={"playwright": True},
-                )
-                with (
-                    patch(
-                        "playwright.async_api._generated.Response.security_details",
-                        new_callable=AsyncMock,
-                        side_effect=collected_error,
-                    ),
-                    patch(
-                        "playwright.async_api._generated.Response.server_addr",
-                        new_callable=AsyncMock,
-                        side_effect=collected_error,
-                    ),
-                ):
-                    response = await handler._download_request(request, Spider("foo"))
+            request = Request(
+                url=self.server.urljoin("/headers"),
+                meta={"playwright": True},
+            )
+            with (
+                patch(
+                    "playwright.async_api._generated.Response.security_details",
+                    new_callable=AsyncMock,
+                    side_effect=collected_error,
+                ),
+                patch(
+                    "playwright.async_api._generated.Response.server_addr",
+                    new_callable=AsyncMock,
+                    side_effect=collected_error,
+                ),
+            ):
+                response = await handler._download_request(request, Spider("foo"))
 
         assert response.status == 200
         assert "playwright_security_details" not in request.meta

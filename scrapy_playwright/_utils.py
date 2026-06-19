@@ -1,17 +1,18 @@
-import asyncio
 import logging
-import platform
-import threading
-from dataclasses import dataclass
-from typing import Awaitable, Dict, Iterator, Optional, Tuple, Union
+from typing import Awaitable, Callable, Iterator, Optional, Tuple, Union
 
-import scrapy
-from playwright.async_api import Error, Page, Request, Response
+from playwright.async_api import (
+    Error,
+    Page,
+    Request as PlaywrightRequest,
+    Response as PlaywrightResponse,
+)
+from scrapy import Spider
+from scrapy.http import Request as ScrapyRequest
 from scrapy.http.headers import Headers
 from scrapy.settings import Settings
+from scrapy.utils.misc import load_object
 from scrapy.utils.python import to_unicode
-from twisted.internet.defer import Deferred
-from twisted.python import failure
 from w3lib.encoding import html_body_declared_encoding, http_content_type_encoding
 
 
@@ -60,7 +61,7 @@ _NAVIGATION_ERROR_MSG = (
 
 async def _get_page_content(
     page: Page,
-    spider: scrapy.Spider,
+    spider: Spider,
     context_name: str,
     scrapy_request_url: str,
     scrapy_request_method: str,
@@ -96,7 +97,7 @@ def _get_float_setting(settings: Settings, key: str) -> Optional[float]:
 
 
 async def _get_header_value(
-    resource: Union[Request, Response],
+    resource: Union[PlaywrightRequest, PlaywrightResponse],
     header_name: str,
 ) -> Optional[str]:
     try:
@@ -105,98 +106,124 @@ async def _get_header_value(
         return None
 
 
-@dataclass
-class _QueueItem:
-    coro: Awaitable
-    promise: Deferred | asyncio.Future
-    loop: asyncio.AbstractEventLoop | None = None
+def _attach_page_event_handlers(
+    page: Page, request: ScrapyRequest, spider: Spider, context_name: str
+) -> None:
+    event_handlers = request.meta.get("playwright_page_event_handlers") or {}
+    for event, handler in event_handlers.items():
+        if callable(handler):
+            page.on(event, handler)
+        elif isinstance(handler, str):
+            try:
+                page.on(event, getattr(spider, handler))
+            except AttributeError as ex:
+                logger.warning(
+                    "Spider '%s' does not have a '%s' attribute,"
+                    " ignoring handler for event '%s'",
+                    spider.name,
+                    handler,
+                    event,
+                    extra={
+                        "spider": spider,
+                        "context_name": context_name,
+                        "scrapy_request_url": request.url,
+                        "scrapy_request_method": request.method,
+                        "exception": ex,
+                    },
+                    exc_info=True,
+                )
 
 
-class _ThreadedLoopAdapter:
-    """Utility class to start an asyncio event loop in a new thread and redirect coroutines.
-    This allows to run Playwright in a different loop than the Scrapy crawler, allowing to
-    use ProactorEventLoop which is supported by Playwright on Windows.
-    """
+async def _set_redirect_meta(request: ScrapyRequest, response: PlaywrightResponse) -> None:
+    """Update a Scrapy request with metadata about redirects."""
+    redirect_times: int = 0
+    redirect_urls: list = []
+    redirect_reasons: list = []
+    redirected = response.request.redirected_from
+    while redirected is not None:
+        redirect_times += 1
+        redirect_urls.append(redirected.url)
+        redirected_response = await redirected.response()
+        reason = None if redirected_response is None else redirected_response.status
+        redirect_reasons.append(reason)
+        redirected = redirected.redirected_from
+    if redirect_times:
+        request.meta["redirect_times"] = redirect_times
+        request.meta["redirect_urls"] = list(reversed(redirect_urls))
+        request.meta["redirect_reasons"] = list(reversed(redirect_reasons))
 
-    _loop: asyncio.AbstractEventLoop
-    _thread: threading.Thread
-    _coro_queue: asyncio.Queue = asyncio.Queue()
-    _stop_events: Dict[int, asyncio.Event] = {}
 
-    @classmethod
-    async def _handle_coro_deferred(cls, queue_item: _QueueItem) -> None:
-        from twisted.internet import reactor
-
-        dfd: Deferred = queue_item.promise
-
+async def _maybe_execute_page_init_callback(
+    page: Page,
+    request: ScrapyRequest,
+    context_name: str,
+    spider: Spider,
+) -> None:
+    page_init_callback = request.meta.get("playwright_page_init_callback")
+    if page_init_callback:
         try:
-            result = await queue_item.coro
-        except Exception as exc:
-            reactor.callFromThread(dfd.errback, failure.Failure(exc))
+            page_init_callback = load_object(page_init_callback)
+            await page_init_callback(page, request)
+        except Exception as ex:
+            logger.warning(
+                "[Context=%s] Page init callback exception for %s exc_type=%s exc_msg=%s",
+                context_name,
+                repr(request),
+                type(ex),
+                str(ex),
+                extra={
+                    "spider": spider,
+                    "context_name": context_name,
+                    "scrapy_request_url": request.url,
+                    "scrapy_request_method": request.method,
+                    "exception": ex,
+                },
+                exc_info=True,
+            )
+
+
+def _make_request_logger(context_name: str, spider: Spider) -> Callable:
+    async def _log_request(request: PlaywrightRequest) -> None:
+        log_args = [context_name, request.method.upper(), request.url, request.resource_type]
+        referrer = await _get_header_value(request, "referer")
+        if referrer:
+            log_args.append(referrer)
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s, referrer: %s)"
         else:
-            reactor.callFromThread(dfd.callback, result)
+            log_msg = "[Context=%s] Request: <%s %s> (resource type: %s)"
+        logger.debug(
+            log_msg,
+            *log_args,
+            extra={
+                "spider": spider,
+                "context_name": context_name,
+                "playwright_request_url": request.url,
+                "playwright_request_method": request.method,
+                "playwright_resource_type": request.resource_type,
+            },
+        )
 
-    @classmethod
-    async def _handle_coro_future(cls, queue_item: _QueueItem) -> None:
-        future: asyncio.Future = queue_item.promise
-        loop: asyncio.AbstractEventLoop = queue_item.loop  # type: ignore[assignment]
-        try:
-            result = await queue_item.coro
-        except Exception as exc:
-            loop.call_soon_threadsafe(future.set_exception, exc)
+    return _log_request
+
+
+def _make_response_logger(context_name: str, spider: Spider) -> Callable:
+    async def _log_response(response: PlaywrightResponse) -> None:
+        log_args = [context_name, response.status, response.url]
+        location = await _get_header_value(response, "location")
+        if location:
+            log_args.append(location)
+            log_msg = "[Context=%s] Response: <%i %s> (location: %s)"
         else:
-            loop.call_soon_threadsafe(future.set_result, result)
+            log_msg = "[Context=%s] Response: <%i %s>"
+        logger.debug(
+            log_msg,
+            *log_args,
+            extra={
+                "spider": spider,
+                "context_name": context_name,
+                "playwright_response_url": response.url,
+                "playwright_response_status": response.status,
+            },
+        )
 
-    @classmethod
-    async def _process_queue(cls) -> None:
-        while any(not ev.is_set() for ev in cls._stop_events.values()):
-            queue_item = await cls._coro_queue.get()
-            if isinstance(queue_item.promise, asyncio.Future):
-                asyncio.create_task(cls._handle_coro_future(queue_item))
-            elif isinstance(queue_item.promise, Deferred):
-                asyncio.create_task(cls._handle_coro_deferred(queue_item))
-            cls._coro_queue.task_done()
-
-    @classmethod
-    def _deferred_from_coro(cls, coro: Awaitable) -> Deferred:
-        dfd: Deferred = Deferred()
-        queue_item = _QueueItem(coro=coro, promise=dfd)
-        asyncio.run_coroutine_threadsafe(cls._coro_queue.put(queue_item), cls._loop)
-        return dfd
-
-    @classmethod
-    def _future_from_coro(cls, coro: Awaitable) -> asyncio.Future:
-        target_loop = asyncio.get_running_loop()  # Scrapy thread loop
-        future: asyncio.Future = asyncio.Future()
-        queue_item = _QueueItem(coro=coro, promise=future, loop=target_loop)
-        asyncio.run_coroutine_threadsafe(cls._coro_queue.put(queue_item), cls._loop)
-        return future
-
-    @classmethod
-    def start(cls, download_handler_id: int) -> None:
-        """Start the event loop in a new thread if not already started.
-        Should be called from the Scrapy thread.
-        """
-        cls._stop_events[download_handler_id] = asyncio.Event()
-        if not getattr(cls, "_loop", None):
-            policy = asyncio.DefaultEventLoopPolicy()
-            if platform.system() == "Windows":
-                policy = asyncio.WindowsProactorEventLoopPolicy()  # type: ignore[attr-defined]
-            cls._loop = policy.new_event_loop()
-
-        if not getattr(cls, "_thread", None):
-            cls._thread = threading.Thread(target=cls._loop.run_forever, daemon=True)
-            cls._thread.start()
-            logger.info("Started loop on separate thread: %s", cls._loop)
-            asyncio.run_coroutine_threadsafe(cls._process_queue(), cls._loop)
-
-    @classmethod
-    def stop(cls, download_handler_id: int) -> None:
-        """Wait until all handlers are closed to stop the event loop and join the thread.
-        Should be called from the Scrapy thread.
-        """
-        cls._stop_events[download_handler_id].set()
-        if all(ev.is_set() for ev in cls._stop_events.values()):
-            asyncio.run_coroutine_threadsafe(cls._coro_queue.join(), cls._loop)
-            cls._loop.call_soon_threadsafe(cls._loop.stop)
-            cls._thread.join()
+    return _log_response

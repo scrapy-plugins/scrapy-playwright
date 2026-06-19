@@ -10,7 +10,6 @@ disable=
     too-few-public-methods,
     too-many-arguments,
     too-many-instance-attributes,
-    too-many-lines,
     # tests
     duplicate-code,
     import-outside-toplevel,
