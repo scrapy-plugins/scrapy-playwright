@@ -42,7 +42,7 @@ jobs:
 
     - name: Install Playwright system dependencies
       if: runner.os == 'Linux'
-      uses: nick-fields/retry@v3
+      uses: nick-fields/retry@v4
       with:
         timeout_minutes: 5
         max_attempts: 3
@@ -118,7 +118,7 @@ jobs:
           ${{ runner.os }}-playwright-
 
     - name: Install Playwright system dependencies
-      uses: nick-fields/retry@v3
+      uses: nick-fields/retry@v4
       with:
         timeout_minutes: 5
         max_attempts: 3
