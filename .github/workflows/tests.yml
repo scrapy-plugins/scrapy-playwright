@@ -40,6 +40,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-playwright-
 
+    - name: Install Playwright system dependencies
+      if: runner.os == 'Linux'
+      uses: nick-fields/retry@v4
+      with:
+        timeout_minutes: 5
+        max_attempts: 3
+        command: pip install playwright && playwright install-deps
+
     - name: Install tox
       run: pip install tox
 
@@ -108,6 +116,13 @@ jobs:
         key: ${{ runner.os }}-playwright-${{ hashFiles('tox.ini') }}
         restore-keys: |
           ${{ runner.os }}-playwright-
+
+    - name: Install Playwright system dependencies
+      uses: nick-fields/retry@v4
+      with:
+        timeout_minutes: 5
+        max_attempts: 3
+        command: pip install playwright && playwright install-deps
 
     - name: Install tox
       run: pip install tox
