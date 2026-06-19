@@ -31,14 +31,14 @@ class MixedRequestsTestCase(TestCase, BaseTestCase):
 
     @defer.inlineCallbacks
     def test_download_request(self):
-        def _check_response(response: Response, request: Request, is_playwright: bool) -> None:
+        def _check_response(response: Response, request: Request) -> None:
             self.assertIsInstance(response, Response)
             self.assertEqual(
                 response.css("a::text").getall(), ["Lorem Ipsum", "Infinite Scroll", "Quotes JSON"]
             )
             self.assertEqual(response.url, request.url)
             self.assertEqual(response.status, 200)
-            if is_playwright:
+            if request.meta.get("playwright"):
                 self.assertIn("playwright", response.flags)
             else:
                 self.assertNotIn("playwright", response.flags)
@@ -52,12 +52,12 @@ class MixedRequestsTestCase(TestCase, BaseTestCase):
 
         req1 = Request(self.static_server.urljoin("/index.html"))
         yield self.handler.download_request(req1, Spider("foo")).addCallback(
-            _check_response, request=req1, is_playwright=False
+            _check_response, request=req1
         )
 
         req2 = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
         yield self.handler.download_request(req2, Spider("foo")).addCallback(
-            _check_response, request=req2, is_playwright=True
+            _check_response, request=req2
         )
 
         req3 = Request("http://localhost:12345/asdf", meta={"playwright": True})
