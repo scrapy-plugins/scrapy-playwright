@@ -101,7 +101,7 @@ import scrapy
 class AwesomeSpider(scrapy.Spider):
     name = "awesome"
 
-    def start_requests(self):
+    async def start(self):  # start_requests in Scrapy < 2.13
         # GET request
         yield scrapy.Request("https://httpbin.org/get", meta={"playwright": True})
         # POST request
@@ -116,7 +116,15 @@ class AwesomeSpider(scrapy.Spider):
         return {"url": response.url}
 ```
 
-### Notes about the User-Agent header
+### About the start/start_requests methods
+
+Scrapy 2.13 introduced the `async start() -> AsyncIterator` Spider method and deprecated the
+traditional `start_requests` method. Support for the latter was removed in Scrapy 2.16.
+For simplicity, the rest of the examples in this Readme will use `start`, replace
+`async def start` with `def start_requests` if you are using an older Scrapy version.
+
+
+### About the User-Agent header
 
 By default, outgoing requests include the `User-Agent` set by Scrapy (either with the
 `USER_AGENT` or `DEFAULT_REQUEST_HEADERS` settings or via the `Request.headers` attribute).
@@ -482,7 +490,7 @@ async def init_page(page, request):
     await page.add_init_script(path="./custom_script.js")
 
 class AwesomeSpider(scrapy.Spider):
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://httpbin.org/headers",
             meta={
@@ -515,7 +523,7 @@ requests using the same page. For instance:
 ```python
 from playwright.async_api import Page
 
-def start_requests(self):
+async def start(self):
     yield scrapy.Request(
         url="https://httpbin.org/get",
         meta={"playwright": True, "playwright_include_page": True},
@@ -601,7 +609,7 @@ import scrapy
 class AwesomeSpiderWithPage(scrapy.Spider):
     name = "page_spider"
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://example.org",
             callback=self.parse_first,
@@ -803,7 +811,7 @@ class ProxySpider(Spider):
         }
     }
 
-    def start_requests(self):
+    async def start(self):
         yield Request("http://httpbin.org/get", meta={"playwright": True})
 
     def parse(self, response, **kwargs):
@@ -866,7 +874,7 @@ will be stored in the `PageMethod.result` attribute.
 
 For instance:
 ```python
-def start_requests(self):
+async def start(self):
     yield Request(
         url="https://example.org",
         meta={
@@ -884,7 +892,7 @@ def parse(self, response, **kwargs):
 
 produces the same effect as:
 ```python
-def start_requests(self):
+async def start(self):
     yield Request(
         url="https://example.org",
         meta={"playwright": True, "playwright_include_page": True},
@@ -914,7 +922,7 @@ async def scroll_page(page: Page) -> str:
 class MySpyder(scrapy.Spider):
     name = "scroll"
 
-    def start_requests(self):
+    async def start(self):
         yield Request(
             url="https://quotes.toscrape.com/scroll",
             meta={
@@ -956,7 +964,7 @@ async def handle_dialog(dialog: Dialog) -> None:
 class EventSpider(scrapy.Spider):
     name = "event"
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://example.org",
             meta={
@@ -1028,7 +1036,7 @@ module is not available.
 class ClickAndSavePdfSpider(scrapy.Spider):
     name = "pdf"
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://example.org",
             meta=dict(
@@ -1053,7 +1061,7 @@ class ClickAndSavePdfSpider(scrapy.Spider):
 class ScrollSpider(scrapy.Spider):
     name = "scroll"
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="http://quotes.toscrape.com/scroll",
             meta=dict(
@@ -1104,7 +1112,7 @@ import scrapy
 class ExampleSpider(scrapy.Spider):
     name = "example"
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://example.org",
             meta=dict(
@@ -1186,7 +1194,7 @@ class ExampleSpider(scrapy.Spider):
         },
     }
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="https://example.org",
             meta={"playwright": True},
