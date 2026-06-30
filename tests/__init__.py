@@ -46,7 +46,7 @@ def create_handler(settings_dict: Optional[dict] = None):
     settings: dict = settings_dict or {}
     settings.setdefault("TELNETCONSOLE_ENABLED", False)
     crawler = get_crawler(settings_dict=settings)
-    handler = ScrapyPlaywrightDownloadHandler(crawler=crawler)
+    handler = ScrapyPlaywrightDownloadHandler.from_crawler(crawler=crawler)
     return handler
 
 

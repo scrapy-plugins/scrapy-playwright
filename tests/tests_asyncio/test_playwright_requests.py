@@ -44,8 +44,12 @@ class MixinTestCase(BaseTestCase):
             req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
             resp = await handler._download_request(req, spider)
             assert_correct_response(resp, req)
+            assert resp.css("a::text").getall() == [
+                "Lorem Ipsum",
+                "Infinite Scroll",
+                "Quotes JSON",
+            ]
             assert resp.ip_address == ip_address(self.static_server.address)
-            assert resp.css("a::text").getall() == ["Lorem Ipsum", "Infinite Scroll"]
 
             # at least one log record has a spider attribute
             # (records sent before spider_opened will not have it)

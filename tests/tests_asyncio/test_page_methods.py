@@ -1,3 +1,4 @@
+import json
 import logging
 import platform
 import subprocess
@@ -6,7 +7,6 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 
 import pytest
 from scrapy import Spider, Request
-from scrapy.http.response.html import HtmlResponse
 
 from playwright.async_api import Page
 from scrapy_playwright.page import PageMethod
@@ -79,24 +79,31 @@ class MixinPageMethodTestCase(BaseTestCase):
 
     @allow_windows
     async def test_page_method_navigation(self):
+        """A PageMethod that navigates to a different page must produce a response
+        whose headers and status match the final page's body, not the initial one.
+        """
         async with make_handler({"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}) as handler:
             req = Request(
                 url=self.static_server.urljoin("/index.html"),
                 meta={
                     "playwright": True,
-                    "playwright_page_methods": [PageMethod("click", "a.lorem_ipsum")],
+                    "playwright_page_methods": [PageMethod("click", "a.json")],
                 },
             )
             resp = await handler._download_request(req, Spider("foo"))
 
-            assert isinstance(resp, HtmlResponse)
-            assert resp.request is req
-            assert resp.url == self.static_server.urljoin("/lorem_ipsum.html")
-            assert resp.status == 200
-            assert "playwright" in resp.flags
-            assert resp.css("title::text").get() == "Lorem Ipsum"
-            text = resp.css("p::text").get()
-            assert text == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+        assert resp.request is req
+        assert resp.url == self.static_server.urljoin("/data/quotes1.json")
+        assert resp.status == 200
+        assert "playwright" in resp.flags
+        # headers must match the final (JSON) page, not the initial HTML page
+        assert resp.headers.get("Content-Type", b"").startswith(b"application/json")
+        # parse body and verify it's JSON, not HTML
+        body = json.loads(resp.css("pre::text").get())
+        assert isinstance(body, dict)
+        assert isinstance(body.get("quotes"), list)
+        assert body.get("has_next") is True
+        assert body.get("page") == 1
 
     @allow_windows
     async def test_page_method_infinite_scroll(self):
