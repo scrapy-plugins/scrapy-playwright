@@ -173,6 +173,28 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 }
 ```
 
+### `PLAYWRIGHT_BROWSER_PROVIDER`
+Type `str` or `type`, default `"scrapy_playwright.provider.PlaywrightBrowserProvider"`
+
+A class that owns the browser lifecycle (startup, launching/connecting browsers, optional
+persistent contexts, teardown). It is resolved with
+[`scrapy.utils.misc.load_object`](https://docs.scrapy.org/en/latest/topics/api.html#scrapy.utils.misc.load_object),
+so the value may be either an import path string or the provider class itself,
+and it is instantiated with the handler configuration.
+
+The default provider wraps vanilla Playwright and supports everything documented
+in this README (local launch, `PLAYWRIGHT_CDP_URL`, `PLAYWRIGHT_CONNECT_URL`, persistent
+contexts, etc). This is an extension point for integrating third-party drivers that
+expose Playwright-compatible `Browser`/`BrowserContext`/`Page` objects (e.g.
+[patchright](https://pypi.org/project/patchright/),
+[camoufox](https://pypi.org/project/camoufox/)) without changing the handler.
+See [`docs/pluggable-browser-providers.md`](docs/pluggable-browser-providers.md) for the interface
+and ready-made example providers.
+
+```python
+PLAYWRIGHT_BROWSER_PROVIDER = "myproject.providers.CustomBrowserProvider"
+```
+
 ### `PLAYWRIGHT_CDP_URL`
 Type `Optional[str]`, default `None`
 

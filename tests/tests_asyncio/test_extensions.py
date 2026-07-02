@@ -33,7 +33,9 @@ def mock_crawler_with_handlers() -> dict:
         process = MagicMock()
         process.pid = pid
         handlers[schema] = MagicMock(spec=ScrapyPlaywrightDownloadHandler)
-        handlers[schema].playwright_context_manager._connection._transport._proc = process
+        handlers[schema].browser_provider = MagicMock()
+        provider = handlers[schema].browser_provider
+        provider.playwright_context_manager._connection._transport._proc = process
     crawler = MagicMock()
     crawler.engine.downloader.handlers._handlers = handlers
     return crawler
