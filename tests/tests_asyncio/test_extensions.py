@@ -28,7 +28,7 @@ SCHEMA_PID_MAP = {"http": 123, "https": 456}
 
 
 def mock_crawler_with_handlers() -> dict:
-    handlers = {}
+    handlers = {"unused": MagicMock()}
     for schema, pid in SCHEMA_PID_MAP.items():
         process = MagicMock()
         process.pid = pid

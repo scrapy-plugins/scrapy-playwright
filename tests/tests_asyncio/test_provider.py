@@ -72,6 +72,18 @@ class TestProviderSetting(TestCase):
 
 class TestPlaywrightBrowserProvider(IsolatedAsyncioTestCase):
     @allow_windows
+    async def test_launch_before_start_raises(self):
+        provider = PlaywrightBrowserProvider(Config.from_settings(Settings({})))
+        with pytest.raises(
+            RuntimeError, match="start\\(\\) must be awaited before launch_browser"
+        ):
+            await provider.launch_browser()
+        with pytest.raises(
+            RuntimeError, match="start\\(\\) must be awaited before launch_persistent_context"
+        ):
+            await provider.launch_persistent_context({})
+
+    @allow_windows
     async def test_lifecycle(self):
         config = Config.from_settings(
             Settings(
