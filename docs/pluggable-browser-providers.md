@@ -23,9 +23,7 @@ Type `str` or `type`, default `"scrapy_playwright.provider.PlaywrightBrowserProv
 PLAYWRIGHT_BROWSER_PROVIDER = "myproject.providers.CustomBrowserProvider"
 ```
 
-The value is resolved with
-[`scrapy.utils.misc.load_object`](https://docs.scrapy.org/en/latest/topics/api.html),
-so it may be either an import path string or the provider class directly. The
+The value may be either an import path string or the provider class directly. The
 class is instantiated with a configuration object (see
 [Reading configuration](#reading-configuration)) and drives every browser that
 scrapy-playwright uses. When the setting is not set, the built-in
