@@ -121,26 +121,28 @@ use it exactly like Playwright, including persistent contexts.
 ```python
 from contextlib import AsyncExitStack
 
+from scrapy_playwright.handler import Config
+
 
 class PatchrightBrowserProvider:
-    def __init__(self, config):
+    def __init__(self, config: Config) -> None:
         self.config = config
         self.stack = AsyncExitStack()
-        self.browser_type = None
+        self.browser_type: BrowserType
 
-    async def start(self):
+    async def start(self) -> None:
         from patchright.async_api import async_playwright
 
-        playwright = await self.stack.enter_async_context(async_playwright())
-        self.browser_type = getattr(playwright, self.config.browser_type_name)
+        _patchright = await self.stack.enter_async_context(async_playwright())
+        self.browser_type = _patchright.chromium
 
     async def launch_browser(self):
         return await self.browser_type.launch(**self.config.launch_options)
 
-    async def launch_persistent_context(self, context_kwargs):
+    async def launch_persistent_context(self, context_kwargs: dict):
         return await self.browser_type.launch_persistent_context(**context_kwargs)
 
-    async def close(self):
+    async def close(self) ->:
         await self.stack.aclose()
 ```
 
@@ -152,18 +154,18 @@ PLAYWRIGHT_BROWSER_TYPE = "chromium"
 
 ## Example: camoufox
 
-`AsyncCamoufox` is an async context manager that yields a `Browser` directly.
-It is Firefox-based, so set `PLAYWRIGHT_BROWSER_TYPE = "firefox"`. It has no
-persistent-context equivalent.
+`AsyncCamoufox` is an async context manager that yields a `Browser` directly, or
+a persistent `BrowserContext` when passed `persistent_context=True` and a
+`user_data_dir`. It is Firefox-based, so set `PLAYWRIGHT_BROWSER_TYPE = "firefox"`.
 
 ```python
 from contextlib import AsyncExitStack
 
-from scrapy.exceptions import NotSupported
+from scrapy_playwright.handler import Config, PERSISTENT_CONTEXT_PATH_KEY
 
 
 class CamoufoxBrowserProvider:
-    def __init__(self, config):
+    def __init__(self, config: Config) -> None:
         self.config = config
         self.stack = AsyncExitStack()
 
@@ -178,7 +180,15 @@ class CamoufoxBrowserProvider:
         )
 
     async def launch_persistent_context(self, context_kwargs):
-        raise NotSupported("camoufox does not support persistent contexts")
+        from camoufox.async_api import AsyncCamoufox
+
+        return await self.stack.enter_async_context(
+            AsyncCamoufox(
+                persistent_context=True,
+                user_data_dir=context_kwargs[PERSISTENT_CONTEXT_PATH_KEY],
+                **self.config.launch_options,
+            )
+        )
 
     async def close(self):
         await self.stack.aclose()
@@ -188,27 +198,27 @@ class CamoufoxBrowserProvider:
 # settings
 PLAYWRIGHT_BROWSER_PROVIDER = "myproject.providers.CamoufoxBrowserProvider"
 PLAYWRIGHT_BROWSER_TYPE = "firefox"
-PLAYWRIGHT_LAUNCH_OPTIONS = {"headless": True}  # forwarded to AsyncCamoufox(...)
 ```
 
 ## Example: invisible_playwright
 
 Same shape as camoufox — `InvisiblePlaywright(...)` is an async context manager
-yielding a standard `playwright.async_api.Browser`. Firefox-based, so set
+yielding a standard `playwright.async_api.Browser`, or a persistent
+`BrowserContext` when passed a `profile_dir`. Firefox-based, so set
 `PLAYWRIGHT_BROWSER_TYPE = "firefox"`.
 
 ```python
 from contextlib import AsyncExitStack
 
-from scrapy.exceptions import NotSupported
+from scrapy_playwright.handler import Config, PERSISTENT_CONTEXT_PATH_KEY
 
 
 class InvisibleBrowserProvider:
-    def __init__(self, config):
+    def __init__(self, config: Config) -> None:
         self.config = config
         self.stack = AsyncExitStack()
 
-    async def start(self):
+    async def start(self) -> None:
         pass
 
     async def launch_browser(self):
@@ -219,10 +229,18 @@ class InvisibleBrowserProvider:
             InvisiblePlaywright(**self.config.launch_options)
         )
 
-    async def launch_persistent_context(self, context_kwargs):
-        raise NotSupported("invisible_playwright does not support persistent contexts")
+    async def launch_persistent_context(self, context_kwargs: dict):
+        from invisible_playwright.async_api import InvisiblePlaywright
 
-    async def close(self):
+        # invisible_playwright names the profile path ``profile_dir``
+        return await self.stack.enter_async_context(
+            InvisiblePlaywright(
+                profile_dir=context_kwargs[PERSISTENT_CONTEXT_PATH_KEY],
+                **self.config.launch_options,
+            )
+        )
+
+    async def close(self) -> None:
         await self.stack.aclose()
 ```
 
@@ -230,5 +248,4 @@ class InvisibleBrowserProvider:
 # settings
 PLAYWRIGHT_BROWSER_PROVIDER = "myproject.providers.InvisibleBrowserProvider"
 PLAYWRIGHT_BROWSER_TYPE = "firefox"
-PLAYWRIGHT_LAUNCH_OPTIONS = {"proxy": {"server": "http://..."}, "timezone": "UTC"}
 ```
