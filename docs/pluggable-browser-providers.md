@@ -39,10 +39,11 @@ the intent, but it is not required — any class with these methods works.
 ```python
 from playwright.async_api import Browser, BrowserContext
 from scrapy.exceptions import NotSupported
+from scrapy_playwright.handler import Config
 
 
 class BrowserProvider:
-    def __init__(self, config) -> None:
+    def __init__(self, config: Config) -> None:
         ...
 
     async def start(self) -> None:

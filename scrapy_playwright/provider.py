@@ -4,8 +4,7 @@ A browser provider owns the browser lifecycle: startup, producing
 launched/connected :class:`~playwright.async_api.Browser` objects, optionally
 producing persistent contexts, and teardown. The download handler delegates to
 the provider configured via the ``PLAYWRIGHT_BROWSER_PROVIDER`` setting (an import
-path or class, resolved with :func:`scrapy.utils.misc.load_object`), defaulting to
-:class:`PlaywrightBrowserProvider`.
+path or class), defaulting to :class:`PlaywrightBrowserProvider`.
 
 Third-party drivers that expose Playwright-compatible ``Browser`` objects (e.g.
 patchright, camoufox) can be integrated by implementing a provider, without any
