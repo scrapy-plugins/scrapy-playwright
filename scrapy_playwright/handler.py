@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from scrapy_playwright.provider import BrowserProvider
 
 
-__all__ = ["ScrapyPlaywrightDownloadHandler"]
+__all__ = ["ScrapyPlaywrightDownloadHandler", "Config"]
 
 
 _SCRAPY_ASYNC_API = scrapy_version_info >= (2, 14, 0)
