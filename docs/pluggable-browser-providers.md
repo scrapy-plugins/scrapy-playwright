@@ -142,7 +142,7 @@ class PatchrightBrowserProvider:
     async def launch_persistent_context(self, context_kwargs: dict):
         return await self.browser_type.launch_persistent_context(**context_kwargs)
 
-    async def close(self) ->:
+    async def close(self) -> None:
         await self.stack.aclose()
 ```
 
@@ -169,7 +169,7 @@ class CamoufoxBrowserProvider:
         self.config = config
         self.stack = AsyncExitStack()
 
-    async def start(self):
+    async def start(self) -> None:
         pass
 
     async def launch_browser(self):
@@ -179,7 +179,7 @@ class CamoufoxBrowserProvider:
             AsyncCamoufox(**self.config.launch_options)
         )
 
-    async def launch_persistent_context(self, context_kwargs):
+    async def launch_persistent_context(self, context_kwargs: dict):
         from camoufox.async_api import AsyncCamoufox
 
         return await self.stack.enter_async_context(
@@ -190,7 +190,7 @@ class CamoufoxBrowserProvider:
             )
         )
 
-    async def close(self):
+    async def close(self) -> None:
         await self.stack.aclose()
 ```
 
