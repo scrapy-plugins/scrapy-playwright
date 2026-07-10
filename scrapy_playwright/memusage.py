@@ -20,15 +20,18 @@ class ScrapyPlaywrightMemoryUsageExtension(MemoryUsage):
             raise NotConfigured("The psutil module is not available") from exc
 
     def _get_main_process_ids(self) -> List[int]:
+        process_ids = []
         try:
-            return [
-                handler.playwright_context_manager._connection._transport._proc.pid
-                for handler in self.crawler.engine.downloader.handlers._handlers.values()
-                if isinstance(handler, ScrapyPlaywrightDownloadHandler)
-                and handler.playwright_context_manager
-            ]
+            for handler in self.crawler.engine.downloader.handlers._handlers.values():
+                if not isinstance(handler, ScrapyPlaywrightDownloadHandler):
+                    continue
+                provider = getattr(handler, "browser_provider", None)
+                context_manager = getattr(provider, "playwright_context_manager", None)
+                if context_manager is not None:
+                    process_ids.append(context_manager._connection._transport._proc.pid)
         except Exception:
             return []
+        return process_ids
 
     def _get_descendant_processes(self, process) -> list:
         children = process.children()

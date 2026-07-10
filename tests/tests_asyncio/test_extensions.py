@@ -28,12 +28,14 @@ SCHEMA_PID_MAP = {"http": 123, "https": 456}
 
 
 def mock_crawler_with_handlers() -> dict:
-    handlers = {}
+    handlers = {"unused": MagicMock()}
     for schema, pid in SCHEMA_PID_MAP.items():
         process = MagicMock()
         process.pid = pid
         handlers[schema] = MagicMock(spec=ScrapyPlaywrightDownloadHandler)
-        handlers[schema].playwright_context_manager._connection._transport._proc = process
+        handlers[schema].browser_provider = MagicMock()
+        provider = handlers[schema].browser_provider
+        provider.playwright_context_manager._connection._transport._proc = process
     crawler = MagicMock()
     crawler.engine.downloader.handlers._handlers = handlers
     return crawler

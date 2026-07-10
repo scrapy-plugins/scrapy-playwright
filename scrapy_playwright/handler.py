@@ -7,17 +7,24 @@ from functools import partial
 from importlib.metadata import version as package_version
 from ipaddress import ip_address
 from time import time
-from typing import Awaitable, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    Dict,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from playwright._impl._errors import TargetClosedError
 from playwright.async_api import (
     BrowserContext,
-    BrowserType,
     Download as PlaywrightDownload,
     Error as PlaywrightError,
     Page,
-    Playwright as AsyncPlaywright,
-    PlaywrightContextManager,
     Request as PlaywrightRequest,
     Response as PlaywrightResponse,
     Route,
@@ -52,8 +59,11 @@ from scrapy_playwright._utils import (
     _set_redirect_meta,
 )
 
+if TYPE_CHECKING:
+    from scrapy_playwright.provider import BrowserProvider
 
-__all__ = ["ScrapyPlaywrightDownloadHandler"]
+
+__all__ = ["ScrapyPlaywrightDownloadHandler", "Config"]
 
 
 _SCRAPY_ASYNC_API = scrapy_version_info >= (2, 14, 0)
@@ -67,6 +77,7 @@ logger = logging.getLogger("scrapy-playwright")
 
 DEFAULT_BROWSER_TYPE = "chromium"
 DEFAULT_CONTEXT_NAME = "default"
+DEFAULT_BROWSER_PROVIDER = "scrapy_playwright.provider.PlaywrightBrowserProvider"
 PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
 
 
@@ -144,8 +155,7 @@ class Config:
 
 
 class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
-    playwright_context_manager: Optional[PlaywrightContextManager] = None
-    playwright: Optional[AsyncPlaywright] = None
+    browser_provider: "BrowserProvider"
 
     def __init__(self, crawler: Crawler) -> None:
         verify_installed_reactor("twisted.internet.asyncioreactor.AsyncioSelectorReactor")
@@ -157,6 +167,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             )
         self.stats = crawler.stats
         self.config = Config.from_settings(crawler.settings)
+        self.browser_provider_cls: Type["BrowserProvider"] = load_object(
+            crawler.settings.get("PLAYWRIGHT_BROWSER_PROVIDER") or DEFAULT_BROWSER_PROVIDER
+        )
 
         if self.config.use_threaded_loop:
             _ThreadedLoopAdapter.start(id(self))
@@ -214,9 +227,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             __version__,
             package_version("playwright"),
         )
-        self.playwright_context_manager = PlaywrightContextManager()
-        self.playwright = await self.playwright_context_manager.start()
-        self.browser_type: BrowserType = getattr(self.playwright, self.config.browser_type_name)
+        self.browser_provider = self.browser_provider_cls(self.config)
+        await self.browser_provider.start()
         if self.config.startup_context_kwargs:
             logger.info("Launching %i startup context(s)", len(self.config.startup_context_kwargs))
             await asyncio.gather(
@@ -230,33 +242,14 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             self.stats.set_value("playwright/page_count", self._get_total_page_count())
 
     async def _maybe_launch_browser(self) -> None:
-        async with self.browser_launch_lock:
-            if not hasattr(self, "browser"):
-                logger.info("Launching browser %s", self.browser_type.name)
-                self.browser = await self.browser_type.launch(**self.config.launch_options)
-                logger.info("Browser %s launched", self.browser_type.name)
-                self.stats.inc_value("playwright/browser_count")
-                self.browser.on("disconnected", self._browser_disconnected_callback)
+        """Obtain a browser from the provider if one is not available yet.
 
-    async def _maybe_connect_remote_devtools(self) -> None:
+        The provider decides whether to launch locally or connect to a remote
+        browser; this method owns the lock, stats and disconnection listener.
+        """
         async with self.browser_launch_lock:
             if not hasattr(self, "browser"):
-                logger.info("Connecting using CDP: %s", self.config.cdp_url)
-                self.browser = await self.browser_type.connect_over_cdp(
-                    self.config.cdp_url, **self.config.cdp_kwargs
-                )
-                logger.info("Connected using CDP: %s", self.config.cdp_url)
-                self.stats.inc_value("playwright/browser_count")
-                self.browser.on("disconnected", self._browser_disconnected_callback)
-
-    async def _maybe_connect_remote(self) -> None:
-        async with self.browser_launch_lock:
-            if not hasattr(self, "browser"):
-                logger.info("Connecting to remote Playwright")
-                self.browser = await self.browser_type.connect(
-                    self.config.connect_url, **self.config.connect_kwargs
-                )
-                logger.info("Connected to remote Playwright")
+                self.browser = await self.browser_provider.launch_browser()
                 self.stats.inc_value("playwright/browser_count")
                 self.browser.on("disconnected", self._browser_disconnected_callback)
 
@@ -277,19 +270,12 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             context_kwargs = context_kwargs or {}
             persistent = remote = False
             if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
-                context = await self.browser_type.launch_persistent_context(**context_kwargs)
+                context = await self.browser_provider.launch_persistent_context(context_kwargs)
                 persistent = True
-            elif self.config.cdp_url:
-                await self._maybe_connect_remote_devtools()
-                context = await self.browser.new_context(**context_kwargs)
-                remote = True
-            elif self.config.connect_url:
-                await self._maybe_connect_remote()
-                context = await self.browser.new_context(**context_kwargs)
-                remote = True
             else:
                 await self._maybe_launch_browser()
                 context = await self.browser.new_context(**context_kwargs)
+                remote = bool(self.config.cdp_url or self.config.connect_url)
         except Exception:
             if acquired:
                 self.context_semaphore.release()
@@ -416,10 +402,8 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         if hasattr(self, "browser"):
             logger.info("Closing browser")
             await self.browser.close()
-        if self.playwright_context_manager:
-            await self.playwright_context_manager.__aexit__()
-        if self.playwright:
-            await self.playwright.stop()
+        if getattr(self, "browser_provider", None):
+            await self.browser_provider.close()
 
     if _SCRAPY_ASYNC_API:
 
