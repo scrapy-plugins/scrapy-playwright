@@ -959,10 +959,10 @@ to see available methods.
 
 ### Impact on Response objects
 
-Certain `Response` attributes (e.g. `url`, `ip_address`) reflect the state after the last
-action performed on a page. If you issue a `PageMethod` with an action that results in
-a navigation (e.g. a `click` on a link), the `Response.url` attribute will point to the
-new URL, which might be different from the request's URL.
+Certain `Response` attributes (e.g. `url`, `ip_address`, `status`, `headers`) reflect the
+state after the last action performed on a page. If you issue a `PageMethod` with an action
+that results in a navigation (e.g. a `click` on a link), these attributes will point to the
+new page, which might be different from the request's URL.
 
 
 ## Handling page events
