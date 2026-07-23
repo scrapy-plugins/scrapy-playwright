@@ -5,7 +5,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field as dataclass_field
 from functools import partial
 from importlib.metadata import version as package_version
-from ipaddress import ip_address
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from time import time
 from typing import (
     TYPE_CHECKING,
@@ -524,12 +524,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             page=page, request=request, spider=spider, response=response
         )
 
-        headers = Headers()
-        if isinstance(response, PlaywrightResponse):
-            await _set_redirect_meta(request=request, response=response)
-            headers = Headers(await response.all_headers())
-            headers.pop("Content-Encoding", None)
-        elif not download:
+        if not isinstance(response, PlaywrightResponse) and not download:
             logger.warning(
                 "Navigating to %s returned None, the response"
                 " will have empty headers and status 200",
@@ -542,21 +537,26 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 },
             )
 
-        body_str = await _get_page_content(
+        # Page content and response-derived metadata (redirect info, headers,
+        # security details, server address) are independent IPC round-trips.
+        # Issue them concurrently to cut per-request latency.
+        content_coro = _get_page_content(
             page=page,
             spider=spider,
             context_name=request.meta.get("playwright_context"),
             scrapy_request_url=request.url,
             scrapy_request_method=request.method,
         )
-        request.meta["download_latency"] = time() - start_time
-
+        headers = Headers()
         server_ip_address = None
-        if response is not None:
-            with suppress(PlaywrightError, KeyError, TypeError, ValueError):
-                request.meta["playwright_security_details"] = await response.security_details()
-                server_addr = await response.server_addr()
-                server_ip_address = ip_address(server_addr["ipAddress"])
+        if isinstance(response, PlaywrightResponse):
+            body_str, (headers, server_ip_address) = await asyncio.gather(
+                content_coro,
+                self._collect_response_metadata(request=request, response=response),
+            )
+        else:
+            body_str = await content_coro
+        request.meta["download_latency"] = time() - start_time
 
         if download and download.exception:
             raise download.exception
@@ -591,6 +591,22 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             encoding=encoding,
             ip_address=server_ip_address,
         )
+
+    async def _collect_response_metadata(
+        self, request: Request, response: PlaywrightResponse
+    ) -> Tuple[Headers, Optional[IPv4Address | IPv6Address]]:
+        """Gather response-derived metadata. Extracted as a separate coroutine
+        to be run concurrently with page content retrieval.
+        """
+        await _set_redirect_meta(request=request, response=response)
+        headers = Headers(await response.all_headers())
+        headers.pop("Content-Encoding", None)
+        server_ip_address: Optional[IPv4Address | IPv6Address] = None
+        with suppress(PlaywrightError, KeyError, TypeError, ValueError):
+            request.meta["playwright_security_details"] = await response.security_details()
+            server_addr = await response.server_addr()
+            server_ip_address = ip_address(server_addr["ipAddress"])
+        return headers, server_ip_address
 
     async def _get_response_and_download(
         self, request: Request, page: Page, spider: Spider
