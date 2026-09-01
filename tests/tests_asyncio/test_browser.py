@@ -141,6 +141,26 @@ class TestBrowserRemoteChromium(IsolatedAsyncioTestCase, BaseTestCase):
                     "Connecting to remote browser, ignoring PLAYWRIGHT_LAUNCH_OPTIONS",
                 ) in self.caplog.record_tuples
 
+    @allow_windows
+    async def test_connect_download(self):
+        """Downloads work with a remote browser: Download.path() is not available there."""
+        async with remote_chromium(with_devtools_protocol=False) as browser_url:
+            settings_dict = {
+                "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+                "PLAYWRIGHT_CONNECT_URL": browser_url,
+                "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
+            }
+            async with make_handler(settings_dict) as handler:
+                request = Request(
+                    url=self.server.urljoin("/mancha.pdf"),
+                    meta={"playwright": True},
+                )
+                response = await handler._download_request(request, Spider("foo"))
+                assert response.meta["playwright_suggested_filename"] == "mancha.pdf"
+                assert response.body.startswith(b"%PDF-1.5")
+                assert response.headers.get("Content-Type") == b"application/pdf"
+                assert handler.stats.get_value("playwright/download_count") == 1
+
 
 class TestBrowserReconnectChromium(IsolatedAsyncioTestCase, BaseTestCase):
     @staticmethod
