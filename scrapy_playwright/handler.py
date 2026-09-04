@@ -608,14 +608,15 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             try:
                 if failure := await dwnld.failure():
                     raise RuntimeError(f"Failed to download {dwnld.url}: {failure}")
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    # Download.path() is unavailable when the client attached with
-                    # browser_type.connect(); save_as() streams the bytes back and
-                    # works for a local browser too. The temp file name is fixed
-                    # rather than dwnld.suggested_filename, which is remote-controlled.
-                    tmp_path = Path(tmpdir) / "download"
-                    await dwnld.save_as(tmp_path)
-                    download.body = tmp_path.read_bytes()
+                try:
+                    download.body = (await dwnld.path()).read_bytes()
+                except PlaywrightError:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        # Download.path() is unavailable when the client attached with
+                        # browser_type.connect(); save_as() streams the bytes back.
+                        tmp_path = Path(tmpdir) / "download"
+                        await dwnld.save_as(tmp_path)
+                        download.body = tmp_path.read_bytes()
                 download.url = dwnld.url
                 download.suggested_filename = dwnld.suggested_filename
             except Exception as ex:
