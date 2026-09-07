@@ -580,7 +580,7 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             )
 
         body, encoding = _encode_body(headers=headers, text=body_str)
-        respcls = responsetypes.from_args(headers=headers, url=page.url, body=body)
+        respcls = responsetypes.from_args(body=body)
         return respcls(
             url=page.url,
             status=response.status if response is not None else 200,

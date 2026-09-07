@@ -133,6 +133,27 @@ does not match the running Browser. If you prefer the `User-Agent` sent by
 default by the specific browser you're using, set the Scrapy user agent to `None`.
 
 
+### About the response body and type
+
+The body of a Playwright response is the serialized DOM of the page, as rendered by the
+browser. Browsers wrap non-HTML content in HTML tags of their own: a JSON document is
+usually displayed inside a `<pre>` tag, sometimes along with viewer-specific markup.
+Because of that, responses are HTML (`scrapy.http.HtmlResponse`) regardless of the
+`Content-Type` header reported by the server, and the body of a request to a JSON
+endpoint cannot be parsed directly with `Response.json` or `Response.jmespath`. Extract
+the text node first, e.g.:
+
+```python
+import json
+
+def parse(self, response, **kwargs):
+    data = json.loads(response.css("pre::text").get())
+```
+
+This does not apply to [downloads](#playwright_suggested_filename), which keep the bytes
+and the type of the downloaded file.
+
+
 ## Windows support
 
 Windows support is possible by running Playwright in a `ProactorEventLoop` in a separate thread.
