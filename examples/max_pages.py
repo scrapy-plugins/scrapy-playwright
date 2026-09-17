@@ -7,11 +7,7 @@ class MaxPagesPerContextContextsSpider(Spider):
 
     name = "contexts"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
         "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 2,
         "PLAYWRIGHT_CONTEXTS": {
             "a": {"java_script_enabled": True},

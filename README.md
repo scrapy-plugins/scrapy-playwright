@@ -56,7 +56,32 @@ See the [changelog](docs/changelog.md) document.
 
 ## Activation
 
-### Download handler
+Enable scrapy-playwright through the [add-on](https://docs.scrapy.org/en/latest/topics/addons.html):
+
+```python
+# settings.py
+ADDONS = {
+    "scrapy_playwright.Addon": 100,
+}
+```
+
+The add-on sets the `http` and `https` download handlers and the
+`asyncio`-based Twisted reactor that they require, leaving alone any value you
+have set for those settings yourself.
+
+Add-ons require Scrapy >= 2.10; on earlier versions, use the manual setup
+described below.
+
+Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
+`http/https` handler. Unless explicitly marked (see [Basic usage](#basic-usage)),
+requests will be processed by the regular Scrapy download handler.
+
+
+### Manual setup
+
+Instead of the add-on, you can enable both settings yourself.
+
+#### Download handler
 
 Replace the default `https` and/or `http` Download Handlers through
 [`DOWNLOAD_HANDLERS`](https://docs.scrapy.org/en/latest/topics/settings.html):
@@ -73,12 +98,7 @@ Registering the handler for `https` is usually enough, since most modern sites
 use HTTPS. Enable the `http` handler only if you need to process plain HTTP
 URLs with Playwright.
 
-Note that the `ScrapyPlaywrightDownloadHandler` class inherits from the default
-`http/https` handler. Unless explicitly marked (see [Basic usage](#basic-usage)),
-requests will be processed by the regular Scrapy download handler.
-
-
-### Twisted reactor
+#### Twisted reactor
 
 [Install the `asyncio`-based Twisted reactor](https://docs.scrapy.org/en/latest/topics/asyncio.html#installing-the-asyncio-reactor):
 
@@ -748,13 +768,17 @@ PLAYWRIGHT_CONTEXTS = {
 }
 ```
 
-Alternatively, register the handler for only one scheme (typically `https`):
+Alternatively, keep the default handler for one of the schemes, so that only
+one instance of `ScrapyPlaywrightDownloadHandler` exists:
 
 ```python
 DOWNLOAD_HANDLERS = {
-    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "http": "scrapy.core.downloader.handlers.http11.HTTP11DownloadHandler",
 }
 ```
+
+Requests to `http` URLs are then never handled by Playwright, even if they set
+the [`playwright`](#playwright) meta key.
 
 ### Creating contexts while crawling
 
@@ -1228,11 +1252,7 @@ import scrapy
 class ExampleSpider(scrapy.Spider):
     name = "example"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
     }
 
     async def start(self):

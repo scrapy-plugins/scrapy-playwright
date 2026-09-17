@@ -6,11 +6,7 @@ from scrapy import Spider, Request
 class DownloadSpider(Spider):
     name = "download"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
     }
 
     async def start(self):
