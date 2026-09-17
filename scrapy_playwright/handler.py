@@ -403,7 +403,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         self.context_wrappers.clear()
         if hasattr(self, "browser"):
             logger.info("Closing browser")
-            await self.browser.close()
+            close_browser = getattr(self.browser_provider, "close_browser", None)
+            if close_browser is None:
+                await self.browser.close()
+            else:
+                await close_browser(self.browser)
         if getattr(self, "browser_provider", None):
             await self.browser_provider.close()
 

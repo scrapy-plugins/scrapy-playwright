@@ -68,12 +68,34 @@ class BrowserProvider:
         """
         raise NotSupported("This provider does not support persistent contexts")
 
+    async def close_browser(self, browser: Browser) -> None:
+        """Close a browser returned by ``launch_browser``.
+
+        Awaited while the browser is still connected, before ``close``.
+        """
+        await browser.close()
+
     async def close(self) -> None:
         """Release any resources acquired in ``start`` / ``launch_browser``.
 
         Awaited once when the crawl finishes.
         """
 ```
+
+`close_browser` is the only teardown hook that runs while the browser is still
+usable, which is what a provider needs to tell a remote backend that the session
+is over. For instance, a provider talking to a browser over CDP can send a
+command through `browser.new_browser_cdp_session()`, which does not require a
+page:
+
+```python
+    async def close_browser(self, browser: Browser) -> None:
+        session = await browser.new_browser_cdp_session()
+        await session.send("Browser.close")
+        await browser.close()
+```
+
+Providers that do not define `close_browser` get `browser.close()`.
 
 Import any optional third-party library lazily (inside the methods that need
 it), so the setting can point at a provider whose backend is only installed in

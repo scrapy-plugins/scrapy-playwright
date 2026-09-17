@@ -58,6 +58,14 @@ class BrowserProvider(Protocol):
         :class:`scrapy.exceptions.NotSupported`.
         """
 
+    async def close_browser(self, browser: Browser) -> None:
+        """Close a browser returned by :meth:`launch_browser`.
+
+        Awaited when the handler shuts down, while the browser is still connected,
+        so that providers can talk to their backend before the connection is gone.
+        """
+        await browser.close()
+
     async def close(self) -> None:
         """Tear down any allocated resources. Awaited once when the handler shuts down."""
 
@@ -107,6 +115,9 @@ class PlaywrightBrowserProvider:
         if self.browser_type is None:
             raise RuntimeError("start() must be awaited before launch_persistent_context()")
         return await self.browser_type.launch_persistent_context(**context_kwargs)
+
+    async def close_browser(self, browser: Browser) -> None:
+        await browser.close()
 
     async def close(self) -> None:
         if self.playwright_context_manager:
