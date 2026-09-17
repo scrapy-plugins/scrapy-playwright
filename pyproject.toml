@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "scrapy-playwright"
 dynamic = ["version"]
 description = "Playwright integration for Scrapy"
-readme = "README.md"
+readme = "README.rst"
 license = "BSD-3-Clause"
 authors = [
     {name = "Eugenio Lacuesta", email = "eugenio.lacuesta@gmail.com"},
@@ -53,7 +53,7 @@ tag = true
 filename = "scrapy_playwright/__init__.py"
 
 [[tool.bumpversion.files]]
-filename = "docs/changelog.md"
+filename = "docs/changes.rst"
 search = "\\(unreleased\\)$"
 replace = "({now:%Y-%m-%d})"
 regex = true
