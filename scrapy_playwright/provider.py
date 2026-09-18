@@ -58,6 +58,15 @@ class BrowserProvider(Protocol):
         :class:`scrapy.exceptions.NotSupported`.
         """
 
+    async def new_context(self, context_kwargs: dict) -> Optional[BrowserContext]:
+        """Return a non-persistent context, or ``None`` to have the handler create it
+        from the browser returned by :meth:`launch_browser`.
+
+        Optional. Implementing it gives each context its own browser connection,
+        e.g. one remote session per context, instead of a single browser shared by
+        the whole crawl.
+        """
+
     async def close(self) -> None:
         """Tear down any allocated resources. Awaited once when the handler shuts down."""
 
@@ -107,6 +116,9 @@ class PlaywrightBrowserProvider:
         if self.browser_type is None:
             raise RuntimeError("start() must be awaited before launch_persistent_context()")
         return await self.browser_type.launch_persistent_context(**context_kwargs)
+
+    async def new_context(self, context_kwargs: dict) -> None:
+        """Let the handler create contexts from the browser shared by the crawl."""
 
     async def close(self) -> None:
         if self.playwright_context_manager:

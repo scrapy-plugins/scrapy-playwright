@@ -198,7 +198,7 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 Type `str` or `type`, default `"scrapy_playwright.provider.PlaywrightBrowserProvider"`
 
 A class that owns the browser lifecycle (startup, launching/connecting browsers, optional
-persistent contexts, teardown). The value might be either an import path string or the provider
+per-context browsers and persistent contexts, teardown). The value might be either an import path string or the provider
 class itself. The provider is instantiated with the handler configuration object as argument.
 
 The default provider wraps vanilla Playwright and supports everything documented
