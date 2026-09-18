@@ -756,6 +756,22 @@ DOWNLOAD_HANDLERS = {
 }
 ```
 
+### Profiles
+
+Pass a file path in the `profile` keyword argument to keep the context
+[storage state](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+(cookies, local storage) in that file: it is restored when a context with that
+profile is created, and saved when the handler closes the context.
+
+```python
+PLAYWRIGHT_CONTEXTS = {
+    "logged-in": {"profile": "profiles/example-org.json"},
+}
+```
+
+This works with remote browsers, since the state travels with the client. A
+context that you close yourself is not saved.
+
 ### Creating contexts while crawling
 
 If the context specified in the `playwright_context` meta key does not exist, it will be created.
