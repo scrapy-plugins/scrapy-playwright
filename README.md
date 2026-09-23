@@ -377,6 +377,10 @@ set by Playwright will be sent. Keep in mind that in this case, headers passed
 via the `Request.headers` attribute or set by Scrapy components are ignored
 (including cookies set via the `Request.cookies` attribute).
 
+The browser HTTP cache is only used when this setting is `None`,
+[`PLAYWRIGHT_ABORT_REQUEST`](#playwright_abort_request) is unset, and the
+request is a `GET` request without a body.
+
 Example:
 ```python
 async def custom_headers(

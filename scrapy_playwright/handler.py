@@ -52,6 +52,7 @@ from scrapy_playwright._utils import (
     _attach_page_event_handlers,
     _encode_body,
     _get_float_setting,
+    _get_initial_request,
     _get_page_content,
     _is_safe_close_error,
     _make_request_logger,
@@ -471,19 +472,21 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         # nothing to unroute if the page was just created
         if not page_created:
             await page.unroute("**")
-        await page.route(
-            "**",
-            self._make_request_handler(
-                context_name=context_name,
-                method=request.method,
-                url=request.url,
-                headers=request.headers,
-                body=request.body,
-                encoding=request.encoding,
-                spider=spider,
-                initial_request_done=initial_request_done,
-            ),
-        )
+        # routing disables the browser HTTP cache
+        if self._needs_route(request):
+            await page.route(
+                "**",
+                self._make_request_handler(
+                    context_name=context_name,
+                    method=request.method,
+                    url=request.url,
+                    headers=request.headers,
+                    body=request.body,
+                    encoding=request.encoding,
+                    spider=spider,
+                    initial_request_done=initial_request_done,
+                ),
+            )
 
         await _maybe_execute_page_init_callback(
             page=page, request=request, context_name=context_name, spider=spider
@@ -520,6 +523,11 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
         start_time = time()
         response, download = await self._get_response_and_download(request, page, spider)
+
+        # the request that reaches the callback should contain the final headers
+        if isinstance(response, PlaywrightResponse) and not self._needs_route(request):
+            request.headers.clear()
+            request.headers.update(await _get_initial_request(response).all_headers())
 
         # page methods may navigate the main frame away from the original response
         response = await self._maybe_apply_page_methods(
@@ -825,6 +833,14 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             )
 
         return close_browser_context_callback
+
+    def _needs_route(self, request: Request) -> bool:
+        return bool(
+            self.abort_request
+            or self.process_request_headers is not None
+            or request.method.upper() != "GET"
+            or request.body
+        )
 
     def _make_request_handler(
         self,
