@@ -371,6 +371,10 @@ with their values from the Scrapy request. For non-navigation requests (e.g.
 images, stylesheets, scripts, etc), only the `User-Agent` header is overriden,
 for consistency.
 
+Unless this setting is `None`, cookies from the `Cookie` header of the Scrapy
+request are added to the browser context, so they are also sent with later
+requests from that context that they match.
+
 Setting `PLAYWRIGHT_PROCESS_REQUEST_HEADERS=None` will give complete control to
 Playwright, i.e. headers from Scrapy requests will be ignored and only headers
 set by Playwright will be sent. Keep in mind that in this case, headers passed
@@ -387,7 +391,7 @@ async def custom_headers(
 ) -> Dict[str, str]:
     headers = await playwright_request.all_headers()
     scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
-    headers["Cookie"] = scrapy_headers.get("Cookie")
+    headers["Authorization"] = scrapy_headers.get("Authorization")
     return headers
 
 PLAYWRIGHT_PROCESS_REQUEST_HEADERS = custom_headers

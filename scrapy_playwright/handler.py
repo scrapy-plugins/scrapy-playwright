@@ -49,6 +49,7 @@ from scrapy_playwright.headers import use_scrapy_headers
 from scrapy_playwright.page import PageMethod
 from scrapy_playwright._loop import _ThreadedLoopAdapter
 from scrapy_playwright._utils import (
+    _add_request_cookies,
     _attach_page_event_handlers,
     _encode_body,
     _get_float_setting,
@@ -460,6 +461,10 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
         _attach_page_event_handlers(
             page=page, request=request, spider=spider, context_name=context_name
         )
+
+        # Playwright ignores Cookie header overrides, cookies must be in the context
+        if self.process_request_headers is not None:
+            await _add_request_cookies(page.context, request)
 
         # We need to identify the Playwright request that matches the Scrapy request
         # in order to override method and body if necessary.
