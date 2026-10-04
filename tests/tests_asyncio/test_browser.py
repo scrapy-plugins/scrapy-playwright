@@ -26,7 +26,12 @@ async def _run_chromium_devtools() -> Tuple[subprocess.Popen, str]:
     """
     async with async_playwright() as playwright:
         proc = subprocess.Popen(  # pylint: disable=consider-using-with
-            [playwright.chromium.executable_path, "--headless", "--remote-debugging-port=0"],
+            [
+                playwright.chromium.executable_path,
+                "--headless",
+                "--no-sandbox",
+                "--remote-debugging-port=0",
+            ],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -35,6 +40,8 @@ async def _run_chromium_devtools() -> Tuple[subprocess.Popen, str]:
         while devtools_url is None:
             line = proc.stderr.readline().strip()  # type: ignore
             if not line:
+                if proc.poll() is not None:
+                    raise RuntimeError(f"Chromium exited with code {proc.returncode}")
                 time.sleep(0.2)
                 continue
             print("browser output:", line)
