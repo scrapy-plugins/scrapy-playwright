@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from http.server import (
     BaseHTTPRequestHandler,
     HTTPServer,
@@ -63,6 +64,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
             print(f"Sleeping {delay} seconds on path {parsed_path.path}...")
             self.server._stop_event.wait(delay)  # type: ignore[attr-defined]
 
+        self.server.hits[parsed_path.path] += 1  # type: ignore[attr-defined]
+
         if parsed_path.path == "/headers":
             self._send_json(dict(self.headers))
         elif parsed_path.path == "/asdf":
@@ -79,6 +82,19 @@ class _RequestHandler(BaseHTTPRequestHandler):
             self.send_response(301)
             self.send_header("Content-Length", "0")
             self.send_header("Location", "/headers")
+            self.end_headers()
+        elif parsed_path.path == "/cached":
+            body_bytes = b'<html><head><link rel="stylesheet" href="/cached.css"></head></html>'
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body_bytes)))
+            self.end_headers()
+            self.wfile.write(body_bytes)
+        elif parsed_path.path == "/cached.css":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css")
+            self.send_header("Cache-Control", "max-age=3600")
+            self.send_header("Content-Length", "0")
             self.end_headers()
         elif parsed_path.path == "/mancha.pdf":
             body_bytes = (Path(__file__).absolute().parent / "site/files/mancha.pdf").read_bytes()
@@ -107,6 +123,7 @@ class MockServer:
     def __enter__(self):
         self.httpd = HTTPServer(("127.0.0.1", 0), _RequestHandler)
         self.httpd._stop_event = Event()
+        self.httpd.hits = Counter()
         self.address, self.port = self.httpd.server_address
         self.thread = Thread(target=self.httpd.serve_forever)
         self.thread.start()
