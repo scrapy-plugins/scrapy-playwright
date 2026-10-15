@@ -65,7 +65,7 @@ If you're seeing messages such as `JavaScript heap out of memory`, there's a
 chance you're falling into the scope of
 https://github.com/microsoft/playwright/issues/6319. As a workaround, it's
 possible to increase the amount of memory allowed for the Node.js process by
-specifying a value for the the `--max-old-space-size` V8 option in the
+specifying a value for the `--max-old-space-size` V8 option in the
 `NODE_OPTIONS` environment variable, e.g.:
 
 ```
