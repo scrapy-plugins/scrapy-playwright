@@ -51,6 +51,10 @@ class CustomBrowserProvider:
             await self._cm.__aexit__(None, None, None)
 
 
+class ProtocolBrowserProvider(CustomBrowserProvider, BrowserProvider):
+    pass
+
+
 class ClosingBrowserProvider(CustomBrowserProvider):
     """A provider that takes over browser teardown, as a provider that needs to
     notify a remote backend about the session ending would.
@@ -156,18 +160,24 @@ class TestCustomProvider(IsolatedAsyncioTestCase, BaseTestCase):
 
     @allow_windows
     async def test_browser_closed_without_provider_support(self):
-        """Providers predating close_browser still get their browser closed."""
-        settings = {
-            "PLAYWRIGHT_BROWSER_TYPE": "chromium",
-            "PLAYWRIGHT_BROWSER_PROVIDER": CustomBrowserProvider,
-            "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
-        }
-        async with make_handler(settings) as handler:
-            req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
-            await handler._download_request(req, Spider("foo"))
-            browser = handler.browser
+        """Providers that do not define close_browser, either at all or by
+        inheriting it from the protocol, still get their browser closed.
+        """
+        for provider_cls in (CustomBrowserProvider, ProtocolBrowserProvider):
+            with self.subTest(provider_cls=provider_cls):
+                settings = {
+                    "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+                    "PLAYWRIGHT_BROWSER_PROVIDER": provider_cls,
+                    "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
+                }
+                async with make_handler(settings) as handler:
+                    req = Request(
+                        self.static_server.urljoin("/index.html"), meta={"playwright": True}
+                    )
+                    await handler._download_request(req, Spider("foo"))
+                    browser = handler.browser
 
-        assert not browser.is_connected()
+                assert not browser.is_connected()
 
     @allow_windows
     async def test_persistent_context_not_supported(self):
