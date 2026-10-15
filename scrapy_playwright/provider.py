@@ -1,17 +1,3 @@
-"""Pluggable browser providers.
-
-A browser provider owns the browser lifecycle: startup, producing
-launched/connected :class:`~playwright.async_api.Browser` objects, optionally
-producing persistent contexts, and teardown. The download handler delegates to
-the provider configured via the ``PLAYWRIGHT_BROWSER_PROVIDER`` setting (an import
-path or class), defaulting to :class:`PlaywrightBrowserProvider`.
-
-Third-party drivers that expose Playwright-compatible ``Browser`` objects (e.g.
-patchright, camoufox) can be integrated by implementing a provider, without any
-driver-specific code living in the handler. See
-``docs/pluggable-browser-providers.md``.
-"""
-
 from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
 
 from playwright.async_api import (
@@ -33,7 +19,7 @@ __all__ = ["BrowserProvider", "PlaywrightBrowserProvider"]
 
 @runtime_checkable
 class BrowserProvider(Protocol):
-    """Interface expected of ``PLAYWRIGHT_BROWSER_PROVIDER`` implementations.
+    """Interface expected of :setting:`PLAYWRIGHT_BROWSER_PROVIDER` implementations.
 
     Instances receive a :class:`~scrapy_playwright.handler.Config` object as argument
     to their __init__ method. All methods are coroutines and are awaited by the handler.
@@ -48,7 +34,7 @@ class BrowserProvider(Protocol):
         """Return a launched or connected Playwright-compatible ``Browser``.
 
         Called (behind a lock) the first time a browser is needed, and again after a
-        disconnection if ``PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER`` is enabled.
+        disconnection if :setting:`PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER` is enabled.
         """
 
     async def launch_persistent_context(self, context_kwargs: dict) -> BrowserContext:
@@ -68,7 +54,7 @@ class PlaywrightBrowserProvider:
     Encapsulates the browser lifecycle: it starts a
     :class:`~playwright.async_api.PlaywrightContextManager`, resolves the
     configured browser type, and launches locally or connects to a remote
-    browser (``PLAYWRIGHT_CDP_URL`` / ``PLAYWRIGHT_CONNECT_URL``) as needed.
+    browser (:setting:`PLAYWRIGHT_CDP_URL` / :setting:`PLAYWRIGHT_CONNECT_URL`) as needed.
     """
 
     def __init__(self, config: "Config") -> None:
