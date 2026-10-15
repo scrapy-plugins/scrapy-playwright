@@ -14,11 +14,7 @@ class HeadersSpider(Spider):
 
     name = "headers"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
         "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
         "USER_AGENT": "Overridden user agent",
     }

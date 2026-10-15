@@ -13,11 +13,7 @@ class BooksSpider(Spider):
 
     name = "books"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            # "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
         "CONCURRENT_REQUESTS": 32,
         "PLAYWRIGHT_MAX_PAGES_PER_CONTEXT": 4,
         "CLOSESPIDER_ITEMCOUNT": 100,
