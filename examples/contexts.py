@@ -9,11 +9,7 @@ class MultipleContextsSpider(Spider):
 
     name = "contexts"
     custom_settings = {
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
         "PLAYWRIGHT_MAX_CONTEXTS": 6,
         "PLAYWRIGHT_CONTEXTS": {
             "first": {

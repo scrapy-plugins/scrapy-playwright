@@ -39,9 +39,34 @@ so install the ones you plan to use:
 Activation
 ==========
 
-Replace the default ``https`` and/or ``http`` download handlers through the
-:setting:`DOWNLOAD_HANDLERS <scrapy:DOWNLOAD_HANDLERS>` setting, and use the
-:mod:`asyncio` Twisted reactor:
+Enable scrapy-playwright through its :ref:`add-on <scrapy:topics-addons>`:
+
+.. code-block:: python
+
+    # settings.py
+    ADDONS = {
+        "scrapy_playwright.Addon": 100,
+    }
+
+The add-on sets the ``http`` and ``https`` download handlers and the
+:mod:`asyncio`-based Twisted reactor that they require, leaving alone any value
+you have set for those settings yourself.
+
+``ScrapyPlaywrightDownloadHandler`` inherits from the default
+``http``/``https`` handler, and only handles requests that :ref:`ask for
+Playwright <usage>`. The rest are processed by the regular Scrapy download
+handler.
+
+Add-ons require Scrapy 2.10+; on earlier versions, use the manual setup below.
+
+
+Manual setup
+------------
+
+Instead of the add-on, you can replace the default ``https`` and/or ``http``
+download handlers through the :setting:`DOWNLOAD_HANDLERS
+<scrapy:DOWNLOAD_HANDLERS>` setting, and use the :mod:`asyncio` Twisted
+reactor:
 
 .. code-block:: python
 
@@ -56,14 +81,8 @@ Registering the handler for ``https`` is usually enough, since most modern
 sites use HTTPS. Enable the ``http`` handler only if you need to process plain
 HTTP URLs with Playwright.
 
-``ScrapyPlaywrightDownloadHandler`` inherits from the default
-``http``/``https`` handler, and only handles requests that :ref:`ask for
-Playwright <usage>`. The rest are processed by the regular Scrapy download
-handler.
-
 The :setting:`TWISTED_REACTOR <scrapy:TWISTED_REACTOR>` value above is the
 default for projects created with Scrapy 2.7+.
-
 
 Windows support
 ===============

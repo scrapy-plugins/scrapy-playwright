@@ -9,11 +9,7 @@ class HandleExceptionInErrbackSpider(Spider):
     name = "awesome"
     custom_settings = {
         "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000,  # milliseconds
-        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-        "DOWNLOAD_HANDLERS": {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-            # "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-        },
+        "ADDONS": {"scrapy_playwright.Addon": 100},
         "RETRY_TIMES": 0,
     }
 

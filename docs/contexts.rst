@@ -61,13 +61,17 @@ setting do not apply to them.
             },
         }
 
-    Or register the handler for a single scheme, typically ``https``:
+    Or keep the default handler for one of the schemes, so that only one
+    instance of ``ScrapyPlaywrightDownloadHandler`` exists:
 
     .. code-block:: python
 
         DOWNLOAD_HANDLERS = {
-            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "http": "scrapy.core.downloader.handlers.http11.HTTP11DownloadHandler",
         }
+
+    Requests to ``http`` URLs are then never handled by Playwright, even if
+    they set the :reqmeta:`playwright` meta key.
 
 
 .. _create-contexts:
