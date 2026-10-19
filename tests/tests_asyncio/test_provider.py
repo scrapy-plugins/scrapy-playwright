@@ -51,6 +51,24 @@ class CustomBrowserProvider:
             await self._cm.__aexit__(None, None, None)
 
 
+class ProtocolBrowserProvider(CustomBrowserProvider, BrowserProvider):
+    pass
+
+
+class ClosingBrowserProvider(CustomBrowserProvider):
+    """A provider that takes over browser teardown, as a provider that needs to
+    notify a remote backend about the session ending would.
+    """
+
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+        self.closed_browser = False
+
+    async def close_browser(self, browser: Browser) -> None:
+        self.closed_browser = browser.is_connected()
+        await browser.close()
+
+
 class TestProviderSetting(TestCase):
     def test_default_provider_class(self):
         handler = create_handler({})
@@ -102,7 +120,8 @@ class TestPlaywrightBrowserProvider(IsolatedAsyncioTestCase):
             assert isinstance(browser, Browser)
             assert browser.is_connected()
         finally:
-            await browser.close()
+            await provider.close_browser(browser)
+            assert not browser.is_connected()
             await provider.close()
 
 
@@ -122,6 +141,43 @@ class TestCustomProvider(IsolatedAsyncioTestCase, BaseTestCase):
             assert_correct_response(resp, req)
             assert handler.browser_provider.launched
             assert isinstance(handler.browser, Browser)
+
+    @allow_windows
+    async def test_provider_closes_browser(self):
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+            "PLAYWRIGHT_BROWSER_PROVIDER": ClosingBrowserProvider,
+            "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
+        }
+        async with make_handler(settings) as handler:
+            req = Request(self.static_server.urljoin("/index.html"), meta={"playwright": True})
+            await handler._download_request(req, Spider("foo"))
+            provider = handler.browser_provider
+            browser = handler.browser
+
+        assert provider.closed_browser, "close_browser was not awaited on a connected browser"
+        assert not browser.is_connected()
+
+    @allow_windows
+    async def test_browser_closed_without_provider_support(self):
+        """Providers that do not define close_browser, either at all or by
+        inheriting it from the protocol, still get their browser closed.
+        """
+        for provider_cls in (CustomBrowserProvider, ProtocolBrowserProvider):
+            with self.subTest(provider_cls=provider_cls):
+                settings = {
+                    "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+                    "PLAYWRIGHT_BROWSER_PROVIDER": provider_cls,
+                    "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
+                }
+                async with make_handler(settings) as handler:
+                    req = Request(
+                        self.static_server.urljoin("/index.html"), meta={"playwright": True}
+                    )
+                    await handler._download_request(req, Spider("foo"))
+                    browser = handler.browser
+
+                assert not browser.is_connected()
 
     @allow_windows
     async def test_persistent_context_not_supported(self):

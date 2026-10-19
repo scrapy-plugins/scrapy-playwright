@@ -44,6 +44,21 @@ attributes, so that a provider can honor them. The most commonly used are:
 -   ``connect_url`` and ``connect_kwargs``, from
     :setting:`PLAYWRIGHT_CONNECT_URL` and :setting:`PLAYWRIGHT_CONNECT_KWARGS`.
 
+:meth:`~scrapy_playwright.provider.BrowserProvider.close_browser` is the only
+teardown method that runs while the browser is still usable, which is what a
+provider needs to tell a remote backend that the session is over. For example,
+a provider that talks to a browser over CDP can send a command through
+``browser.new_browser_cdp_session()``, which needs no page:
+
+.. code-block:: python
+
+    async def close_browser(self, browser: Browser) -> None:
+        session = await browser.new_browser_cdp_session()
+        await session.send("Browser.close")
+        await browser.close()
+
+Providers that do not define ``close_browser`` get ``browser.close()``.
+
 
 Examples
 ========
