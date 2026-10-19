@@ -335,7 +335,7 @@ It receives the following keyword arguments:
     ) -> dict[str, str]:
         headers = await playwright_request.all_headers()
         scrapy_headers = scrapy_request_data["headers"].to_unicode_dict()
-        headers["Cookie"] = scrapy_headers.get("Cookie")
+        headers["Authorization"] = scrapy_headers.get("Authorization")
         return headers
 
 
@@ -345,6 +345,10 @@ The default function emulates the Scrapy behavior for navigation requests,
 i.e. it overrides headers with their values from the Scrapy request. For
 non-navigation requests, e.g. images, stylesheets or scripts, it only
 overrides the ``User-Agent`` header, for consistency.
+
+Unless this setting is ``None``, cookies from the ``Cookie`` header of the
+Scrapy request are added to the browser context, so they are also sent with
+later requests from that context that they match.
 
 Setting this to ``None`` gives complete control to Playwright: headers from
 Scrapy requests are ignored, and only headers set by Playwright are sent. That

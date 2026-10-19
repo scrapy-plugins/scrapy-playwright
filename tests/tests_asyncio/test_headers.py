@@ -40,6 +40,20 @@ class MixinProcessHeadersTestCase(BaseTestCase):
             assert headers["user-agent"] == "foobar"
 
     @allow_windows
+    async def test_cookies(self):
+        settings_dict = {"PLAYWRIGHT_BROWSER_TYPE": self.browser_type}
+        async with make_handler(settings_dict) as handler:
+            req = Request(
+                url=self.server.urljoin("/headers"),
+                meta={"playwright": True},
+                headers={"Cookie": "foo=bar; asdf=qwerty"},
+            )
+            resp = await handler._download_request(req, Spider("foo"))
+            headers = json.loads(resp.css("pre::text").get())
+            headers = {key.lower(): value for key, value in headers.items()}
+            assert sorted(headers["cookie"].split("; ")) == ["asdf=qwerty", "foo=bar"]
+
+    @allow_windows
     async def test_playwright_headers(self):
         """Ignore Scrapy headers"""
         settings_dict = {
