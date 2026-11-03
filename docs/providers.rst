@@ -27,6 +27,16 @@ implements the asynchronous lifecycle of
 :class:`~typing.Protocol` documents the intent, but any class with those
 methods works.
 
+:meth:`~scrapy_playwright.provider.BrowserProvider.launch_browser` and
+:meth:`~scrapy_playwright.provider.BrowserProvider.new_context` are
+alternative ways to get a context: a provider that implements ``new_context``
+is never asked for a browser, unless a context requests a ``user_data_dir``
+and goes through
+:meth:`~scrapy_playwright.provider.BrowserProvider.launch_persistent_context`.
+Since requests choose their context through the :reqmeta:`playwright_context`
+and :reqmeta:`playwright_context_kwargs` meta keys, a per-context browser is
+also a per-request browser whenever the spider asks for a context per request.
+
 Import any optional third-party library lazily, inside the methods that need
 it, so that the setting can point at a provider whose backend is only
 installed in some environments.
@@ -59,6 +69,59 @@ to any of the third-party projects mentioned here. They are referenced purely
 as examples of Playwright-compatible backends. Refer to the documentation and
 the license of each project for authoritative, up-to-date usage, and evaluate
 any third-party dependency yourself before using it.
+
+
+One remote browser per context
+------------------------------
+
+A provider for a remote browser service, where every context gets its own
+connection and the connection is closed with the context. ``context_kwargs``
+is what the request asked for through :reqmeta:`playwright_context_kwargs`, so
+per-context settings can be read from it, and whatever the backend does not
+understand has to be removed before the rest is passed on.
+
+.. code-block:: python
+
+    import asyncio
+
+    from playwright.async_api import PlaywrightContextManager
+
+    from scrapy_playwright.handler import Config
+
+
+    class RemoteBrowserProvider:
+        def __init__(self, config: Config) -> None:
+            self.config = config
+            self.context_manager = PlaywrightContextManager()
+
+        async def start(self) -> None:
+            playwright = await self.context_manager.start()
+            self.browser_type = getattr(playwright, self.config.browser_type_name)
+
+        async def new_context(self, context_kwargs: dict):
+            context_kwargs = dict(context_kwargs)
+            session_ttl = context_kwargs.pop("session_ttl", 600)
+            browser = await self.browser_type.connect_over_cdp(
+                f"{self.config.cdp_url}?ttl={session_ttl}", **self.config.cdp_kwargs
+            )
+            context = await browser.new_context(**context_kwargs)
+            context.on("close", lambda _: asyncio.ensure_future(browser.close()))
+            return context
+
+        async def close(self) -> None:
+            await self.context_manager.__aexit__()
+
+.. code-block:: python
+
+    # spider
+    yield scrapy.Request(
+        url="https://example.org",
+        meta={
+            "playwright": True,
+            "playwright_context": "session1",
+            "playwright_context_kwargs": {"session_ttl": 60},
+        },
+    )
 
 
 patchright

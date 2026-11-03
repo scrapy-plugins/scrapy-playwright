@@ -43,8 +43,9 @@ Type: :class:`type` or :class:`str`
 Default: :class:`scrapy_playwright.provider.PlaywrightBrowserProvider`
 
 A class, or the import path of one, that owns the browser lifecycle: startup,
-launching or connecting browsers, optional persistent contexts, and teardown.
-It is instantiated with the handler configuration object as its only argument.
+launching or connecting browsers, optional per-context browsers and persistent
+contexts, and teardown. It is instantiated with the handler configuration
+object as its only argument.
 
 .. code-block:: python
 

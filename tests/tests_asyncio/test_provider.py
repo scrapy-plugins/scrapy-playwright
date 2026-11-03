@@ -1,5 +1,5 @@
 import tempfile
-from typing import Optional
+from typing import List, Optional
 from unittest import IsolatedAsyncioTestCase, TestCase
 from uuid import uuid4
 
@@ -141,3 +141,50 @@ class TestCustomProvider(IsolatedAsyncioTestCase, BaseTestCase):
             )
             with pytest.raises(NotSupported):
                 await handler._download_request(req, Spider("foo"))
+
+
+class PerContextBrowserProvider:
+    """A provider that owns one browser per context, as a remote provider would
+    own one remote session per context.
+    """
+
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self._cm = async_playwright()
+        self.browsers: List[Browser] = []
+
+    async def start(self) -> None:
+        playwright = await self._cm.__aenter__()
+        self.browser_type = getattr(playwright, self.config.browser_type_name)
+
+    async def launch_browser(self) -> Browser:
+        raise AssertionError("launch_browser() should not be called")
+
+    async def new_context(self, context_kwargs: dict):
+        browser = await self.browser_type.launch(**self.config.launch_options)
+        self.browsers.append(browser)
+        return await browser.new_context(**context_kwargs)
+
+    async def close(self) -> None:
+        for browser in self.browsers:
+            await browser.close()
+        await self._cm.__aexit__(None, None, None)
+
+
+class TestPerContextProvider(IsolatedAsyncioTestCase, BaseTestCase):
+    @allow_windows
+    async def test_one_browser_per_context(self):
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+            "PLAYWRIGHT_BROWSER_PROVIDER": PerContextBrowserProvider,
+            "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": True},
+        }
+        async with make_handler(settings) as handler:
+            for name in ("first", "second"):
+                req = Request(
+                    self.static_server.urljoin("/index.html"),
+                    meta={"playwright": True, "playwright_context": name},
+                )
+                assert_correct_response(await handler._download_request(req, Spider("foo")), req)
+            assert len(handler.browser_provider.browsers) == 2
+            assert not hasattr(handler, "browser")

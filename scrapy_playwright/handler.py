@@ -255,6 +255,13 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 self.stats.inc_value("playwright/browser_count")
                 self.browser.on("disconnected", self._browser_disconnected_callback)
 
+    async def _provider_new_context(self, context_kwargs: dict) -> Optional[BrowserContext]:
+        """Let the provider create the context itself, if it implements ``new_context``."""
+        new_context = getattr(self.browser_provider, "new_context", None)
+        if new_context is None:
+            return None
+        return await new_context(context_kwargs)
+
     async def _create_browser_context(
         self,
         name: str,
@@ -275,8 +282,10 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
                 context = await self.browser_provider.launch_persistent_context(context_kwargs)
                 persistent = True
             else:
-                await self._maybe_launch_browser()
-                context = await self.browser.new_context(**context_kwargs)
+                context = await self._provider_new_context(context_kwargs)
+                if context is None:
+                    await self._maybe_launch_browser()
+                    context = await self.browser.new_context(**context_kwargs)
                 remote = bool(self.config.cdp_url or self.config.connect_url)
         except Exception:
             if acquired:
