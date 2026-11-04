@@ -2,6 +2,7 @@ import logging
 from typing import Awaitable, Callable, Iterator, Optional, Tuple, Union
 
 from playwright.async_api import (
+    BrowserContext,
     Error,
     Page,
     Request as PlaywrightRequest,
@@ -180,6 +181,17 @@ async def _maybe_execute_page_init_callback(
                 },
                 exc_info=True,
             )
+
+
+async def _add_request_cookies(context: BrowserContext, request: ScrapyRequest) -> None:
+    cookies = []
+    for header in request.headers.getlist("Cookie"):
+        for pair in to_unicode(header, errors="replace").split(";"):
+            name, sep, value = pair.strip().partition("=")
+            if sep:
+                cookies.append({"name": name, "value": value, "url": request.url})
+    if cookies:
+        await context.add_cookies(cookies)
 
 
 def _make_request_logger(context_name: str, spider: Spider) -> Callable:
