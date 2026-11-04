@@ -149,6 +149,27 @@ class MixinTestCaseMultipleContexts(BaseTestCase):
             assert cookie["domain"] == "example.org"
 
     @allow_windows
+    async def test_profile_round_trip(self):
+        profile_path = Path(tempfile.gettempdir()) / str(uuid4()) / "profile.json"
+        settings = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"profile": str(profile_path)}},
+        }
+        async with make_handler(settings) as handler:
+            assert handler.context_wrappers["default"].profile_path == profile_path
+            await handler.context_wrappers["default"].context.add_cookies(
+                [{"url": "https://example.org", "name": "foo", "value": "bar"}]
+            )
+        assert profile_path.is_file()
+
+        async with make_handler(settings) as handler:
+            storage_state = await handler.context_wrappers["default"].context.storage_state()
+        cookie = storage_state["cookies"][0]
+        assert cookie["name"] == "foo"
+        assert cookie["value"] == "bar"
+        assert cookie["domain"] == "example.org"
+
+    @allow_windows
     async def test_persistent_context(self):
         temp_dir = f"{tempfile.gettempdir()}/{uuid4()}"
         settings = {

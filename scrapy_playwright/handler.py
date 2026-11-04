@@ -81,6 +81,7 @@ DEFAULT_BROWSER_TYPE = "chromium"
 DEFAULT_CONTEXT_NAME = "default"
 DEFAULT_BROWSER_PROVIDER = "scrapy_playwright.provider.PlaywrightBrowserProvider"
 PERSISTENT_CONTEXT_PATH_KEY = "user_data_dir"
+PROFILE_PATH_KEY = "profile"
 
 
 @dataclass
@@ -88,6 +89,7 @@ class BrowserContextWrapper:
     context: BrowserContext
     semaphore: asyncio.Semaphore
     persistent: bool
+    profile_path: Optional[Path] = None
 
 
 @dataclass
@@ -269,12 +271,18 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             await self.context_semaphore.acquire()
             acquired = True
         try:
-            context_kwargs = context_kwargs or {}
+            context_kwargs = dict(context_kwargs or {})
+            profile_path = context_kwargs.pop(PROFILE_PATH_KEY, None)
             persistent = remote = False
             if context_kwargs.get(PERSISTENT_CONTEXT_PATH_KEY):
                 context = await self.browser_provider.launch_persistent_context(context_kwargs)
                 persistent = True
+                profile_path = None
             else:
+                if profile_path is not None:
+                    profile_path = Path(profile_path)
+                    if profile_path.is_file():
+                        context_kwargs["storage_state"] = profile_path
                 await self._maybe_launch_browser()
                 context = await self.browser.new_context(**context_kwargs)
                 remote = bool(self.config.cdp_url or self.config.connect_url)
@@ -307,9 +315,20 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
             context=context,
             semaphore=asyncio.Semaphore(value=self.config.max_pages_per_context),
             persistent=persistent,
+            profile_path=profile_path,
         )
         self._set_stats_max_concurrent_context_count()
         return self.context_wrappers[name]
+
+    async def _close_context(self, ctx_wrapper: BrowserContextWrapper) -> None:
+        """Save the context profile, if it has one, and close the context."""
+        if ctx_wrapper.profile_path is not None:
+            try:
+                ctx_wrapper.profile_path.parent.mkdir(parents=True, exist_ok=True)
+                await ctx_wrapper.context.storage_state(path=ctx_wrapper.profile_path)
+            except (PlaywrightError, OSError) as ex:
+                logger.warning(f"Could not save profile {ctx_wrapper.profile_path}: {ex}")
+        await ctx_wrapper.context.close()
 
     async def _create_page(self, request: Request, spider: Spider) -> Page:
         """Create a new page in a context, also creating a new context if necessary."""
@@ -399,7 +418,9 @@ class ScrapyPlaywrightDownloadHandler(HTTP11DownloadHandler):
 
     async def _close(self) -> None:
         with suppress(TargetClosedError):
-            await asyncio.gather(*[ctx.context.close() for ctx in self.context_wrappers.values()])
+            await asyncio.gather(
+                *[self._close_context(ctx) for ctx in self.context_wrappers.values()]
+            )
         self.context_wrappers.clear()
         if hasattr(self, "browser"):
             logger.info("Closing browser")

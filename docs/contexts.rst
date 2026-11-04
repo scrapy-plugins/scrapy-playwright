@@ -70,6 +70,29 @@ setting do not apply to them.
         }
 
 
+.. _context-profiles:
+
+Profiles
+========
+
+.. versionadded:: VERSION
+
+Pass a file path in the ``profile`` keyword argument to keep the context
+`storage state
+<https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state>`__
+(cookies, local storage) in that file: it is restored when a context with that
+profile is created, and saved when the handler closes the context.
+
+.. code-block:: python
+
+    PLAYWRIGHT_CONTEXTS = {
+        "logged-in": {"profile": "profiles/example-org.json"},
+    }
+
+This works with remote browsers, since the state travels with the client. A
+context that you close yourself is not saved.
+
+
 .. _create-contexts:
 
 Creating contexts while crawling
