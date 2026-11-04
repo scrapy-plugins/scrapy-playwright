@@ -353,6 +353,10 @@ includes headers passed through the :attr:`Request.headers
 cookies set through the :attr:`Request.cookies
 <scrapy.http.Request.cookies>` attribute.
 
+The browser HTTP cache is only used when this setting is ``None``,
+:setting:`PLAYWRIGHT_ABORT_REQUEST` is unset, and the request is a ``GET``
+request without a body.
+
 
 .. setting:: PLAYWRIGHT_RESTART_DISCONNECTED_BROWSER
 

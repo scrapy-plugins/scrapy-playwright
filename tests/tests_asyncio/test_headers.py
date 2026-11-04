@@ -64,6 +64,52 @@ class MixinProcessHeadersTestCase(BaseTestCase):
             assert b"asdf" not in req.headers
 
     @allow_windows
+    async def test_playwright_headers_routed(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
+            "PLAYWRIGHT_ABORT_REQUEST": lambda _: False,
+        }
+        async with make_handler(settings_dict) as handler:
+            req = Request(
+                url=self.server.urljoin("/headers"),
+                meta={"playwright": True},
+                headers={"User-Agent": "foobar"},
+            )
+            resp = await handler._download_request(req, Spider("foo"))
+            headers = json.loads(resp.css("pre::text").get())
+            headers = {key.lower(): value for key, value in headers.items()}
+            assert headers["user-agent"] == self.browser_type
+
+    @allow_windows
+    async def test_playwright_headers_redirect(self):
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_CONTEXTS": {"default": {"user_agent": self.browser_type}},
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
+        }
+        async with make_handler(settings_dict) as handler:
+            req = Request(url=self.server.urljoin("/redirect2"), meta={"playwright": True})
+            await handler._download_request(req, Spider("foo"))
+            assert req.headers["user-agent"].decode("utf-8") == self.browser_type
+
+    @allow_windows
+    async def test_browser_cache(self):
+        if self.browser_type != "chromium":
+            pytest.skip("Only Chromium seems to use its HTTP cache")
+        settings_dict = {
+            "PLAYWRIGHT_BROWSER_TYPE": self.browser_type,
+            "PLAYWRIGHT_PROCESS_REQUEST_HEADERS": None,
+        }
+        hits = self.server.httpd.hits["/cached.css"]
+        async with make_handler(settings_dict) as handler:
+            for _ in range(2):
+                req = Request(url=self.server.urljoin("/cached"), meta={"playwright": True})
+                await handler._download_request(req, Spider("foo"))
+        assert self.server.httpd.hits["/cached.css"] == hits + 1
+
+    @allow_windows
     async def test_use_custom_headers_ok(self):
         """Custom header processing function"""
 

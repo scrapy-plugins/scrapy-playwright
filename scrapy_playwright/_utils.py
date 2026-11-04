@@ -134,6 +134,13 @@ def _attach_page_event_handlers(
                 )
 
 
+def _get_initial_request(response: PlaywrightResponse) -> PlaywrightRequest:
+    request = response.request
+    while request.redirected_from is not None:
+        request = request.redirected_from
+    return request
+
+
 async def _set_redirect_meta(request: ScrapyRequest, response: PlaywrightResponse) -> None:
     """Update a Scrapy request with metadata about redirects."""
     redirect_times: int = 0
