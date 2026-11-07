@@ -52,14 +52,21 @@ Scroll down on an infinite scroll page, take a screenshot of the full page:
                         PageMethod("wait_for_selector", "div.quote:nth-child(11)"),
                     ],
                 ),
+                errback=self.errback_close_page,
             )
 
         async def parse(self, response, **kwargs):
             page = response.meta["playwright_page"]
-            await page.screenshot(path="quotes.png", full_page=True)
-            await page.close()
+            try:
+                await page.screenshot(path="quotes.png", full_page=True)
+            finally:
+                await page.close()
             # quotes from several pages
             return {"quote_count": len(response.css("div.quote"))}
+
+        async def errback_close_page(self, failure):
+            page = failure.request.meta["playwright_page"]
+            await page.close()
 
 See the `examples directory
 <https://github.com/scrapy-plugins/scrapy-playwright/tree/main/examples>`__ for
