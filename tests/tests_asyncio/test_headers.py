@@ -2,10 +2,14 @@ import json
 import platform
 import warnings
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from scrapy import Spider, Request
+from scrapy.exceptions import ScrapyDeprecationWarning
+from scrapy.http import Headers
 
+from scrapy_playwright.headers import use_scrapy_headers
 from tests import allow_windows, make_handler, BaseTestCase
 
 
@@ -106,3 +110,103 @@ class TestProcessHeadersFirefox(IsolatedAsyncioTestCase, MixinProcessHeadersTest
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Test WebKit only on Darwin")
 class TestProcessHeadersWebkit(IsolatedAsyncioTestCase, MixinProcessHeadersTestCase):
     browser_type = "webkit"
+
+
+def _lower_keys(headers: dict) -> dict:
+    lowered = {key.lower(): value for key, value in headers.items()}
+    assert len(lowered) == len(headers), f"duplicated header names: {headers}"
+    return lowered
+
+
+class TestUseScrapyHeaders(IsolatedAsyncioTestCase):
+    """Call use_scrapy_headers directly, without a browser."""
+
+    @staticmethod
+    async def _process(
+        scrapy_headers: dict,
+        playwright_headers: dict,
+        is_navigation: bool = True,
+        browser_type_name: str = "chromium",
+    ) -> dict:
+        playwright_request = AsyncMock()
+        playwright_request.url = "https://example.org/path"
+        playwright_request.is_navigation_request = MagicMock(return_value=is_navigation)
+        playwright_request.all_headers.return_value = playwright_headers
+        return await use_scrapy_headers(
+            browser_type_name=browser_type_name,
+            playwright_request=playwright_request,
+            scrapy_request_data={"headers": Headers(scrapy_headers)},
+        )
+
+    async def test_no_deprecation_warning(self):
+        for is_navigation in (True, False):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", ScrapyDeprecationWarning)
+                await self._process(
+                    scrapy_headers={"User-Agent": "scrapy-ua"},
+                    playwright_headers={"user-agent": "pw-ua"},
+                    is_navigation=is_navigation,
+                )
+
+    async def test_repeated_headers_merged(self):
+        headers = await self._process(
+            scrapy_headers={"X-Multi": ["a", "b"]},
+            playwright_headers={},
+        )
+        assert _lower_keys(headers)["x-multi"] == "a,b"
+
+    async def test_headers_without_value_kept(self):
+        headers = await self._process(
+            scrapy_headers={"X-Empty": None, "User-Agent": None, "X-Set": "1"},
+            playwright_headers={"user-agent": "pw-ua"},
+        )
+        assert list(_lower_keys(headers).items()) == [
+            ("x-empty", ""),
+            ("user-agent", ""),
+            ("x-set", "1"),
+        ]
+
+    async def test_result_lookups_case_insensitive(self):
+        headers = await self._process(
+            scrapy_headers={"X-Multi": ["a", "b"]},
+            playwright_headers={},
+        )
+        assert headers["X-MULTI"] == headers["x-multi"] == "a,b"
+        assert "X-MULTI" in headers
+        assert headers.get("x-multi") == "a,b"
+
+    async def test_scrapy_headers_take_precedence(self):
+        headers = await self._process(
+            scrapy_headers={"User-Agent": "scrapy-ua", "Referer": "https://scrapy.example"},
+            playwright_headers={"user-agent": "pw-ua", "referer": "https://pw.example"},
+        )
+        assert _lower_keys(headers) == {
+            "user-agent": "scrapy-ua",
+            "referer": "https://scrapy.example",
+        }
+
+    async def test_playwright_headers_as_fallback(self):
+        headers = await self._process(
+            scrapy_headers={},
+            playwright_headers={"user-agent": "pw-ua", "referer": "https://pw.example"},
+        )
+        assert _lower_keys(headers) == {
+            "user-agent": "pw-ua",
+            "referer": "https://pw.example",
+        }
+
+    async def test_firefox_host_overridden(self):
+        headers = await self._process(
+            scrapy_headers={"Host": "scrapy.example"},
+            playwright_headers={},
+            browser_type_name="firefox",
+        )
+        assert _lower_keys(headers)["host"] == "example.org"
+
+    async def test_non_navigation_user_agent(self):
+        headers = await self._process(
+            scrapy_headers={"User-Agent": "scrapy-ua", "X-Multi": ["a", "b"]},
+            playwright_headers={"user-agent": "pw-ua", "accept": "*/*"},
+            is_navigation=False,
+        )
+        assert headers == {"user-agent": "scrapy-ua", "accept": "*/*"}
